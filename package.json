@@ -16,5 +16,8 @@
   "type": "commonjs",
   "devDependencies": {
     "@playwright/test": "^1.63.0"
+  },
+  "dependencies": {
+    "mysql2": "^3.24.4"
   }
 }
