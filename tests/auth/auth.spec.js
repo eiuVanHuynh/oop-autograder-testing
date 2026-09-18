@@ -55,7 +55,7 @@ const tc01ButtonTest = new ButtonTest(
   "TC-01_SignIn_Button",
   tc01Button,
   ExpectedAction.SUBMIT,
-  "/student-history",
+  "/student-dashboard",
 );
 
 const tc01TestCase = new TestCase(
