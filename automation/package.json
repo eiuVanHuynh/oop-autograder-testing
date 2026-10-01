@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "playwright test",
-    "report:db": "node tests/utils/export-report.js"
+    "report:db": "node scripts/export-report.js"
   },
   "keywords": [],
   "author": "",

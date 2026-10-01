@@ -138,3 +138,11 @@ dist
 
 # environment
 .env
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+
+# Test artifacts
+*.zip

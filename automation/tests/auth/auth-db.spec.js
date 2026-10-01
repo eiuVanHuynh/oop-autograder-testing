@@ -14,8 +14,8 @@ test("TC-AUTH-005 - Invalid login using MySQL test data", async ({ page }) => {
             tc.title,
             td.input_data,
             td.expected_output
-        FROM test_cases tc
-        JOIN test_data td
+        FROM Test_Cases tc
+        JOIN Test_Data td
             ON tc.test_id = td.test_id
         WHERE tc.test_id = ?
     `,
