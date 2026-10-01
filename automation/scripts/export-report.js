@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
-const { query, closeDb } = require('./db-client');
+const { query, closeDb } = require('../tests/utils/db-client');
 
 async function exportPDFReport() {
   try {

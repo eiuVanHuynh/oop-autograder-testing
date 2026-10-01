@@ -1,4 +1,4 @@
-const { query, closeDb } = require('./db-client');
+const { query, closeDb } = require('../tests/utils/db-client');
 const crypto = require('crypto');
 
 class MySQLLoggerReporter {
