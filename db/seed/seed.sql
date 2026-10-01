@@ -6,16 +6,16 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- CLEAN EXISTING SEED DATA
 -- ============================================================
 
-DELETE FROM test_data;
-DELETE FROM test_steps;
-DELETE FROM test_specs;
-DELETE FROM test_cases;
-DELETE FROM test_suites;
+DELETE FROM Test_Data;
+DELETE FROM Test_Steps;
+DELETE FROM Test_Specs;
+DELETE FROM Test_Cases;
+DELETE FROM Test_Suites;
 
-ALTER TABLE test_suites AUTO_INCREMENT = 1;
-ALTER TABLE test_specs AUTO_INCREMENT = 1;
-ALTER TABLE test_steps AUTO_INCREMENT = 1;
-ALTER TABLE test_data AUTO_INCREMENT = 1;
+ALTER TABLE Test_Suites AUTO_INCREMENT = 1;
+ALTER TABLE Test_Specs AUTO_INCREMENT = 1;
+ALTER TABLE Test_Steps AUTO_INCREMENT = 1;
+ALTER TABLE Test_Data AUTO_INCREMENT = 1;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -24,7 +24,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- 1. TEST SUITES
 -- ============================================================
 
-INSERT INTO test_suites
+INSERT INTO Test_Suites
 (
     suite_name,
     module_group,
@@ -47,7 +47,7 @@ VALUES
 -- 2. TEST CASES
 -- ============================================================
 
-INSERT INTO test_cases
+INSERT INTO Test_Cases
 (
     test_id,
     suite_id,
@@ -209,7 +209,7 @@ VALUES
 -- 3. TEST SPECS
 -- ============================================================
 
-INSERT INTO test_specs
+INSERT INTO Test_Specs
 (
     test_id,
     spec_name,
@@ -359,7 +359,7 @@ VALUES
 -- 4. TEST STEPS
 -- ============================================================
 
-INSERT INTO test_steps
+INSERT INTO Test_Steps
 (
     test_id,
     step_order,
@@ -702,7 +702,7 @@ VALUES
 -- 5. TEST DATA
 -- ============================================================
 
-INSERT INTO test_data
+INSERT INTO Test_Data
 (
     test_id,
     data_name,
@@ -852,28 +852,28 @@ VALUES
 -- 6. VERIFICATION
 -- ============================================================
 
-SELECT 'test_suites' AS table_name, COUNT(*) AS total
-FROM test_suites
+SELECT 'Test_Suites' AS table_name, COUNT(*) AS total
+FROM Test_Suites
 
 UNION ALL
 
-SELECT 'test_cases', COUNT(*)
-FROM test_cases
+SELECT 'Test_Cases', COUNT(*)
+FROM Test_Cases
 
 UNION ALL
 
-SELECT 'test_specs', COUNT(*)
-FROM test_specs
+SELECT 'Test_Specs', COUNT(*)
+FROM Test_Specs
 
 UNION ALL
 
-SELECT 'test_steps', COUNT(*)
-FROM test_steps
+SELECT 'Test_Steps', COUNT(*)
+FROM Test_Steps
 
 UNION ALL
 
-SELECT 'test_data', COUNT(*)
-FROM test_data;
+SELECT 'Test_Data', COUNT(*)
+FROM Test_Data;
 
 
 -- Show test cases
@@ -884,7 +884,7 @@ SELECT
     tc.title,
     tc.test_type,
     tc.priority
-FROM test_cases tc
-JOIN test_suites ts
+FROM Test_Cases tc
+JOIN Test_Suites ts
     ON tc.suite_id = ts.suite_id
 ORDER BY tc.test_id;
