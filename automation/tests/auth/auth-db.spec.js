@@ -1,36 +1,57 @@
 const { test, expect } = require("@playwright/test");
 const { query, closeDb } = require("../utils/db-client");
 
+const TC_CODE = "TC-AUTH-005";
+
 test.afterAll(async () => {
   await closeDb();
 });
 
 test("TC-AUTH-005 - Invalid login using MySQL test data", async ({ page }) => {
-  // 1. Get test data from MySQL
-  const rows = await query(
+  // 1. Lấy dữ liệu nhập từ Test_Data (mỗi dòng = một field)
+  const dataRows = await query(
     `
-        SELECT
-            tc.test_id,
-            tc.title,
-            td.input_data,
-            td.expected_output
-        FROM Test_Cases tc
-        JOIN Test_Data td
-            ON tc.test_id = td.test_id
-        WHERE tc.test_id = ?
+      SELECT
+        td.field_name,
+        td.\`value\`
+      FROM Test_Cases tc
+      JOIN Test_Data td
+        ON tc.test_id = td.test_id
+      WHERE tc.tc_code = ?
     `,
-    ["TC-AUTH-005"],
+    [TC_CODE],
   );
 
-  expect(rows.length).toBe(1);
+  const inputData = {};
+  for (const row of dataRows) {
+    inputData[row.field_name] = row.value;
+  }
 
-  // 2. Parse JSON data
-  const inputData = JSON.parse(rows[0].input_data);
-  const expectedOutput = JSON.parse(rows[0].expected_output);
+  expect(inputData.username).toBeTruthy();
+  expect(inputData.password).toBeTruthy();
 
-  console.log("Test case:", rows[0].test_id);
+  // 2. Lấy thông báo lỗi mong đợi từ bước VERIFY cuối cùng (target dạng "text=...")
+  const stepRows = await query(
+    `
+      SELECT ts.target
+      FROM Test_Steps ts
+      JOIN Test_Cases tc
+        ON ts.test_id = tc.test_id
+      WHERE tc.tc_code = ?
+        AND ts.action = 'VERIFY'
+        AND ts.target LIKE 'text=%'
+      ORDER BY ts.step_order DESC
+      LIMIT 1
+    `,
+    [TC_CODE],
+  );
+
+  expect(stepRows.length).toBe(1);
+  const expectedMessage = stepRows[0].target.replace(/^text=/, "");
+
+  console.log("Test case:", TC_CODE);
   console.log("Input:", inputData);
-  console.log("Expected:", expectedOutput);
+  console.log("Expected message:", expectedMessage);
 
   // 3. Monitor API requests
   page.on("request", (request) => {
@@ -71,7 +92,7 @@ test("TC-AUTH-005 - Invalid login using MySQL test data", async ({ page }) => {
   console.log("Page text after login:", await page.locator("body").innerText());
 
   // 11. Verify expected error
-  await expect(page.getByText(expectedOutput.message)).toBeVisible({
+  await expect(page.getByText(expectedMessage)).toBeVisible({
     timeout: 5000,
   });
 });

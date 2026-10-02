@@ -9,17 +9,20 @@ test('Read test cases from MySQL', async () => {
     const rows = await query(`
         SELECT
             tc.test_id,
+            tc.tc_code,
             tc.title,
-            tc.module,
+            sp.spec_code,
             tc.test_type,
             tc.priority,
-            td.data_name,
-            td.input_data,
-            td.expected_output
+            td.field_name,
+            td.\`value\`,
+            td.is_valid
         FROM Test_Cases tc
+        JOIN Test_Specs sp
+            ON tc.spec_id = sp.spec_id
         LEFT JOIN Test_Data td
             ON tc.test_id = td.test_id
-        ORDER BY tc.test_id
+        ORDER BY tc.test_id, td.data_id
     `);
 
     const testCaseIds = new Set(rows.map(row => row.test_id));
@@ -30,11 +33,12 @@ test('Read test cases from MySQL', async () => {
 
     for (const row of rows) {
         console.log({
-            test_id: row.test_id,
+            tc_code: row.tc_code,
             title: row.title,
-            data_name: row.data_name,
-            input_data: row.input_data,
-            expected_output: row.expected_output
+            spec_code: row.spec_code,
+            field_name: row.field_name,
+            value: row.value,
+            is_valid: row.is_valid
         });
     }
 });
