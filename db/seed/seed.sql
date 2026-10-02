@@ -7,9 +7,10 @@
 -- is set to NULL. FOREIGN_KEY_CHECKS stays ON so cascades work.
 -- ============================================================
 
-DELETE FROM Test_Cases;
-DELETE FROM Test_Specs;
-DELETE FROM Test_Suites;
+-- WHERE tren cot khoa chinh de qua duoc safe update mode (Error 1175) cua Workbench.
+DELETE FROM Test_Cases  WHERE test_id  > 0;
+DELETE FROM Test_Specs  WHERE spec_id  > 0;
+DELETE FROM Test_Suites WHERE suite_id > 0;
 
 ALTER TABLE Test_Suites AUTO_INCREMENT = 1;
 ALTER TABLE Test_Specs  AUTO_INCREMENT = 1;
@@ -177,7 +178,7 @@ CREATE TEMPORARY TABLE tmp_steps (
     action          TEXT         NOT NULL,
     target          VARCHAR(255) NULL,
     expected_result TEXT         NULL
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO tmp_steps (tc_code, step_order, action, target, expected_result)
 VALUES
@@ -256,7 +257,7 @@ CREATE TEMPORARY TABLE tmp_data (
     field_name VARCHAR(100) NOT NULL,
     `value`    TEXT         NULL,
     is_valid   BOOLEAN      NOT NULL
-);
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO tmp_data (tc_code, field_name, `value`, is_valid)
 VALUES
