@@ -19,7 +19,7 @@ const test = base.extend({
       page,
       process.env.TEST_STUDENT_IRN,
       process.env.TEST_STUDENT_PASSWORD,
-      /\/student\/dashboard/
+      /\/student-dashboard/
     );
 
     await use(page);
