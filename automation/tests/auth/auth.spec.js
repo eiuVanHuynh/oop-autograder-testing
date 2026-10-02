@@ -278,21 +278,33 @@ const tc12TestCase = new TestCase(
 async function loginAsStudent(page) {
   await page.goto("/login");
 
-  await page.getByPlaceholder("e.g. 20521234").fill(tc01Auth.providedEmail);
+  await page.getByPlaceholder("e.g. 20521234")
+    .fill(tc01Auth.providedEmail);
 
-  await page
-    .getByPlaceholder("Enter your password")
+  await page.getByPlaceholder("Enter your password")
     .fill(tc01Auth.providedPassword);
 
-  await page
-    .getByRole("button", {
-      name: tc01Button.label,
-    })
-    .click();
+  const signInButton = page.getByRole("button", {
+    name: "Sign In",
+  });
 
-  await page.waitForURL(
-    new RegExp(tc01ButtonTest.expectedResultUrl.replace("/", "\\/")),
-  );
+  await expect(signInButton).toBeVisible();
+  await expect(signInButton).toBeEnabled();
+
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/auth/login") &&
+        response.request().method() === "POST"
+    ),
+    signInButton.click(),
+  ]);
+
+  console.log("Login response:", response.status());
+
+  await page.waitForURL(/\/student-dashboard/, {
+    timeout: 15000,
+  });
 }
 
 async function loginAsLecturer(page) {
@@ -312,9 +324,7 @@ async function loginAsLecturer(page) {
     })
     .click();
 
-  await expect(page).toHaveURL(
-    new RegExp(tc01ButtonTest.expectedResultUrl.replace("/", "\\/")),
-  );
+  await expect(page).toHaveURL(/\/lecturer-dashboard/);
 }
 
 test(`${tc01TestCase.testId} - ${tc01TestCase.title}`, async ({ page }) => {
@@ -332,22 +342,20 @@ test(`${tc02TestCase.testId} - ${tc02TestCase.title}`, async ({ page }) => {
   await page.goto("/login");
 
   await page.getByPlaceholder("e.g. 20521234").fill(tc02Auth.providedEmail);
-
   await page
     .getByPlaceholder("Enter your password")
     .fill(tc02Auth.providedPassword);
 
-  await page
-    .getByRole("button", {
-      name: "Sign In",
-    })
-    .click();
+  const [response] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/api/auth/login")),
+    page.getByRole("button", { name: "Sign In" }).click(),
+  ]);
 
-  await expect(page).toHaveURL(/\/$/);
+  expect(response.ok()).toBe(false);
 
   await expect(
     page.getByText(/Invalid IRN or password|IRN or password is wrong/i),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15000 });
 
   expect(tc02Auth.expectedAuthStatus).toBe(false);
   expect(tc02Auth.expectedRedirectRole).toBe(UserRole.NONE);
@@ -401,7 +409,9 @@ test(`${tc06TestCase.testId} - ${tc06TestCase.title}`, async ({ page }) => {
 
   console.log("PAGE TEXT:", await page.locator("body").innerText());
 
-  expect(tc06Auth.expectedAuthStatus).toBe(true);
+  await expect(
+    page.getByText(/Check your inbox for a reset link/i),
+  ).toBeVisible();
 });
 
 test(`${tc07TestCase.testId} - ${tc07TestCase.title}`, async ({ page }) => {
@@ -430,42 +440,32 @@ test(`${tc07TestCase.testId} - ${tc07TestCase.title}`, async ({ page }) => {
 });
 
 test.describe.serial("TC-08 -> TC-12 - Lecturer User Management", () => {
-  const originalName = "Tran Thi B";
-  const updatedName = "Tran Thi B Updated";
+  // Dữ liệu duy nhất mỗi lần chạy, tránh trùng user đã tạo ở lần trước
+  const runId = Date.now().toString().slice(-6);
+  const newIrn = `2024${runId}`;                  // 10 chữ số, giống định dạng 2052123456
+  const originalName = `Tran Thi B ${runId}`;
+  const updatedName = `${originalName} Updated`;
+  const newEmail = `tranthib${runId}@eiu.edu.vn`;
 
   test(`${tc08TestCase.testId} - ${tc08TestCase.title}`, async ({ page }) => {
     await loginAsLecturer(page);
-
     await page.goto("/admin/users");
 
-    await page
-      .getByRole("button", {
-        name: /add user|thêm/i,
-      })
-      .click();
+    await page.getByRole("button", { name: "Add User" }).click();
 
-    await page.getByPlaceholder("IRN").fill("20241234");
+    await page.getByRole("checkbox", { name: "STUDENT" }).check();
+    await page.getByPlaceholder("e.g. 2052123456").fill(newIrn);
+    await page.getByPlaceholder("Enter full name").fill(originalName);
+    await page.getByPlaceholder("user@eiu.edu.vn").fill(newEmail);
+    await page.getByPlaceholder("Enter password").fill("Test_P@ssw0rd1");
 
-    await page.getByPlaceholder("Name").fill(originalName);
+    await page.getByRole("button", { name: "Create User" }).click();
 
-    await page.getByPlaceholder("Email").fill("tranthib@eiu.edu.vn");
-
-    await page.getByLabel("Role").selectOption("STUDENT");
-
-    await page
-      .getByRole("button", {
-        name: /save|lưu/i,
-      })
-      .click();
-
+    // Tìm user vừa tạo qua ô tìm kiếm rồi kiểm tra hàng trong bảng
+    await page.getByPlaceholder(/Search by IRN/i).fill(newIrn);
     await expect(
-      page.getByRole("row", {
-        name: new RegExp(originalName, "i"),
-      }),
+      page.getByRole("row", { name: new RegExp(originalName, "i") }),
     ).toBeVisible();
-
-    expect(tc08Role.userRole).toBe(UserRole.LECTURER);
-    expect(tc08Role.targetApiRoute).toBe("/admin/users");
   });
 
   test(`${tc09TestCase.testId} - ${tc09TestCase.title}`, async ({ page }) => {

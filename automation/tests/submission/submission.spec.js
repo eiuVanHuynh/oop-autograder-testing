@@ -29,7 +29,7 @@ async function loginAsStudent(page) {
     })
     .click();
 
-  await page.waitForURL(/\/student\/dashboard/);
+  await page.waitForURL(/\/student-dashboard/);
 }
 
 const tc13Folder = new FolderStructureTest(
@@ -168,7 +168,7 @@ const tc15TestCase = new TestCase(
 test(`${tc13TestCase.testId} - ${tc13TestCase.title}`, async ({ page }) => {
   await loginAsStudent(page);
 
-  await page.goto("/student/dashboard");
+  await page.goto("/student-dashboard");
 
   await page.getByTestId("lab-card-lab-1").click();
 

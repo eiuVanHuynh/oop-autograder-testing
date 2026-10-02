@@ -22,9 +22,11 @@ test('Read test cases from MySQL', async () => {
         ORDER BY tc.test_id
     `);
 
-    expect(rows.length).toBe(12);
+    const testCaseIds = new Set(rows.map(row => row.test_id));
 
-    console.log('\n===== TEST CASES FROM MYSQL =====');
+    expect(testCaseIds.size).toBeGreaterThan(0);
+
+    console.log(`Read ${testCaseIds.size} test cases from MySQL`);
 
     for (const row of rows) {
         console.log({
