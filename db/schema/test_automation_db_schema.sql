@@ -1,23 +1,23 @@
-CREATE DATABASE IF NOT EXISTS test_automation_db
-
-  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE test_automation_db;
+-- Cloud: database da duoc nha cung cap tao san, chon database qua DB_NAME trong ket noi.
+-- Khong dung CREATE DATABASE / USE o day.
+-- Thay doi cau truc ve sau: viet thanh file trong db/migrations/ (001_..., 002_...).
 
 -- 1. Users ------------------------------------------------------------
-CREATE TABLE Users (
+CREATE TABLE IF NOT EXISTS Users (
   id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
   full_name     VARCHAR(100) NOT NULL,
   email         VARCHAR(255) NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255) NULL,
+  auth_provider ENUM('LOCAL', 'GOOGLE') NOT NULL, -- su dung cho Google OAuth thi GOOGLE con binh thuong la LOCAL - backend xu ly
   role          ENUM('admin','tester') NOT NULL,
   status        ENUM('active','inactive') NOT NULL DEFAULT 'active',
   created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_email (email)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2. Test_Suites ------------------------------------------------------
-CREATE TABLE Test_Suites (
+CREATE TABLE IF NOT EXISTS Test_Suites (
   suite_id    INT UNSIGNED NOT NULL AUTO_INCREMENT,
   suite_name  VARCHAR(150) NOT NULL,
   description TEXT NULL,
@@ -28,10 +28,10 @@ CREATE TABLE Test_Suites (
   PRIMARY KEY (suite_id),
   CONSTRAINT fk_suites_created_by FOREIGN KEY (created_by) REFERENCES Users(id) ON DELETE SET NULL,
   CONSTRAINT fk_suites_updated_by FOREIGN KEY (updated_by) REFERENCES Users(id) ON DELETE SET NULL
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 3. Test_Specs (yeu cau/man hinh can test, nguon tu bao cao A) -------
-CREATE TABLE Test_Specs (
+CREATE TABLE IF NOT EXISTS Test_Specs (
   spec_id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
   spec_code        VARCHAR(30) NOT NULL,     -- ma do nhom tu dat, vd: SPEC-01
   suite_id         INT UNSIGNED NOT NULL,
@@ -47,10 +47,10 @@ CREATE TABLE Test_Specs (
   CONSTRAINT fk_specs_suite      FOREIGN KEY (suite_id)   REFERENCES Test_Suites(suite_id) ON DELETE RESTRICT,
   CONSTRAINT fk_specs_created_by FOREIGN KEY (created_by) REFERENCES Users(id)             ON DELETE SET NULL,
   CONSTRAINT fk_specs_updated_by FOREIGN KEY (updated_by) REFERENCES Users(id)             ON DELETE SET NULL
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 4. Test_Cases (thuoc 1 Spec; Suite suy ra qua Spec) -----------------
-CREATE TABLE Test_Cases (
+CREATE TABLE IF NOT EXISTS Test_Cases (
   test_id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
   spec_id         INT UNSIGNED NOT NULL,
   tc_code         VARCHAR(30)  NOT NULL,     -- ma de doc, vd: TC-LOGIN-001
@@ -71,10 +71,10 @@ CREATE TABLE Test_Cases (
   CONSTRAINT fk_cases_spec       FOREIGN KEY (spec_id)    REFERENCES Test_Specs(spec_id) ON DELETE RESTRICT,
   CONSTRAINT fk_cases_created_by FOREIGN KEY (created_by) REFERENCES Users(id)           ON DELETE SET NULL,
   CONSTRAINT fk_cases_updated_by FOREIGN KEY (updated_by) REFERENCES Users(id)           ON DELETE SET NULL
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 5. Test_Steps -------------------------------------------------------
-CREATE TABLE Test_Steps (
+CREATE TABLE IF NOT EXISTS Test_Steps (
   step_id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
   test_id         INT UNSIGNED NOT NULL,
   step_order      INT UNSIGNED NOT NULL,
@@ -82,11 +82,12 @@ CREATE TABLE Test_Steps (
   target          VARCHAR(255) NULL,
   expected_result TEXT NULL,
   PRIMARY KEY (step_id),
+  UNIQUE KEY uq_steps_order (test_id, step_order),
   CONSTRAINT fk_steps_case FOREIGN KEY (test_id) REFERENCES Test_Cases(test_id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 6. Test_Data --------------------------------------------------------
-CREATE TABLE Test_Data (
+CREATE TABLE IF NOT EXISTS Test_Data (
   data_id    INT UNSIGNED NOT NULL AUTO_INCREMENT,
   test_id    INT UNSIGNED NOT NULL,
   field_name VARCHAR(100) NOT NULL,
@@ -94,10 +95,10 @@ CREATE TABLE Test_Data (
   is_valid   BOOLEAN NOT NULL,
   PRIMARY KEY (data_id),
   CONSTRAINT fk_data_case FOREIGN KEY (test_id) REFERENCES Test_Cases(test_id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 7. Test_Runs --------------------------------------------------------
-CREATE TABLE Test_Runs (
+CREATE TABLE IF NOT EXISTS Test_Runs (
   run_id      INT UNSIGNED NOT NULL AUTO_INCREMENT,
   started_at  DATETIME NOT NULL,
   finished_at DATETIME NULL,
@@ -108,10 +109,10 @@ CREATE TABLE Test_Runs (
   ci_run_id   VARCHAR(100) NULL,
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (run_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 8. Test_Results -----------------------------------------------------
-CREATE TABLE Test_Results (
+CREATE TABLE IF NOT EXISTS Test_Results (
   execution_id      INT UNSIGNED NOT NULL AUTO_INCREMENT,
   run_id            INT UNSIGNED NOT NULL,
   test_id           INT UNSIGNED NOT NULL,
@@ -122,10 +123,10 @@ CREATE TABLE Test_Results (
   PRIMARY KEY (execution_id),
   CONSTRAINT fk_results_run  FOREIGN KEY (run_id)  REFERENCES Test_Runs(run_id)   ON DELETE CASCADE,
   CONSTRAINT fk_results_case FOREIGN KEY (test_id) REFERENCES Test_Cases(test_id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 9. Test_Evidences ---------------------------------------------------
-CREATE TABLE Test_Evidences (
+CREATE TABLE IF NOT EXISTS Test_Evidences (
   id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
   result_id  INT UNSIGNED NOT NULL,
   type       ENUM('screenshot','video','trace') NOT NULL,
@@ -133,11 +134,11 @@ CREATE TABLE Test_Evidences (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   CONSTRAINT fk_evidences_result FOREIGN KEY (result_id) REFERENCES Test_Results(execution_id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 10. Bug_Feedbacks ---------------------------------------------------
 -- Rule "chi bao bug khi test Fail" do back-end kiem tra, DB khong ep duoc.
-CREATE TABLE Bug_Feedbacks (
+CREATE TABLE IF NOT EXISTS Bug_Feedbacks (
   bug_id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
   execution_id    INT UNSIGNED NULL,
   reported_by     INT UNSIGNED NULL,
@@ -152,5 +153,4 @@ CREATE TABLE Bug_Feedbacks (
   CONSTRAINT fk_bugs_result      FOREIGN KEY (execution_id) REFERENCES Test_Results(execution_id) ON DELETE SET NULL,
   CONSTRAINT fk_bugs_reported_by FOREIGN KEY (reported_by)  REFERENCES Users(id)                  ON DELETE SET NULL,
   CONSTRAINT fk_bugs_updated_by  FOREIGN KEY (updated_by)   REFERENCES Users(id)                  ON DELETE SET NULL
-) ENGINE=InnoDB;
-
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

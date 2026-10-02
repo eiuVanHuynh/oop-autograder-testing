@@ -1,890 +1,309 @@
-USE test_automation_db;
-
-SET FOREIGN_KEY_CHECKS = 0;
+-- Cloud: khong dung USE; database duoc chon qua DB_NAME khi ket noi.
 
 -- ============================================================
 -- CLEAN EXISTING SEED DATA
+-- DELETE on Test_Cases cascades to Test_Steps, Test_Data,
+-- Test_Results and Test_Evidences; Bug_Feedbacks.execution_id
+-- is set to NULL. FOREIGN_KEY_CHECKS stays ON so cascades work.
 -- ============================================================
 
-DELETE FROM Test_Data;
-DELETE FROM Test_Steps;
-DELETE FROM Test_Specs;
 DELETE FROM Test_Cases;
+DELETE FROM Test_Specs;
 DELETE FROM Test_Suites;
 
 ALTER TABLE Test_Suites AUTO_INCREMENT = 1;
-ALTER TABLE Test_Specs AUTO_INCREMENT = 1;
-ALTER TABLE Test_Steps AUTO_INCREMENT = 1;
-ALTER TABLE Test_Data AUTO_INCREMENT = 1;
-
-SET FOREIGN_KEY_CHECKS = 1;
+ALTER TABLE Test_Specs  AUTO_INCREMENT = 1;
+ALTER TABLE Test_Cases  AUTO_INCREMENT = 1;
+ALTER TABLE Test_Steps  AUTO_INCREMENT = 1;
+ALTER TABLE Test_Data   AUTO_INCREMENT = 1;
 
 
 -- ============================================================
 -- 1. TEST SUITES
 -- ============================================================
 
-INSERT INTO Test_Suites
-(
-    suite_name,
-    module_group,
-    description
-)
+INSERT INTO Test_Suites (suite_name, description)
 VALUES
 (
     'Authentication Test Suite',
-    'Authentication',
     'Test cases covering the login page, authentication inputs, validation messages, password visibility, remember-me functionality and Google sign-in.'
 ),
 (
     'Login UI Test Suite',
-    'UI Components',
     'Test cases verifying the visual and interactive components of the login page.'
 );
 
 
 -- ============================================================
--- 2. TEST CASES
+-- 2. TEST SPECS (one spec per group)
 -- ============================================================
 
-INSERT INTO Test_Cases
-(
-    test_id,
-    suite_id,
-    module,
-    title,
-    description,
-    source_reference,
-    test_type,
-    priority
-)
+INSERT INTO Test_Specs (spec_code, suite_id, source_reference, screen_name, description)
 VALUES
-
--- TC01
 (
-    'TC-AUTH-001',
-    1,
-    'Authentication',
-    'Login page is displayed',
-    'Verify that the login page loads successfully and displays the required authentication components.',
-    'FR-AUTH-01',
-    'AUTHENTICATION',
-    'HIGH'
+    'SPEC-01',
+    (SELECT suite_id FROM Test_Suites WHERE suite_name = 'Authentication Test Suite'),
+    'FR-AUTH-01 to FR-AUTH-10',
+    'Login Page',
+    'Login page authentication: code input, password input, validation messages, remember-me, Google sign-in and forgot-password link. Google sign-in is verified by iframe presence only, not by the external Google flow.'
 ),
-
--- TC02
 (
-    'TC-AUTH-002',
-    1,
-    'Authentication',
-    'Student code input is available',
-    'Verify that the student or lecturer code input is displayed with the correct placeholder.',
-    'FR-AUTH-02',
-    'AUTHENTICATION',
-    'HIGH'
-),
-
--- TC03
-(
-    'TC-AUTH-003',
-    1,
-    'Authentication',
-    'Valid student code can be entered',
-    'Verify that a valid student code can be entered into the authentication form.',
-    'FR-AUTH-03',
-    'AUTHENTICATION',
-    'HIGH'
-),
-
--- TC04
-(
-    'TC-AUTH-004',
-    1,
-    'Authentication',
-    'Password input is available',
-    'Verify that the password input is displayed with the expected placeholder.',
-    'FR-AUTH-04',
-    'AUTHENTICATION',
-    'HIGH'
-),
-
--- TC05
-(
-    'TC-AUTH-005',
-    1,
-    'Authentication',
-    'Invalid password displays error',
-    'Verify that an incorrect password produces the expected authentication error message.',
-    'FR-AUTH-05',
-    'AUTHENTICATION',
-    'HIGH'
-),
-
--- TC06
-(
-    'TC-AUTH-006',
-    1,
-    'Authentication',
-    'Empty credentials are rejected',
-    'Verify that the login form does not allow submission with empty required credentials.',
-    'FR-AUTH-06',
-    'AUTHENTICATION',
-    'HIGH'
-),
-
--- TC07
-(
-    'TC-AUTH-007',
-    1,
-    'Authentication',
-    'Remember me checkbox is available',
-    'Verify that the Remember Me checkbox is displayed on the login page.',
-    'FR-AUTH-07',
-    'AUTHENTICATION',
-    'MEDIUM'
-),
-
--- TC08
-(
-    'TC-AUTH-008',
-    1,
-    'Authentication',
-    'Google sign-in component is available',
-    'Verify that the Google sign-in component is present on the login page.',
-    'FR-AUTH-08',
-    'AUTHENTICATION',
-    'MEDIUM'
-),
-
--- TC09
-(
-    'TC-AUTH-009',
-    1,
-    'Authentication',
-    'Forgot password link is available',
-    'Verify that the Forgot Password link is displayed and accessible.',
-    'FR-AUTH-09',
-    'AUTHENTICATION',
-    'MEDIUM'
-),
-
--- TC10
-(
-    'TC-AUTH-010',
-    1,
-    'Authentication',
-    'Password field accepts input',
-    'Verify that the password field accepts user input and behaves as a password field.',
-    'FR-AUTH-10',
-    'AUTHENTICATION',
-    'MEDIUM'
-),
-
--- UI-001
-(
-    'TC-UI-001',
-    2,
-    'Login UI',
-    'Login page title is correct',
-    'Verify that the application title is EIU Capstone.',
-    'FR-UI-01',
-    'UI_COMPONENT',
-    'MEDIUM'
-),
-
--- UI-002
-(
-    'TC-UI-002',
-    2,
-    'Login UI',
-    'Login page heading is correct',
-    'Verify that the login page contains the Lab Management System heading.',
-    'FR-UI-02',
-    'UI_COMPONENT',
-    'MEDIUM'
+    'SPEC-02',
+    (SELECT suite_id FROM Test_Suites WHERE suite_name = 'Login UI Test Suite'),
+    'FR-UI-01 to FR-UI-02',
+    'Login Page',
+    'Visual components of the login page: application title and main heading.'
 );
 
 
 -- ============================================================
--- 3. TEST SPECS
+-- 3. TEST CASES
 -- ============================================================
 
-INSERT INTO Test_Specs
-(
-    test_id,
-    spec_name,
-    component_type,
-    spec_payload,
-    description
-)
+INSERT INTO Test_Cases
+    (spec_id, tc_code, title, preconditions, expected_result, priority, test_type, status)
 VALUES
-
+-- SPEC-01 Authentication
 (
+    (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-01'),
     'TC-AUTH-001',
-    'Login Page',
-    'PAGE',
-    '{
-        "url": "https://oop-autograder.vercel.app",
-        "title": "EIU Capstone",
-        "heading": "Lab Management System"
-    }',
-    'Expected login page structure and page information.'
+    'Login page is displayed',
+    'Login page is reachable at https://oop-autograder.vercel.app',
+    'The login page loads successfully and displays the required authentication components.',
+    'high', 'functional', 'ready'
 ),
-
 (
+    (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-01'),
     'TC-AUTH-002',
-    'Student/Lecturer Code Input',
-    'INPUT_FIELD',
-    '{
-        "label": "Student Code or Lecturer Code",
-        "placeholder": "e.g. 20521234",
-        "required": true
-    }',
-    'Specification for the authentication code input.'
+    'Student code input is available',
+    'Login page is displayed',
+    'The student or lecturer code input is displayed with the placeholder "e.g. 20521234".',
+    'high', 'functional', 'ready'
 ),
-
 (
+    (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-01'),
     'TC-AUTH-003',
-    'Student Code Input',
-    'INPUT_FIELD',
-    '{
-        "placeholder": "e.g. 20521234",
-        "exampleValue": "20521234",
-        "inputType": "text"
-    }',
-    'Specification for entering a student code.'
+    'Valid student code can be entered',
+    'Login page is displayed',
+    'A valid student code can be entered into the authentication form and the value is kept.',
+    'high', 'functional', 'ready'
 ),
-
 (
+    (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-01'),
     'TC-AUTH-004',
-    'Password Input',
-    'INPUT_FIELD',
-    '{
-        "label": "Enter your password",
-        "placeholder": "Enter your password",
-        "required": true
-    }',
-    'Specification for the password input.'
+    'Password input is available',
+    'Login page is displayed',
+    'The password input is displayed with the placeholder "Enter your password".',
+    'high', 'functional', 'ready'
 ),
-
 (
+    (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-01'),
     'TC-AUTH-005',
-    'Invalid Login Message',
-    'MESSAGE',
-    '{
-        "expectedMessage": "IRN or password is wrong"
-    }',
-    'Expected error message for invalid credentials.'
+    'Invalid password displays error',
+    'Login page is displayed',
+    'An incorrect password produces the error message "IRN or password is wrong".',
+    'high', 'validation', 'ready'
 ),
-
 (
+    (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-01'),
     'TC-AUTH-006',
-    'Required Authentication Fields',
-    'INPUT_FIELD',
-    '{
-        "usernameRequired": true,
-        "passwordRequired": true
-    }',
-    'Required-field validation specification.'
+    'Empty credentials are rejected',
+    'Login page is displayed',
+    'The login form does not allow submission with empty required credentials.',
+    'high', 'validation', 'ready'
 ),
-
 (
+    (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-01'),
     'TC-AUTH-007',
-    'Remember Me',
-    'CHECKBOX',
-    '{
-        "label": "Remember Me",
-        "type": "checkbox"
-    }',
-    'Specification for Remember Me functionality.'
+    'Remember me checkbox is available',
+    'Login page is displayed',
+    'The Remember Me checkbox is displayed on the login page.',
+    'medium', 'functional', 'ready'
 ),
-
 (
+    (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-01'),
     'TC-AUTH-008',
-    'Google Sign-In',
-    'BUTTON',
-    '{
-        "component": "Google Sign-In",
-        "expectedPresence": true,
-        "verificationStrategy": "iframe_presence"
-    }',
-    'Google sign-in component is verified by checking its presence rather than interacting with the external Google authentication flow.'
+    'Google sign-in component is available',
+    'Login page is displayed',
+    'The Google sign-in component (iframe) is present on the login page.',
+    'medium', 'functional', 'ready'
 ),
-
 (
+    (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-01'),
     'TC-AUTH-009',
-    'Forgot Password',
-    'LINK',
-    '{
-        "text": "Forgot password",
-        "expectedPresence": true
-    }',
-    'Specification for the forgot-password link.'
+    'Forgot password link is available',
+    'Login page is displayed',
+    'The Forgot Password link is displayed and accessible.',
+    'medium', 'functional', 'ready'
 ),
-
 (
+    (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-01'),
     'TC-AUTH-010',
-    'Password Input Behavior',
-    'INPUT_FIELD',
-    '{
-        "placeholder": "Enter your password",
-        "inputType": "password",
-        "acceptsText": true
-    }',
-    'Specification for password input behavior.'
+    'Password field accepts input',
+    'Login page is displayed',
+    'The password field accepts user input and behaves as a password field.',
+    'medium', 'functional', 'ready'
 ),
-
+-- SPEC-02 Login UI
 (
+    (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-02'),
     'TC-UI-001',
-    'Application Title',
-    'PAGE',
-    '{
-        "expectedTitle": "EIU Capstone"
-    }',
-    'Expected browser page title.'
+    'Login page title is correct',
+    'Login page is reachable at https://oop-autograder.vercel.app',
+    'The application title is "EIU Capstone".',
+    'medium', 'ui', 'ready'
 ),
-
 (
+    (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-02'),
     'TC-UI-002',
-    'Application Heading',
-    'PAGE',
-    '{
-        "expectedHeading": "Lab Management System"
-    }',
-    'Expected main heading on the login page.'
+    'Login page heading is correct',
+    'Login page is reachable at https://oop-autograder.vercel.app',
+    'The login page contains the "Lab Management System" heading.',
+    'medium', 'ui', 'ready'
 );
 
 
 -- ============================================================
 -- 4. TEST STEPS
+-- Test_Steps has no "value" column, so the value is written
+-- into the action text (e.g. "FILL with value '20521234'").
+-- A temp table lets us use tc_code instead of numeric test_id.
 -- ============================================================
 
-INSERT INTO Test_Steps
-(
-    test_id,
-    step_order,
-    action,
-    target,
-    value,
-    expected_result
-)
-VALUES
-
--- ------------------------------------------------------------
--- TC-AUTH-001
--- ------------------------------------------------------------
-
-(
-    'TC-AUTH-001',
-    1,
-    'NAVIGATE',
-    'https://oop-autograder.vercel.app',
-    NULL,
-    'Login page is loaded successfully.'
-),
-
-(
-    'TC-AUTH-001',
-    2,
-    'VERIFY',
-    'page.title',
-    'EIU Capstone',
-    'Browser title is EIU Capstone.'
-),
-
-(
-    'TC-AUTH-001',
-    3,
-    'VERIFY',
-    'text=Lab Management System',
-    NULL,
-    'Lab Management System heading is visible.'
-),
-
--- ------------------------------------------------------------
--- TC-AUTH-002
--- ------------------------------------------------------------
-
-(
-    'TC-AUTH-002',
-    1,
-    'NAVIGATE',
-    'https://oop-autograder.vercel.app',
-    NULL,
-    'Login page is displayed.'
-),
-
-(
-    'TC-AUTH-002',
-    2,
-    'VERIFY',
-    'placeholder=e.g. 20521234',
-    NULL,
-    'Student Code or Lecturer Code input is visible.'
-),
-
--- ------------------------------------------------------------
--- TC-AUTH-003
--- ------------------------------------------------------------
-
-(
-    'TC-AUTH-003',
-    1,
-    'NAVIGATE',
-    'https://oop-autograder.vercel.app',
-    NULL,
-    'Login page is displayed.'
-),
-
-(
-    'TC-AUTH-003',
-    2,
-    'FILL',
-    'placeholder=e.g. 20521234',
-    '20521234',
-    'Student code is entered successfully.'
-),
-
-(
-    'TC-AUTH-003',
-    3,
-    'VERIFY',
-    'placeholder=e.g. 20521234',
-    '20521234',
-    'Student code input contains the expected value.'
-),
-
--- ------------------------------------------------------------
--- TC-AUTH-004
--- ------------------------------------------------------------
-
-(
-    'TC-AUTH-004',
-    1,
-    'NAVIGATE',
-    'https://oop-autograder.vercel.app',
-    NULL,
-    'Login page is displayed.'
-),
-
-(
-    'TC-AUTH-004',
-    2,
-    'VERIFY',
-    'placeholder=Enter your password',
-    NULL,
-    'Password input is visible.'
-),
-
--- ------------------------------------------------------------
--- TC-AUTH-005
--- ------------------------------------------------------------
-
-(
-    'TC-AUTH-005',
-    1,
-    'NAVIGATE',
-    'https://oop-autograder.vercel.app',
-    NULL,
-    'Login page is displayed.'
-),
-
-(
-    'TC-AUTH-005',
-    2,
-    'FILL',
-    'placeholder=e.g. 20521234',
-    '20521234',
-    'Student code is entered.'
-),
-
-(
-    'TC-AUTH-005',
-    3,
-    'FILL',
-    'placeholder=Enter your password',
-    'wrong_password',
-    'Incorrect password is entered.'
-),
-
-(
-    'TC-AUTH-005',
-    4,
-    'CLICK',
-    'Sign In',
-    NULL,
-    'Login request is submitted.'
-),
-
-(
-    'TC-AUTH-005',
-    5,
-    'VERIFY',
-    'text=IRN or password is wrong',
-    NULL,
-    'Invalid credential error message is displayed.'
-),
-
--- ------------------------------------------------------------
--- TC-AUTH-006
--- ------------------------------------------------------------
-
-(
-    'TC-AUTH-006',
-    1,
-    'NAVIGATE',
-    'https://oop-autograder.vercel.app',
-    NULL,
-    'Login page is displayed.'
-),
-
-(
-    'TC-AUTH-006',
-    2,
-    'CLICK',
-    'Sign In',
-    NULL,
-    'Login validation is triggered.'
-),
-
-(
-    'TC-AUTH-006',
-    3,
-    'VERIFY',
-    'login validation',
-    NULL,
-    'Required authentication fields prevent invalid submission.'
-),
-
--- ------------------------------------------------------------
--- TC-AUTH-007
--- ------------------------------------------------------------
-
-(
-    'TC-AUTH-007',
-    1,
-    'NAVIGATE',
-    'https://oop-autograder.vercel.app',
-    NULL,
-    'Login page is displayed.'
-),
-
-(
-    'TC-AUTH-007',
-    2,
-    'VERIFY',
-    'Remember Me',
-    NULL,
-    'Remember Me checkbox is visible.'
-),
-
--- ------------------------------------------------------------
--- TC-AUTH-008
--- ------------------------------------------------------------
-
-(
-    'TC-AUTH-008',
-    1,
-    'NAVIGATE',
-    'https://oop-autograder.vercel.app',
-    NULL,
-    'Login page is displayed.'
-),
-
-(
-    'TC-AUTH-008',
-    2,
-    'VERIFY',
-    'Google sign-in iframe',
-    NULL,
-    'Google sign-in component is present.'
-),
-
--- ------------------------------------------------------------
--- TC-AUTH-009
--- ------------------------------------------------------------
-
-(
-    'TC-AUTH-009',
-    1,
-    'NAVIGATE',
-    'https://oop-autograder.vercel.app',
-    NULL,
-    'Login page is displayed.'
-),
-
-(
-    'TC-AUTH-009',
-    2,
-    'VERIFY',
-    'Forgot password',
-    NULL,
-    'Forgot password link is visible.'
-),
-
--- ------------------------------------------------------------
--- TC-AUTH-010
--- ------------------------------------------------------------
-
-(
-    'TC-AUTH-010',
-    1,
-    'NAVIGATE',
-    'https://oop-autograder.vercel.app',
-    NULL,
-    'Login page is displayed.'
-),
-
-(
-    'TC-AUTH-010',
-    2,
-    'FILL',
-    'placeholder=Enter your password',
-    'test_password',
-    'Password value is entered successfully.'
-),
-
-(
-    'TC-AUTH-010',
-    3,
-    'VERIFY',
-    'placeholder=Enter your password',
-    'test_password',
-    'Password input accepts the entered value.'
-),
-
--- ------------------------------------------------------------
--- TC-UI-001
--- ------------------------------------------------------------
-
-(
-    'TC-UI-001',
-    1,
-    'NAVIGATE',
-    'https://oop-autograder.vercel.app',
-    NULL,
-    'Application page is loaded.'
-),
-
-(
-    'TC-UI-001',
-    2,
-    'VERIFY',
-    'page.title',
-    'EIU Capstone',
-    'Page title is EIU Capstone.'
-),
-
--- ------------------------------------------------------------
--- TC-UI-002
--- ------------------------------------------------------------
-
-(
-    'TC-UI-002',
-    1,
-    'NAVIGATE',
-    'https://oop-autograder.vercel.app',
-    NULL,
-    'Application page is loaded.'
-),
-
-(
-    'TC-UI-002',
-    2,
-    'VERIFY',
-    'text=Lab Management System',
-    NULL,
-    'Lab Management System heading is visible.'
+DROP TEMPORARY TABLE IF EXISTS tmp_steps;
+CREATE TEMPORARY TABLE tmp_steps (
+    tc_code         VARCHAR(30)  NOT NULL,
+    step_order      INT UNSIGNED NOT NULL,
+    action          TEXT         NOT NULL,
+    target          VARCHAR(255) NULL,
+    expected_result TEXT         NULL
 );
+
+INSERT INTO tmp_steps (tc_code, step_order, action, target, expected_result)
+VALUES
+-- TC-AUTH-001
+('TC-AUTH-001', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is loaded successfully.'),
+('TC-AUTH-001', 2, 'VERIFY page title equals ''EIU Capstone''', 'page.title', 'Browser title is EIU Capstone.'),
+('TC-AUTH-001', 3, 'VERIFY', 'text=Lab Management System', 'Lab Management System heading is visible.'),
+
+-- TC-AUTH-002
+('TC-AUTH-002', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-002', 2, 'VERIFY', 'placeholder=e.g. 20521234', 'Student Code or Lecturer Code input is visible.'),
+
+-- TC-AUTH-003
+('TC-AUTH-003', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-003', 2, 'FILL with value ''20521234''', 'placeholder=e.g. 20521234', 'Student code is entered successfully.'),
+('TC-AUTH-003', 3, 'VERIFY input value equals ''20521234''', 'placeholder=e.g. 20521234', 'Student code input contains the expected value.'),
+
+-- TC-AUTH-004
+('TC-AUTH-004', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-004', 2, 'VERIFY', 'placeholder=Enter your password', 'Password input is visible.'),
+
+-- TC-AUTH-005
+('TC-AUTH-005', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-005', 2, 'FILL with value ''20521234''', 'placeholder=e.g. 20521234', 'Student code is entered.'),
+('TC-AUTH-005', 3, 'FILL with value ''wrong_password''', 'placeholder=Enter your password', 'Incorrect password is entered.'),
+('TC-AUTH-005', 4, 'CLICK', 'Sign In', 'Login request is submitted.'),
+('TC-AUTH-005', 5, 'VERIFY', 'text=IRN or password is wrong', 'Invalid credential error message is displayed.'),
+
+-- TC-AUTH-006
+('TC-AUTH-006', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-006', 2, 'CLICK', 'Sign In', 'Login validation is triggered.'),
+('TC-AUTH-006', 3, 'VERIFY', 'login validation', 'Required authentication fields prevent invalid submission.'),
+
+-- TC-AUTH-007
+('TC-AUTH-007', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-007', 2, 'VERIFY', 'Remember Me', 'Remember Me checkbox is visible.'),
+
+-- TC-AUTH-008
+('TC-AUTH-008', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-008', 2, 'VERIFY', 'Google sign-in iframe', 'Google sign-in component is present.'),
+
+-- TC-AUTH-009
+('TC-AUTH-009', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-009', 2, 'VERIFY', 'Forgot password', 'Forgot password link is visible.'),
+
+-- TC-AUTH-010
+('TC-AUTH-010', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-010', 2, 'FILL with value ''test_password''', 'placeholder=Enter your password', 'Password value is entered successfully.'),
+('TC-AUTH-010', 3, 'VERIFY input value equals ''test_password''', 'placeholder=Enter your password', 'Password input accepts the entered value.'),
+
+-- TC-UI-001
+('TC-UI-001', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Application page is loaded.'),
+('TC-UI-001', 2, 'VERIFY page title equals ''EIU Capstone''', 'page.title', 'Page title is EIU Capstone.'),
+
+-- TC-UI-002
+('TC-UI-002', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Application page is loaded.'),
+('TC-UI-002', 2, 'VERIFY', 'text=Lab Management System', 'Lab Management System heading is visible.');
+
+INSERT INTO Test_Steps (test_id, step_order, action, target, expected_result)
+SELECT tc.test_id, s.step_order, s.action, s.target, s.expected_result
+FROM tmp_steps s
+JOIN Test_Cases tc ON tc.tc_code = s.tc_code
+ORDER BY tc.test_id, s.step_order;
+
+DROP TEMPORARY TABLE tmp_steps;
 
 
 -- ============================================================
 -- 5. TEST DATA
+-- One row per field: field_name / value / is_valid
 -- ============================================================
 
-INSERT INTO Test_Data
-(
-    test_id,
-    data_name,
-    input_data,
-    expected_output
-)
-VALUES
-
-(
-    'TC-AUTH-001',
-    'Login page data',
-    '{
-        "url": "https://oop-autograder.vercel.app"
-    }',
-    '{
-        "title": "EIU Capstone",
-        "heading": "Lab Management System"
-    }'
-),
-
-(
-    'TC-AUTH-002',
-    'Student code input',
-    '{
-        "placeholder": "e.g. 20521234"
-    }',
-    '{
-        "inputVisible": true
-    }'
-),
-
-(
-    'TC-AUTH-003',
-    'Valid student code',
-    '{
-        "username": "20521234"
-    }',
-    '{
-        "valueAccepted": true
-    }'
-),
-
-(
-    'TC-AUTH-004',
-    'Password input',
-    '{
-        "placeholder": "Enter your password"
-    }',
-    '{
-        "inputVisible": true
-    }'
-),
-
-(
-    'TC-AUTH-005',
-    'Invalid credentials',
-    '{
-        "username": "20521234",
-        "password": "wrong_password"
-    }',
-    '{
-        "status": "FAILED_LOGIN",
-        "message": "IRN or password is wrong"
-    }'
-),
-
-(
-    'TC-AUTH-006',
-    'Empty credentials',
-    '{
-        "username": "",
-        "password": ""
-    }',
-    '{
-        "loginAllowed": false
-    }'
-),
-
-(
-    'TC-AUTH-007',
-    'Remember Me',
-    '{
-        "rememberMe": true
-    }',
-    '{
-        "checkboxAvailable": true
-    }'
-),
-
-(
-    'TC-AUTH-008',
-    'Google sign-in',
-    '{
-        "provider": "Google"
-    }',
-    '{
-        "componentPresent": true
-    }'
-),
-
-(
-    'TC-AUTH-009',
-    'Forgot password',
-    '{
-        "action": "open forgot password"
-    }',
-    '{
-        "linkPresent": true
-    }'
-),
-
-(
-    'TC-AUTH-010',
-    'Password field',
-    '{
-        "password": "test_password"
-    }',
-    '{
-        "valueAccepted": true
-    }'
-),
-
-(
-    'TC-UI-001',
-    'Application title',
-    '{
-        "url": "https://oop-autograder.vercel.app"
-    }',
-    '{
-        "title": "EIU Capstone"
-    }'
-),
-
-(
-    'TC-UI-002',
-    'Application heading',
-    '{
-        "url": "https://oop-autograder.vercel.app"
-    }',
-    '{
-        "heading": "Lab Management System"
-    }'
+DROP TEMPORARY TABLE IF EXISTS tmp_data;
+CREATE TEMPORARY TABLE tmp_data (
+    tc_code    VARCHAR(30)  NOT NULL,
+    field_name VARCHAR(100) NOT NULL,
+    `value`    TEXT         NULL,
+    is_valid   BOOLEAN      NOT NULL
 );
+
+INSERT INTO tmp_data (tc_code, field_name, `value`, is_valid)
+VALUES
+('TC-AUTH-001', 'url',                  'https://oop-autograder.vercel.app', TRUE),
+('TC-AUTH-002', 'code_placeholder',     'e.g. 20521234',                     TRUE),
+('TC-AUTH-003', 'username',             '20521234',                          TRUE),
+('TC-AUTH-004', 'password_placeholder', 'Enter your password',               TRUE),
+('TC-AUTH-005', 'username',             '20521234',                          TRUE),
+('TC-AUTH-005', 'password',             'wrong_password',                    FALSE),
+('TC-AUTH-006', 'username',             '',                                  FALSE),
+('TC-AUTH-006', 'password',             '',                                  FALSE),
+('TC-AUTH-007', 'rememberMe',           'true',                              TRUE),
+('TC-AUTH-008', 'provider',             'Google',                            TRUE),
+('TC-AUTH-009', 'action',               'open forgot password',              TRUE),
+('TC-AUTH-010', 'password',             'test_password',                     TRUE),
+('TC-UI-001',   'url',                  'https://oop-autograder.vercel.app', TRUE),
+('TC-UI-002',   'url',                  'https://oop-autograder.vercel.app', TRUE);
+
+INSERT INTO Test_Data (test_id, field_name, `value`, is_valid)
+SELECT tc.test_id, d.field_name, d.`value`, d.is_valid
+FROM tmp_data d
+JOIN Test_Cases tc ON tc.tc_code = d.tc_code
+ORDER BY tc.test_id;
+
+DROP TEMPORARY TABLE tmp_data;
 
 
 -- ============================================================
 -- 6. VERIFICATION
+-- Expected: Suites 2, Specs 2, Cases 12, Steps 31, Data 14
 -- ============================================================
 
-SELECT 'Test_Suites' AS table_name, COUNT(*) AS total
-FROM Test_Suites
+SELECT 'Test_Suites' AS table_name, COUNT(*) AS total FROM Test_Suites
+UNION ALL SELECT 'Test_Specs', COUNT(*) FROM Test_Specs
+UNION ALL SELECT 'Test_Cases', COUNT(*) FROM Test_Cases
+UNION ALL SELECT 'Test_Steps', COUNT(*) FROM Test_Steps
+UNION ALL SELECT 'Test_Data',  COUNT(*) FROM Test_Data;
 
-UNION ALL
-
-SELECT 'Test_Cases', COUNT(*)
-FROM Test_Cases
-
-UNION ALL
-
-SELECT 'Test_Specs', COUNT(*)
-FROM Test_Specs
-
-UNION ALL
-
-SELECT 'Test_Steps', COUNT(*)
-FROM Test_Steps
-
-UNION ALL
-
-SELECT 'Test_Data', COUNT(*)
-FROM Test_Data;
-
-
--- Show test cases
 SELECT
     tc.test_id,
-    ts.suite_name,
-    tc.module,
+    tc.tc_code,
+    su.suite_name,
+    sp.spec_code,
     tc.title,
     tc.test_type,
     tc.priority
 FROM Test_Cases tc
-JOIN Test_Suites ts
-    ON tc.suite_id = ts.suite_id
+JOIN Test_Specs  sp ON tc.spec_id  = sp.spec_id
+JOIN Test_Suites su ON sp.suite_id = su.suite_id
 ORDER BY tc.test_id;

@@ -10,7 +10,12 @@ const pool = mysql.createPool({
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME || 'test_automation_db',
     waitForConnections: true,
-    connectionLimit: 10,
+    // Nho (1-5) de tranh vuot gioi han ket noi cua DB cloud
+    connectionLimit: Number(process.env.DB_POOL_SIZE || 5),
+    // Cloud thuong bat buoc SSL: dat DB_SSL=true
+    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : undefined,
+    // Server cloud thuong chay UTC; ep gio Viet Nam khi doc/ghi Date
+    timezone: '+07:00',
 });
 
 async function query(sql, params = []) {
