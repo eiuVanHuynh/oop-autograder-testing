@@ -1,116 +1,156 @@
+CREATE DATABASE IF NOT EXISTS test_automation_db
 
-CREATE DATABASE IF NOT EXISTS test_automation_db; 
-
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE test_automation_db;
 
-SET FOREIGN_KEY_CHECKS = 0; -- xoa bang du co fk 
+-- 1. Users ------------------------------------------------------------
+CREATE TABLE Users (
+  id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  full_name     VARCHAR(100) NOT NULL,
+  email         VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role          ENUM('admin','tester') NOT NULL,
+  status        ENUM('active','inactive') NOT NULL DEFAULT 'active',
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_users_email (email)
+) ENGINE=InnoDB;
 
--- 1. Bảng Test_Suites
-DROP TABLE IF EXISTS Test_Suites;
+-- 2. Test_Suites ------------------------------------------------------
 CREATE TABLE Test_Suites (
-    suite_id INT AUTO_INCREMENT PRIMARY KEY,
-    suite_name VARCHAR(100) NOT NULL,
-    module_group VARCHAR(100) NOT NULL,
-    description TEXT
-);
+  suite_id    INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  suite_name  VARCHAR(150) NOT NULL,
+  description TEXT NULL,
+  created_by  INT UNSIGNED NULL,
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_by  INT UNSIGNED NULL,
+  updated_at  DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (suite_id),
+  CONSTRAINT fk_suites_created_by FOREIGN KEY (created_by) REFERENCES Users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_suites_updated_by FOREIGN KEY (updated_by) REFERENCES Users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
 
--- 2. Bảng Test_Cases (Ánh xạ Interface TestCase)
-DROP TABLE IF EXISTS Test_Cases;
-CREATE TABLE Test_Cases (
-    test_id VARCHAR(100) PRIMARY KEY,       -- testId trong TS (vd: "TC-LOGIN-001")
-    suite_id INT NOT NULL,
-    module VARCHAR(100) NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    source_reference VARCHAR(100),          -- FR-1, mục 4.2.1
-    test_type ENUM('UI_COMPONENT', 'AUTHENTICATION', 'SUBMISSION_STRUCTURE', 'GRADING_ENGINE', 'RUBRIC_EDITOR') NOT NULL,
-    priority ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL') NOT NULL DEFAULT 'MEDIUM',
-    
-    CONSTRAINT FK_Test_Cases_Suites FOREIGN KEY (suite_id) REFERENCES Test_Suites(suite_id) ON DELETE CASCADE
-);
-
--- 3. Bảng Test_Specs (Dùng LONGTEXT chứa JSON UI Specs)
-DROP TABLE IF EXISTS Test_Specs;
+-- 3. Test_Specs (yeu cau/man hinh can test, nguon tu bao cao A) -------
 CREATE TABLE Test_Specs (
-    spec_id INT AUTO_INCREMENT PRIMARY KEY,
-    test_id VARCHAR(100) NOT NULL,
-    spec_name VARCHAR(100) NOT NULL,        -- vd: "Google Sign-in Button", "IRN Input"
-    component_type VARCHAR(50) NOT NULL,     -- 'BUTTON', 'INPUT_FIELD', 'DROPZONE', 'TAB', 'TABLE'
-    spec_payload LONGTEXT NOT NULL,          -- Chuỗi JSON đại diện cho Object UI Specs
-    description TEXT,
+  spec_id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  spec_code        VARCHAR(30) NOT NULL,     -- ma do nhom tu dat, vd: SPEC-01
+  suite_id         INT UNSIGNED NOT NULL,
+  source_reference VARCHAR(255) NULL,        -- nguon trong bao cao A, vd: FR-12 hoac Section 4.2.13
+  screen_name      VARCHAR(150) NULL,        -- ghi chu man hinh lien quan
+  description      TEXT NULL,
+  created_by       INT UNSIGNED NULL,
+  created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_by       INT UNSIGNED NULL,
+  updated_at       DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (spec_id),
+  UNIQUE KEY uq_specs_spec_code (spec_code),
+  CONSTRAINT fk_specs_suite      FOREIGN KEY (suite_id)   REFERENCES Test_Suites(suite_id) ON DELETE RESTRICT,
+  CONSTRAINT fk_specs_created_by FOREIGN KEY (created_by) REFERENCES Users(id)             ON DELETE SET NULL,
+  CONSTRAINT fk_specs_updated_by FOREIGN KEY (updated_by) REFERENCES Users(id)             ON DELETE SET NULL
+) ENGINE=InnoDB;
 
-    CONSTRAINT FK_Test_Specs_Cases FOREIGN KEY (test_id) REFERENCES Test_Cases(test_id) ON DELETE CASCADE
-);
+-- 4. Test_Cases (thuoc 1 Spec; Suite suy ra qua Spec) -----------------
+CREATE TABLE Test_Cases (
+  test_id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  spec_id         INT UNSIGNED NOT NULL,
+  tc_code         VARCHAR(30)  NOT NULL,     -- ma de doc, vd: TC-LOGIN-001
+  title           VARCHAR(255) NOT NULL,
+  preconditions   TEXT NULL,
+  expected_result TEXT NOT NULL,
+  priority        ENUM('low','medium','high','critical') NOT NULL,
+  test_type       ENUM('functional','ui','validation','security','performance','usability','audit') NOT NULL,
+  status          ENUM('draft','ready','deprecated') NOT NULL DEFAULT 'draft',
+  automation_ref  VARCHAR(255) NULL,         -- ma tham chieu trong code Playwright
+  created_by      INT UNSIGNED NULL,
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_by      INT UNSIGNED NULL,
+  updated_at      DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (test_id),
+  UNIQUE KEY uq_cases_tc_code (tc_code),
+  UNIQUE KEY uq_cases_automation_ref (automation_ref),   -- UNIQUE, cho phep nhieu NULL
+  CONSTRAINT fk_cases_spec       FOREIGN KEY (spec_id)    REFERENCES Test_Specs(spec_id) ON DELETE RESTRICT,
+  CONSTRAINT fk_cases_created_by FOREIGN KEY (created_by) REFERENCES Users(id)           ON DELETE SET NULL,
+  CONSTRAINT fk_cases_updated_by FOREIGN KEY (updated_by) REFERENCES Users(id)           ON DELETE SET NULL
+) ENGINE=InnoDB;
 
--- 4. Bảng Test_Steps
-DROP TABLE IF EXISTS Test_Steps;
+-- 5. Test_Steps -------------------------------------------------------
 CREATE TABLE Test_Steps (
-    step_id INT AUTO_INCREMENT PRIMARY KEY,
-    test_id VARCHAR(100) NOT NULL,
-    step_order INT NOT NULL,
-    action VARCHAR(100) NOT NULL,           -- click, fill, dragAndDrop
-    target VARCHAR(500),                    -- CSS Selector / XPath
-    value VARCHAR(500),                     -- Giá trị điền vào
-    expected_result TEXT,
-    
-    CONSTRAINT FK_Test_Steps_Cases FOREIGN KEY (test_id) REFERENCES Test_Cases(test_id) ON DELETE CASCADE
-);
+  step_id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  test_id         INT UNSIGNED NOT NULL,
+  step_order      INT UNSIGNED NOT NULL,
+  action          TEXT NOT NULL,
+  target          VARCHAR(255) NULL,
+  expected_result TEXT NULL,
+  PRIMARY KEY (step_id),
+  CONSTRAINT fk_steps_case FOREIGN KEY (test_id) REFERENCES Test_Cases(test_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
--- 5. Bảng Test_Data (Dùng LONGTEXT chứa JSON Data-Driven)
-DROP TABLE IF EXISTS Test_Data;
+-- 6. Test_Data --------------------------------------------------------
 CREATE TABLE Test_Data (
-    data_id INT AUTO_INCREMENT PRIMARY KEY,
-    test_id VARCHAR(100) NOT NULL,
-    data_name VARCHAR(100) NOT NULL,        -- vd: "Valid Student IRN"
-    input_data LONGTEXT NOT NULL,           -- Chứa providedEmail, inputConfigData...
-    expected_output LONGTEXT NOT NULL,      -- Chứa expectedAuthStatus, expectedScore...
-    
-    CONSTRAINT FK_Test_Data_Cases FOREIGN KEY (test_id) REFERENCES Test_Cases(test_id) ON DELETE CASCADE
-);
+  data_id    INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  test_id    INT UNSIGNED NOT NULL,
+  field_name VARCHAR(100) NOT NULL,
+  `value`    TEXT NULL,
+  is_valid   BOOLEAN NOT NULL,
+  PRIMARY KEY (data_id),
+  CONSTRAINT fk_data_case FOREIGN KEY (test_id) REFERENCES Test_Cases(test_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
--- 6. Bảng Test_Runs
-DROP TABLE IF EXISTS Test_Runs;
+-- 7. Test_Runs --------------------------------------------------------
 CREATE TABLE Test_Runs (
-    run_id INT AUTO_INCREMENT PRIMARY KEY,
-    run_name VARCHAR(100) NOT NULL,
-    environment VARCHAR(50) NOT NULL,        -- Local, Staging
-    browser VARCHAR(50) NOT NULL,            -- Chromium, Firefox
-    executed_by VARCHAR(100),
-    executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+  run_id      INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  started_at  DATETIME NOT NULL,
+  finished_at DATETIME NULL,
+  browser     VARCHAR(50) NOT NULL,
+  environment VARCHAR(100) NULL,
+  git_commit  VARCHAR(64) NULL,
+  branch_name VARCHAR(100) NULL,
+  ci_run_id   VARCHAR(100) NULL,
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (run_id)
+) ENGINE=InnoDB;
 
--- 7. Bảng Test_Results (Ánh xạ Interface TestExecutionResult)
-DROP TABLE IF EXISTS Test_Results;
+-- 8. Test_Results -----------------------------------------------------
 CREATE TABLE Test_Results (
-    execution_id VARCHAR(100) PRIMARY KEY,  -- executionId trong TS
-    run_id INT NOT NULL,
-    test_id VARCHAR(100) NOT NULL,
-    status ENUM('PASSED', 'FAILED', 'ERROR', 'SKIPPED') NOT NULL,
-    actual_output TEXT,
-    execution_time_ms INT NOT NULL DEFAULT 0,
-    error_message TEXT,
-    screenshot_path VARCHAR(500),
-    executed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT FK_Test_Results_Runs FOREIGN KEY (run_id) REFERENCES Test_Runs(run_id) ON DELETE CASCADE,
-    CONSTRAINT FK_Test_Results_Cases FOREIGN KEY (test_id) REFERENCES Test_Cases(test_id) ON DELETE CASCADE
-);
+  execution_id      INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  run_id            INT UNSIGNED NOT NULL,
+  test_id           INT UNSIGNED NOT NULL,
+  status            ENUM('passed','failed','timedOut','skipped','interrupted') NOT NULL,
+  execution_time_ms INT UNSIGNED NOT NULL DEFAULT 0,
+  error_message     TEXT NULL,
+  retry_count       INT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (execution_id),
+  CONSTRAINT fk_results_run  FOREIGN KEY (run_id)  REFERENCES Test_Runs(run_id)   ON DELETE CASCADE,
+  CONSTRAINT fk_results_case FOREIGN KEY (test_id) REFERENCES Test_Cases(test_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
--- 8. Bảng Bug_Feedbacks
-DROP TABLE IF EXISTS Bug_Feedbacks;
+-- 9. Test_Evidences ---------------------------------------------------
+CREATE TABLE Test_Evidences (
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  result_id  INT UNSIGNED NOT NULL,
+  type       ENUM('screenshot','video','trace') NOT NULL,
+  file_path  VARCHAR(500) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  CONSTRAINT fk_evidences_result FOREIGN KEY (result_id) REFERENCES Test_Results(execution_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 10. Bug_Feedbacks ---------------------------------------------------
+-- Rule "chi bao bug khi test Fail" do back-end kiem tra, DB khong ep duoc.
 CREATE TABLE Bug_Feedbacks (
-    bug_id INT AUTO_INCREMENT PRIMARY KEY,
-    execution_id VARCHAR(100) NOT NULL,
-    dev_assignee VARCHAR(100),
-    bug_title VARCHAR(255) NOT NULL,
-    bug_description TEXT,
-    status ENUM('OPEN', 'IN_PROGRESS', 'FIXED') NOT NULL DEFAULT 'OPEN',
-    root_cause TEXT,
-    solution TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    CONSTRAINT FK_Bug_Feedbacks_Execution FOREIGN KEY (execution_id) REFERENCES Test_Results(execution_id) ON DELETE CASCADE
-);
+  bug_id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  execution_id    INT UNSIGNED NULL,
+  reported_by     INT UNSIGNED NULL,
+  bug_title       VARCHAR(255) NOT NULL,
+  bug_description TEXT NULL,
+  severity        ENUM('low','medium','high','critical') NOT NULL,
+  status          ENUM('open','in_progress','resolved','closed') NOT NULL DEFAULT 'open',
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_by      INT UNSIGNED NULL,
+  updated_at      DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (bug_id),
+  CONSTRAINT fk_bugs_result      FOREIGN KEY (execution_id) REFERENCES Test_Results(execution_id) ON DELETE SET NULL,
+  CONSTRAINT fk_bugs_reported_by FOREIGN KEY (reported_by)  REFERENCES Users(id)                  ON DELETE SET NULL,
+  CONSTRAINT fk_bugs_updated_by  FOREIGN KEY (updated_by)   REFERENCES Users(id)                  ON DELETE SET NULL
+) ENGINE=InnoDB;
 
-SET FOREIGN_KEY_CHECKS = 1;
