@@ -25,12 +25,19 @@ class MySQLLoggerReporter {
       return;
     }
 
+    const screenshot = result.attachments?.find(
+      (attachment) =>
+        attachment.name === 'screenshot' &&
+        attachment.path
+    );
+
     this.results.set(test.id, {
       tcCode: match[1].toUpperCase(),
       status: VALID_STATUS.includes(result.status) ? result.status : 'interrupted',
       duration: result.duration || 0,
       error: result.error ? stripAnsi(result.error.message) : null,
       retryCount: result.retry || 0,
+      screenshotPath: screenshot ? screenshot.path : null,
     });
   }
 
@@ -67,12 +74,24 @@ class MySQLLoggerReporter {
           continue;
         }
 
-        await query(
+        const resultInsert = await query(
           `INSERT INTO Test_Results
-             (run_id, test_id, status, execution_time_ms, error_message, retry_count)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+     (run_id, test_id, status, execution_time_ms, error_message, retry_count)
+   VALUES (?, ?, ?, ?, ?, ?)`,
           [runId, rows[0].test_id, item.status, item.duration, item.error, item.retryCount]
         );
+
+        const executionId = resultInsert.insertId;
+
+        if (item.screenshotPath && item.status === 'failed') {
+          await query(
+            `INSERT INTO Test_Evidences
+       (result_id, type, file_path)
+     VALUES (?, 'screenshot', ?)`,
+            [executionId, item.screenshotPath]
+          );
+        }
+
         saved++;
       }
 
