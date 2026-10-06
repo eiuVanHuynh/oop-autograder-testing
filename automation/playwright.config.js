@@ -7,6 +7,7 @@ module.exports = defineConfig({
   use: {
     baseURL: process.env.BASE_URL,
     browserName: process.env.PW_BROWSER || 'chromium',
+    screenshot: 'only-on-failure',
     headless: !!process.env.CI,   // local: hiện trình duyệt, CI: ẩn
   },
   reporter: [['list'], ['./reporters/test-result-logger.js']],
