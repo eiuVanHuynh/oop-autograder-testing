@@ -69,7 +69,7 @@ VALUES
     (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-01'),
     'TC-AUTH-001',
     'Login page is displayed',
-    'Login page is reachable at https://oop-autograder.vercel.app',
+    'Login page is reachable at https://oop-autograder-test.vercel.app',
     'The login page loads successfully and displays the required authentication components.',
     'high', 'functional', 'ready'
 ),
@@ -150,7 +150,7 @@ VALUES
     (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-02'),
     'TC-UI-001',
     'Login page title is correct',
-    'Login page is reachable at https://oop-autograder.vercel.app',
+    'Login page is reachable at https://oop-autograder-test.vercel.app',
     'The application title is "EIU Capstone".',
     'medium', 'ui', 'ready'
 ),
@@ -158,7 +158,7 @@ VALUES
     (SELECT spec_id FROM Test_Specs WHERE spec_code = 'SPEC-02'),
     'TC-UI-002',
     'Login page heading is correct',
-    'Login page is reachable at https://oop-autograder.vercel.app',
+    'Login page is reachable at https://oop-autograder-test.vercel.app',
     'The login page contains the "Lab Management System" heading.',
     'medium', 'ui', 'ready'
 );
@@ -183,58 +183,58 @@ CREATE TEMPORARY TABLE tmp_steps (
 INSERT INTO tmp_steps (tc_code, step_order, action, target, expected_result)
 VALUES
 -- TC-AUTH-001
-('TC-AUTH-001', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is loaded successfully.'),
+('TC-AUTH-001', 1, 'NAVIGATE', 'https://oop-autograder-test.vercel.app', 'Login page is loaded successfully.'),
 ('TC-AUTH-001', 2, 'VERIFY page title equals ''EIU Capstone''', 'page.title', 'Browser title is EIU Capstone.'),
 ('TC-AUTH-001', 3, 'VERIFY', 'text=Lab Management System', 'Lab Management System heading is visible.'),
 
 -- TC-AUTH-002
-('TC-AUTH-002', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-002', 1, 'NAVIGATE', 'https://oop-autograder-test.vercel.app', 'Login page is displayed.'),
 ('TC-AUTH-002', 2, 'VERIFY', 'placeholder=e.g. 20521234', 'Student Code or Lecturer Code input is visible.'),
 
 -- TC-AUTH-003
-('TC-AUTH-003', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-003', 1, 'NAVIGATE', 'https://oop-autograder-test.vercel.app', 'Login page is displayed.'),
 ('TC-AUTH-003', 2, 'FILL with value ''20521234''', 'placeholder=e.g. 20521234', 'Student code is entered successfully.'),
 ('TC-AUTH-003', 3, 'VERIFY input value equals ''20521234''', 'placeholder=e.g. 20521234', 'Student code input contains the expected value.'),
 
 -- TC-AUTH-004
-('TC-AUTH-004', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-004', 1, 'NAVIGATE', 'https://oop-autograder-test.vercel.app', 'Login page is displayed.'),
 ('TC-AUTH-004', 2, 'VERIFY', 'placeholder=Enter your password', 'Password input is visible.'),
 
 -- TC-AUTH-005
-('TC-AUTH-005', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-005', 1, 'NAVIGATE', 'https://oop-autograder-test.vercel.app', 'Login page is displayed.'),
 ('TC-AUTH-005', 2, 'FILL with value ''20521234''', 'placeholder=e.g. 20521234', 'Student code is entered.'),
 ('TC-AUTH-005', 3, 'FILL with value ''wrong_password''', 'placeholder=Enter your password', 'Incorrect password is entered.'),
 ('TC-AUTH-005', 4, 'CLICK', 'Sign In', 'Login request is submitted.'),
 ('TC-AUTH-005', 5, 'VERIFY', 'text=IRN or password is wrong', 'Invalid credential error message is displayed.'),
 
 -- TC-AUTH-006
-('TC-AUTH-006', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-006', 1, 'NAVIGATE', 'https://oop-autograder-test.vercel.app', 'Login page is displayed.'),
 ('TC-AUTH-006', 2, 'CLICK', 'Sign In', 'Login validation is triggered.'),
 ('TC-AUTH-006', 3, 'VERIFY', 'login validation', 'Required authentication fields prevent invalid submission.'),
 
 -- TC-AUTH-007
-('TC-AUTH-007', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-007', 1, 'NAVIGATE', 'https://oop-autograder-test.vercel.app', 'Login page is displayed.'),
 ('TC-AUTH-007', 2, 'VERIFY', 'Remember Me', 'Remember Me checkbox is visible.'),
 
 -- TC-AUTH-008
-('TC-AUTH-008', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-008', 1, 'NAVIGATE', 'https://oop-autograder-test.vercel.app', 'Login page is displayed.'),
 ('TC-AUTH-008', 2, 'VERIFY', 'Google sign-in iframe', 'Google sign-in component is present.'),
 
 -- TC-AUTH-009
-('TC-AUTH-009', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-009', 1, 'NAVIGATE', 'https://oop-autograder-test.vercel.app', 'Login page is displayed.'),
 ('TC-AUTH-009', 2, 'VERIFY', 'Forgot password', 'Forgot password link is visible.'),
 
 -- TC-AUTH-010
-('TC-AUTH-010', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Login page is displayed.'),
+('TC-AUTH-010', 1, 'NAVIGATE', 'https://oop-autograder-test.vercel.app', 'Login page is displayed.'),
 ('TC-AUTH-010', 2, 'FILL with value ''test_password''', 'placeholder=Enter your password', 'Password value is entered successfully.'),
 ('TC-AUTH-010', 3, 'VERIFY input value equals ''test_password''', 'placeholder=Enter your password', 'Password input accepts the entered value.'),
 
 -- TC-UI-001
-('TC-UI-001', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Application page is loaded.'),
+('TC-UI-001', 1, 'NAVIGATE', 'https://oop-autograder-test.vercel.app', 'Application page is loaded.'),
 ('TC-UI-001', 2, 'VERIFY page title equals ''EIU Capstone''', 'page.title', 'Page title is EIU Capstone.'),
 
 -- TC-UI-002
-('TC-UI-002', 1, 'NAVIGATE', 'https://oop-autograder.vercel.app', 'Application page is loaded.'),
+('TC-UI-002', 1, 'NAVIGATE', 'https://oop-autograder-test.vercel.app', 'Application page is loaded.'),
 ('TC-UI-002', 2, 'VERIFY', 'text=Lab Management System', 'Lab Management System heading is visible.');
 
 INSERT INTO Test_Steps (test_id, step_order, action, target, expected_result)
@@ -261,7 +261,7 @@ CREATE TEMPORARY TABLE tmp_data (
 
 INSERT INTO tmp_data (tc_code, field_name, `value`, is_valid)
 VALUES
-('TC-AUTH-001', 'url',                  'https://oop-autograder.vercel.app', TRUE),
+('TC-AUTH-001', 'url',                  'https://oop-autograder-test.vercel.app', TRUE),
 ('TC-AUTH-002', 'code_placeholder',     'e.g. 20521234',                     TRUE),
 ('TC-AUTH-003', 'username',             '20521234',                          TRUE),
 ('TC-AUTH-004', 'password_placeholder', 'Enter your password',               TRUE),
@@ -273,8 +273,8 @@ VALUES
 ('TC-AUTH-008', 'provider',             'Google',                            TRUE),
 ('TC-AUTH-009', 'action',               'open forgot password',              TRUE),
 ('TC-AUTH-010', 'password',             'test_password',                     TRUE),
-('TC-UI-001',   'url',                  'https://oop-autograder.vercel.app', TRUE),
-('TC-UI-002',   'url',                  'https://oop-autograder.vercel.app', TRUE);
+('TC-UI-001',   'url',                  'https://oop-autograder-test.vercel.app', TRUE),
+('TC-UI-002',   'url',                  'https://oop-autograder-test.vercel.app', TRUE);
 
 INSERT INTO Test_Data (test_id, field_name, `value`, is_valid)
 SELECT tc.test_id, d.field_name, d.`value`, d.is_valid
