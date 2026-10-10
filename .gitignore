@@ -136,9 +136,6 @@ dist
 .pnp.*
 
 
-# environment
-.env
-
 # Playwright
 test-results/
 playwright-report/

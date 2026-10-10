@@ -36,7 +36,6 @@ test("TC-AUTH-005 - Invalid login using MySQL test data", async ({ page }) => {
   console.log("Test case:", TC_CODE);
   console.log("Input:", {
     username,
-    password,
   });
   console.log("Expected message:", expectedMessage);
 
@@ -61,7 +60,7 @@ test("TC-AUTH-005 - Invalid login using MySQL test data", async ({ page }) => {
   });
 
   // 5. Open website
-  await page.goto("https://oop-autograder.vercel.app");
+  await page.goto("/login");
 
   // 6. Fill student code
   await page.getByPlaceholder("e.g. 20521234").fill(username);
@@ -69,17 +68,47 @@ test("TC-AUTH-005 - Invalid login using MySQL test data", async ({ page }) => {
   // 7. Fill password
   await page.getByPlaceholder("Enter your password").fill(password);
 
-  // 8. Click Sign In
-  await page.getByRole("button", { name: "Sign In" }).click();
+  // 8. Chờ response đăng nhập; đồng thời ghi nhận request thực tế
+  const loginResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/auth/login") &&
+      response.request().method() === "POST",
+    { timeout: 60000 },
+  );
 
-  // 9. Wait for API
-  await page.waitForTimeout(5000);
+  await page
+    .getByRole("button", {
+      name: /Sign In|Signing in/i,
+    })
+    .click();
 
-  // 10. Show actual page
-  console.log("Page text after login:", await page.locator("body").innerText());
+  let loginResponse;
 
-  // 11. Verify expected error
-  await expect(page.getByText(expectedMessage)).toBeVisible({
-    timeout: 5000,
+  try {
+    loginResponse = await loginResponsePromise;
+  } catch (error) {
+    console.error("Không nhận được login response trong 60 giây.");
+    console.error("Current URL:", page.url());
+    console.error(
+      "Page text:",
+      (await page.locator("body").innerText()).slice(0, 1500),
+    );
+    throw error;
+  }
+
+  console.log("LOGIN STATUS:", loginResponse.status());
+  console.log("LOGIN RESPONSE:", await loginResponse.text());
+
+  // 9. Kiểm tra thông báo lỗi
+
+  // Kiểm tra API
+  expect(loginResponse.status()).toBe(401);
+
+  const responseBody = await loginResponse.json();
+  expect(responseBody.message).toBe("Invalid IRN or password");
+
+  // Kiểm tra thông báo thực tế trên giao diện
+  await expect(page.getByText(expectedMessage, { exact: true })).toBeVisible({
+    timeout: 15000,
   });
 });

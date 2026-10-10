@@ -1,5 +1,9 @@
 const { test, expect } = require("@playwright/test");
-
+const { loadTestCase } = require("../utils/test-case-loader");
+const { closeDb } = require("../utils/db-client");
+test.afterAll(async () => {
+  await closeDb();
+});
 const {
   AuthType,
   UserRole,
@@ -23,40 +27,7 @@ const {
   TestExecutionResult,
 } = require("../models/test-case.model");
 
-const tc01Auth = new AuthenticationTest(
-  "TC-01_Login_IRN_Password_Success",
-  AuthType.IRN_PASSWORD,
-  process.env.TEST_STUDENT_IRN,
-  process.env.TEST_STUDENT_PASSWORD,
-  true,
-  UserRole.STUDENT,
-  "",
-);
-
-const tc01Input = new InputField(
-  "e.g. 20521234",
-  process.env.TEST_STUDENT_IRN,
-  InputType.TEXT,
-  true,
-  "",
-);
-
-const tc01Password = new InputField(
-  "Enter your password",
-  process.env.TEST_STUDENT_PASSWORD,
-  InputType.PASSWORD,
-  true,
-  "",
-);
-
 const tc01Button = new Button("Sign In", "", "", "", false, true);
-
-const tc01ButtonTest = new ButtonTest(
-  "TC-01_SignIn_Button",
-  tc01Button,
-  ExpectedAction.SUBMIT,
-  "/student-dashboard",
-);
 
 const tc01TestCase = new TestCase(
   "TC-01",
@@ -66,16 +37,8 @@ const tc01TestCase = new TestCase(
   "FR-1",
   TestType.AUTHENTICATION,
 );
-
-const tc02Auth = new AuthenticationTest(
-  "TC-02_Login_IRN_Password_Failed",
-  AuthType.IRN_PASSWORD,
-  process.env.TEST_STUDENT_IRN,
-  "Wrong_Password_123",
-  false,
-  UserRole.NONE,
-  "Invalid IRN or password",
-);
+tc01TestCase.preconditions =
+  "Tài khoản Student chưa thuộc lớp nào trong quarter hiện tại.";
 
 const tc02TestCase = new TestCase(
   "TC-02",
@@ -84,23 +47,6 @@ const tc02TestCase = new TestCase(
   "Kiểm tra hệ thống từ chối thông tin đăng nhập không hợp lệ.",
   "FR-1",
   TestType.AUTHENTICATION,
-);
-
-const tc03Auth = new AuthenticationTest(
-  "TC-03_Google_OAuth_Valid_Domain",
-  AuthType.GOOGLE_OAUTH,
-  "student@eiu.edu.vn",
-  "",
-  true,
-  UserRole.STUDENT,
-  "",
-);
-
-const tc03Button = new ButtonTest(
-  "TC-03_Google_Login_Button",
-  new Button("Sign in with Google", "", "", "", false, true),
-  ExpectedAction.REDIRECT,
-  "/student-history",
 );
 
 const tc03TestCase = new TestCase(
@@ -112,16 +58,6 @@ const tc03TestCase = new TestCase(
   TestType.AUTHENTICATION,
 );
 
-const tc04Auth = new AuthenticationTest(
-  "TC-04_Google_OAuth_Invalid_Domain",
-  AuthType.GOOGLE_OAUTH,
-  "external@gmail.com",
-  "",
-  false,
-  UserRole.NONE,
-  "Domain not allowed",
-);
-
 const tc04TestCase = new TestCase(
   "TC-04",
   "AUTHENTICATION",
@@ -129,16 +65,6 @@ const tc04TestCase = new TestCase(
   "Kiểm tra hệ thống từ chối Google account không thuộc domain EIU.",
   "FR-2",
   TestType.AUTHENTICATION,
-);
-
-const tc05Auth = new AuthenticationTest(
-  "TC-05_Google_First_Setup",
-  AuthType.GOOGLE_OAUTH,
-  "student@eiu.edu.vn",
-  "New_P@ssw0rd",
-  true,
-  UserRole.STUDENT,
-  "",
 );
 
 const tc05TestCase = new TestCase(
@@ -150,23 +76,6 @@ const tc05TestCase = new TestCase(
   TestType.AUTHENTICATION,
 );
 
-const tc06Auth = new AuthenticationTest(
-  "TC-06_Forgot_Password_Request",
-  AuthType.IRN_PASSWORD,
-  "student01@eiu.edu.vn",
-  "",
-  true,
-  UserRole.NONE,
-  "",
-);
-
-const tc06Input = new InputFieldTest(
-  "TC-06_Email_Input",
-  new InputField("Email", "student01@eiu.edu.vn", InputType.EMAIL, true, ""),
-  "student01@eiu.edu.vn",
-  "",
-);
-
 const tc06TestCase = new TestCase(
   "TC-06",
   "AUTHENTICATION",
@@ -174,16 +83,6 @@ const tc06TestCase = new TestCase(
   "Kiểm tra yêu cầu reset password.",
   "FR-4",
   TestType.AUTHENTICATION,
-);
-
-const tc07Auth = new AuthenticationTest(
-  "TC-07_Reset_Password",
-  AuthType.IRN_PASSWORD,
-  "",
-  "New_P@ssw0rd",
-  true,
-  UserRole.NONE,
-  "",
 );
 
 const tc07TestCase = new TestCase(
@@ -195,13 +94,6 @@ const tc07TestCase = new TestCase(
   TestType.AUTHENTICATION,
 );
 
-const tc08Role = new RoleAccessTest(
-  "TC-08_Lecturer_Create_User",
-  UserRole.LECTURER,
-  "/admin/users",
-  200,
-);
-
 const tc08TestCase = new TestCase(
   "TC-08",
   "USER_MANAGEMENT",
@@ -209,13 +101,6 @@ const tc08TestCase = new TestCase(
   "Lecturer tạo một user student mới.",
   "FR-5",
   TestType.UI_COMPONENT,
-);
-
-const tc09Role = new RoleAccessTest(
-  "TC-09_Lecturer_Import_CSV",
-  UserRole.LECTURER,
-  "/admin/users",
-  200,
 );
 
 const tc09TestCase = new TestCase(
@@ -230,7 +115,7 @@ const tc09TestCase = new TestCase(
 const tc10Role = new RoleAccessTest(
   "TC-10_Lecturer_Update_User",
   UserRole.LECTURER,
-  "/admin/users",
+  "/lecturer-users",
   200,
 );
 
@@ -246,7 +131,7 @@ const tc10TestCase = new TestCase(
 const tc11Role = new RoleAccessTest(
   "TC-11_Lecturer_Reset_User_Password",
   UserRole.LECTURER,
-  "/admin/users",
+  "/lecturer-users",
   200,
 );
 
@@ -262,7 +147,7 @@ const tc11TestCase = new TestCase(
 const tc12Role = new RoleAccessTest(
   "TC-12_Lecturer_Disable_User",
   UserRole.LECTURER,
-  "/admin/users",
+  "/lecturer-users",
   200,
 );
 
@@ -275,90 +160,76 @@ const tc12TestCase = new TestCase(
   TestType.UI_COMPONENT,
 );
 
-async function loginAsStudent(page) {
+const tc31Role = new RoleAccessTest(
+  "TC-31_Student_Access_Lecturer_Route",
+  UserRole.STUDENT,
+  "/lecturer-users",
+  403,
+);
+
+const tc31TestCase = new TestCase(
+  "TC-31",
+  "USER_MANAGEMENT",
+  "Kiểm soát truy cập phân quyền theo Role",
+  "Student đăng nhập và cố truy cập route dành riêng cho Lecturer.",
+  "FR-9",
+  TestType.AUTHENTICATION,
+);
+
+tc31TestCase.preconditions =
+  "Tài khoản Student đăng nhập thành công và có session/token hợp lệ.";
+
+test(`${tc01TestCase.testId} - ${tc01TestCase.title}`, async ({ page }) => {
+  const tc = await loadTestCase("TC-01");
+
   await page.goto("/login");
 
-  await page.getByPlaceholder("e.g. 20521234")
-    .fill(tc01Auth.providedEmail);
+  await page.getByPlaceholder("e.g. 20521234").fill(tc.getData("username"));
 
-  await page.getByPlaceholder("Enter your password")
-    .fill(tc01Auth.providedPassword);
+  await page
+    .getByPlaceholder("Enter your password")
+    .fill(tc.getData("password"));
 
   const signInButton = page.getByRole("button", {
     name: "Sign In",
   });
 
-  await expect(signInButton).toBeVisible();
-  await expect(signInButton).toBeEnabled();
-
-  const [response] = await Promise.all([
+  await Promise.all([
     page.waitForResponse(
       (response) =>
         response.url().includes("/api/auth/login") &&
-        response.request().method() === "POST"
+        response.request().method() === "POST",
     ),
     signInButton.click(),
   ]);
 
-  console.log("Login response:", response.status());
-
-  await page.waitForURL(/\/student-dashboard/, {
-    timeout: 15000,
-  });
-}
-
-async function loginAsLecturer(page) {
-  await page.goto("/login");
-
-  await page
-    .getByPlaceholder("e.g. 20521234")
-    .fill(process.env.TEST_LECTURER_IRN);
-
-  await page
-    .getByPlaceholder("Enter your password")
-    .fill(process.env.TEST_LECTURER_PASSWORD);
-
-  await page
-    .getByRole("button", {
-      name: "Sign In",
-    })
-    .click();
-
-  await expect(page).toHaveURL(/\/lecturer-dashboard/);
-}
-
-test(`${tc01TestCase.testId} - ${tc01TestCase.title}`, async ({ page }) => {
-  await loginAsStudent(page);
-
-  expect(tc01Auth.expectedAuthStatus).toBe(true);
-  expect(tc01Auth.expectedRedirectRole).toBe(UserRole.STUDENT);
-
-  await expect(page).toHaveURL(
-    new RegExp(tc01ButtonTest.expectedResultUrl.replace("/", "\\/")),
-  );
+  await expect(page).toHaveURL(new RegExp(tc.getData("expected_url")));
 });
 
 test(`${tc02TestCase.testId} - ${tc02TestCase.title}`, async ({ page }) => {
+  const tc = await loadTestCase("TC-02");
+
   await page.goto("/login");
 
-  await page.getByPlaceholder("e.g. 20521234").fill(tc02Auth.providedEmail);
+  await page.getByPlaceholder("e.g. 20521234").fill(tc.getData("username"));
+
   await page
     .getByPlaceholder("Enter your password")
-    .fill(tc02Auth.providedPassword);
+    .fill(tc.getData("password"));
 
   const [response] = await Promise.all([
-    page.waitForResponse((r) => r.url().includes("/api/auth/login")),
+    page.waitForResponse(
+      (r) =>
+        r.url().includes("/api/auth/login") && r.request().method() === "POST",
+    ),
     page.getByRole("button", { name: "Sign In" }).click(),
   ]);
 
   expect(response.ok()).toBe(false);
 
   await expect(
-    page.getByText(/Invalid IRN or password|IRN or password is wrong/i),
+    page.getByText(new RegExp(tc.getData("expected_message"), "i")),
   ).toBeVisible({ timeout: 15000 });
-
-  expect(tc02Auth.expectedAuthStatus).toBe(false);
-  expect(tc02Auth.expectedRedirectRole).toBe(UserRole.NONE);
 });
 
 //////// chưa viết được, cần có test google account
@@ -385,207 +256,313 @@ test(`${tc05TestCase.testId} - ${tc05TestCase.title}`, async ({ page }) => {
 });
 
 test(`${tc06TestCase.testId} - ${tc06TestCase.title}`, async ({ page }) => {
+  const tc = await loadTestCase("TC-06");
+
   await page.goto("/login");
 
+  const forgotPasswordButton = page.locator("button.forgot-link");
+  const emailInput = page.getByPlaceholder("you@eiu.edu.vn");
+
+  await expect(forgotPasswordButton).toBeVisible({ timeout: 15000 });
+  await expect(forgotPasswordButton).toBeEnabled();
   await page
-    .getByRole("button", {
-      name: /Forgot password/i,
-    })
-    .click();
+    .locator("iframe")
+    .first()
+    .waitFor({ state: "attached", timeout: 10000 })
+    .catch(() => {});
 
-  await expect(page).toHaveURL(/\/$/);
+  await expect(async () => {
+    if (!(await emailInput.isVisible())) {
+      await forgotPasswordButton.click();
+    }
+    await expect(emailInput).toBeVisible({ timeout: 3000 });
+  }).toPass({ timeout: 30000, intervals: [500, 1000, 2000] });
 
-  await page.getByPlaceholder("you@eiu.edu.vn").fill(tc06Input.testInputData);
+  await emailInput.fill(tc.getData("email"));
 
-  await page
-    .getByRole("button", {
-      name: /Send reset link/i,
-    })
-    .click();
+  const sendResetLinkButton = page.getByRole("button", {
+    name: /Send reset link/i,
+  });
 
-  await page.waitForTimeout(2000);
-
-  console.log("AFTER RESET URL:", page.url());
-
-  console.log("PAGE TEXT:", await page.locator("body").innerText());
+  await expect(sendResetLinkButton).toBeVisible({ timeout: 10000 });
+  await sendResetLinkButton.click();
 
   await expect(
-    page.getByText(/Check your inbox for a reset link/i),
-  ).toBeVisible();
+    page.getByText(new RegExp(tc.getData("expected_message"), "i")),
+  ).toBeVisible({ timeout: 15000 });
 });
 
 test(`${tc07TestCase.testId} - ${tc07TestCase.title}`, async ({ page }) => {
+  test.skip(!process.env.TEST_RESET_TOKEN, "TEST_RESET_TOKEN chưa được cấu hình trong .env");
+  const tc = await loadTestCase("TC-07");
+  const pwd = tc.getData("new_password");
+
+  await page.goto(`/reset-password?token=${tc.getData("reset_token")}`);
+  await page.getByPlaceholder("New password").fill(pwd);
+  await page.getByPlaceholder("Confirm password").fill(pwd);
+  await page.getByRole("button", { name: /submit|đặt lại/i }).click();
+  await expect(page).toHaveURL(new RegExp(`${tc.getData("expected_url")}$`));
+});
+
+test(`${tc09TestCase.testId} - ${tc09TestCase.title}`, async ({ page }) => {
   test.skip(
-    !process.env.TEST_RESET_TOKEN,
-    "TEST_RESET_TOKEN chưa được cấu hình trong .env",
+    true,
+    "BLOCKED: Chức năng tạo user hàng loạt bằng CSV chưa được development implement. CSV import hiện tại chỉ dùng để thêm các student đã tồn tại vào Quarter.",
   );
-
-  await page.goto(`/reset-password?token=${process.env.TEST_RESET_TOKEN}`);
-
-  await page.getByPlaceholder("New password").fill(tc07Auth.providedPassword);
-
-  await page
-    .getByPlaceholder("Confirm password")
-    .fill(tc07Auth.providedPassword);
-
-  await page
-    .getByRole("button", {
-      name: /submit|đặt lại/i,
-    })
-    .click();
-
-  await expect(page).toHaveURL(/\/$/);
-
-  expect(tc07Auth.expectedAuthStatus).toBe(true);
 });
 
 test.describe.serial("TC-08 -> TC-12 - Lecturer User Management", () => {
-  // Dữ liệu duy nhất mỗi lần chạy, tránh trùng user đã tạo ở lần trước
-  const runId = Date.now().toString().slice(-6);
-  const newIrn = `2024${runId}`;                  // 10 chữ số, giống định dạng 2052123456
-  const originalName = `Tran Thi B ${runId}`;
-  const updatedName = `${originalName} Updated`;
-  const newEmail = `tranthib${runId}@eiu.edu.vn`;
+  const testUser = {
+    runId: Date.now().toString().slice(-6),
+    newIrn: null,
+    originalName: null,
+    updatedName: null,
+    newEmail: null,
+  };
 
   test(`${tc08TestCase.testId} - ${tc08TestCase.title}`, async ({ page }) => {
-    await loginAsLecturer(page);
-    await page.goto("/admin/users");
+    const tc = await loadTestCase("TC-08");
 
-    await page.getByRole("button", { name: "Add User" }).click();
+    const irnPrefix = String(tc.getData("irn_prefix"));
+    const fullNamePrefix = String(tc.getData("full_name_prefix"));
+    const emailPrefix = String(tc.getData("email_prefix"));
+    const emailDomain = String(tc.getData("email_domain"));
 
-    await page.getByRole("checkbox", { name: "STUDENT" }).check();
-    await page.getByPlaceholder("e.g. 2052123456").fill(newIrn);
-    await page.getByPlaceholder("Enter full name").fill(originalName);
-    await page.getByPlaceholder("user@eiu.edu.vn").fill(newEmail);
-    await page.getByPlaceholder("Enter password").fill("Test_P@ssw0rd1");
+    testUser.newIrn = `${irnPrefix}${testUser.runId}`;
+    testUser.originalName = `${fullNamePrefix} ${testUser.runId}`;
+    testUser.newEmail = `${emailPrefix}${testUser.runId}${emailDomain}`;
 
-    await page.getByRole("button", { name: "Create User" }).click();
+    await page.goto("/login");
+    await page
+      .getByPlaceholder("e.g. 20521234")
+      .fill(tc.getData("lecturer_username"));
 
-    // Tìm user vừa tạo qua ô tìm kiếm rồi kiểm tra hàng trong bảng
-    await page.getByPlaceholder(/Search by IRN/i).fill(newIrn);
-    await expect(
-      page.getByRole("row", { name: new RegExp(originalName, "i") }),
-    ).toBeVisible();
-  });
-
-  test(`${tc09TestCase.testId} - ${tc09TestCase.title}`, async ({ page }) => {
-    await loginAsLecturer(page);
-
-    await page.goto("/admin/users");
-
-    const filePath = require("path").resolve(
-      __dirname,
-      "../../fixtures/student_list_batch1.csv",
-    );
-
-    await page.getByLabel(/upload csv|import/i).setInputFiles(filePath);
+    await page
+      .getByPlaceholder("Enter your password")
+      .fill(tc.getData("lecturer_password"));
 
     await page
       .getByRole("button", {
-        name: /import/i,
+        name: "Sign In",
       })
       .click();
 
-    await expect(
-      page.getByText(/imported successfully|nhập khẩu thành công/i),
-    ).toBeVisible();
+    await expect(page).toHaveURL(/\/lecturer-dashboard/);
+    await page.goto("/lecturer-users");
+    await page
+      .getByRole("button", {
+        name: "Add User",
+      })
+      .click();
 
-    expect(tc09Role.userRole).toBe(UserRole.LECTURER);
-    expect(tc09Role.targetApiRoute).toBe("/admin/users");
+    await page
+      .getByRole("checkbox", {
+        name: tc.getData("role"),
+      })
+      .check();
+
+    await page.getByPlaceholder("e.g. 2052123456").fill(testUser.newIrn);
+    await page.getByPlaceholder("Enter full name").fill(testUser.originalName);
+    await page.getByPlaceholder("user@eiu.edu.vn").fill(testUser.newEmail);
+    await page
+      .getByPlaceholder("Enter password")
+      .fill(tc.getData("user_password"));
+
+    await page
+      .getByRole("button", {
+        name: "Create User",
+      })
+      .click();
+
+    // Verify the created user
+    const searchBox = page.getByPlaceholder(/Search by IRN/i);
+
+    await searchBox.fill(testUser.newIrn);
+
+    const createdUserRow = page.getByRole("row", {
+      name: new RegExp(testUser.originalName, "i"),
+    });
+
+    await expect(createdUserRow).toBeVisible();
+
+    // Verify runtime data was generated
+    expect(testUser.newIrn).toBeTruthy();
+    expect(testUser.originalName).toBeTruthy();
+    expect(testUser.newEmail).toBeTruthy();
   });
 
   test(`${tc10TestCase.testId} - ${tc10TestCase.title}`, async ({ page }) => {
-    await loginAsLecturer(page);
+    const tc = await loadTestCase("TC-10");
+    const nameSuffix = String(tc.getData("name_suffix"));
+    testUser.updatedName = `${testUser.originalName}${nameSuffix}`;
 
-    await page.goto("/admin/users");
-
-    const userRow = page.getByRole("row", {
-      name: new RegExp(originalName, "i"),
-    });
-
-    await userRow
-      .getByRole("button", {
-        name: /Edit/i,
-      })
-      .click();
-
-    await page.getByPlaceholder("Name").fill(updatedName);
+    await page.goto("/login");
+    await page
+      .getByPlaceholder("e.g. 20521234")
+      .fill(tc.getData("lecturer_username"));
+    await page
+      .getByPlaceholder("Enter your password")
+      .fill(tc.getData("lecturer_password"));
 
     await page
       .getByRole("button", {
-        name: /save/i,
+        name: "Sign In",
       })
       .click();
 
-    await expect(
-      page.getByRole("row", {
-        name: new RegExp(updatedName, "i"),
-      }),
-    ).toBeVisible();
+    await expect(page).toHaveURL(/\/lecturer-dashboard/);
+    await page.goto("/lecturer-users");
+
+    const searchBox = page.getByPlaceholder(/Search by IRN, name or email/i);
+    await searchBox.fill(testUser.newIrn);
+
+    const userRow = page.getByRole("row", {
+      name: new RegExp(testUser.originalName, "i"),
+    });
+    await expect(userRow).toBeVisible();
+
+    const actionButtons = userRow.getByRole("button");
+    await expect(actionButtons).toHaveCount(3);
+    await actionButtons.nth(0).click();
+
+    const editNameInput = page.getByPlaceholder("Enter full name");
+    await expect(editNameInput).toBeVisible();
+    await editNameInput.fill(testUser.updatedName);
+    await page.getByRole("button", { name: "Save Changes" }).click();
+    await expect(editNameInput).toBeHidden();
+
+    // Reload and verify updated data
+    await page.reload();
+
+    await page
+      .getByPlaceholder(/Search by IRN, name or email/i)
+      .fill(testUser.newIrn);
+
+    const updatedUserRow = page.getByRole("row", {
+      name: new RegExp(testUser.updatedName, "i"),
+    });
+
+    await expect(updatedUserRow).toBeVisible();
 
     expect(tc10Role.userRole).toBe(UserRole.LECTURER);
-    expect(tc10Role.targetApiRoute).toBe("/admin/users");
+    expect(tc10Role.targetApiRoute).toBe("/lecturer-users");
   });
 
   test(`${tc11TestCase.testId} - ${tc11TestCase.title}`, async ({ page }) => {
-    await loginAsLecturer(page);
+    const tc = await loadTestCase("TC-11");
+    await page.goto("/login");
 
-    await page.goto("/admin/users");
+    await page
+      .getByPlaceholder("e.g. 20521234")
+      .fill(tc.getData("lecturer_username"));
 
-    const userRow = page.getByRole("row", {
-      name: new RegExp(updatedName, "i"),
-    });
-
-    await userRow
-      .getByRole("button", {
-        name: /reset password/i,
-      })
-      .click();
-
-    await page.getByPlaceholder("New password").fill("Temp_P@ssw0rd");
+    await page
+      .getByPlaceholder("Enter your password")
+      .fill(tc.getData("lecturer_password"));
 
     await page
       .getByRole("button", {
-        name: /confirm|xác nhận/i,
+        name: "Sign In",
       })
       .click();
 
-    await expect(
-      page.getByText(/password updated|cập nhật mật khẩu thành công/i),
-    ).toBeVisible();
+    await expect(page).toHaveURL(/\/lecturer-dashboard/);
+    await page.goto("/lecturer-users");
 
+    const searchBox = page.getByPlaceholder(/Search by IRN, name or email/i);
+
+    await searchBox.fill(testUser.newIrn);
+
+    const userRow = page.getByRole("row", {
+      name: new RegExp(testUser.updatedName, "i"),
+    });
+
+    await expect(userRow).toBeVisible();
+
+    const actionButtons = userRow.getByRole("button");
+
+    await expect(actionButtons).toHaveCount(3);
+
+    await actionButtons.nth(0).click();
+    const passwordInput = page.getByPlaceholder(
+      "Leave blank to keep current password",
+    );
+    await expect(passwordInput).toBeVisible();
+    const newPassword = tc.getData("new_password");
+    expect(newPassword).toBeTruthy();
+    await passwordInput.fill(newPassword);
+    await page.getByRole("button", { name: "Save Changes" }).click();
+    await expect(passwordInput).toBeHidden();
     expect(tc11Role.userRole).toBe(UserRole.LECTURER);
-    expect(tc11Role.targetApiRoute).toBe("/admin/users");
+    expect(tc11Role.targetApiRoute).toBe("/lecturer-users");
   });
 
   test(`${tc12TestCase.testId} - ${tc12TestCase.title}`, async ({ page }) => {
-    await loginAsLecturer(page);
+    const tc = await loadTestCase("TC-12");
 
-    await page.goto("/admin/users");
-
-    const userRow = page.getByRole("row", {
-      name: new RegExp(updatedName, "i"),
-    });
-
-    await userRow
-      .getByRole("button", {
-        name: /Delete/i,
-      })
-      .click();
-
+    await page.goto("/login");
+    await page
+      .getByPlaceholder("e.g. 20521234")
+      .fill(tc.getData("lecturer_username"));
+    await page
+      .getByPlaceholder("Enter your password")
+      .fill(tc.getData("lecturer_password"));
     await page
       .getByRole("button", {
-        name: /confirm|xác nhận/i,
+        name: "Sign In",
       })
       .click();
+    await expect(page).toHaveURL(/\/lecturer-dashboard/);
+    await page.goto("/lecturer-users");
 
-    await expect(
-      page.getByRole("row", {
-        name: new RegExp(updatedName, "i"),
-      }),
-    ).toContainText(/inactive|không hoạt động/i);
+    const searchBox = page.getByPlaceholder(/Search by IRN, name or email/i);
+    await searchBox.fill(testUser.newIrn);
+
+    const userRow = page.getByRole("row", {
+      name: new RegExp(testUser.updatedName, "i"),
+    });
+
+    await expect(userRow).toBeVisible();
+    const suspendButton = userRow.getByRole("button", {
+      name: "Suspend student",
+    });
+    await expect(suspendButton).toBeVisible();
+    await expect(suspendButton).toBeEnabled();
+    await suspendButton.click();
+
+    const suspendConfirmButton = page.getByRole("button", {
+      name: "Suspend",
+      exact: true,
+    });
+
+    await expect(suspendConfirmButton).toBeVisible();
+    await expect(suspendConfirmButton).toBeEnabled();
+    await suspendConfirmButton.click();
+
+    // Verify soft-delete / suspend state
+    const disabledUserRow = page.getByRole("row", {
+      name: new RegExp(testUser.updatedName, "i"),
+    });
+
+    await expect(disabledUserRow).toBeVisible();
+    await expect(disabledUserRow).toContainText(tc.getData("expected_status"));
 
     expect(tc12Role.userRole).toBe(UserRole.LECTURER);
-    expect(tc12Role.targetApiRoute).toBe("/admin/users");
+    expect(tc12Role.targetApiRoute).toBe("/lecturer-users");
   });
+});
+
+test(`${tc31TestCase.testId} - ${tc31TestCase.title}`, async ({ page }) => {
+  const tc = await loadTestCase("TC-31");
+
+  await page.goto("/login");
+  await page.getByPlaceholder("e.g. 20521234").fill(tc.getData("username"));
+  await page
+    .getByPlaceholder("Enter your password")
+    .fill(tc.getData("password"));
+
+  await page.getByRole("button", { name: "Sign In" }).click();
+  await expect(page).toHaveURL(new RegExp(tc.getData("expected_url")));
+  await page.goto(tc.getData("forbidden_route"));
+  await expect(page).toHaveURL(new RegExp(tc.getData("expected_url")));
 });
