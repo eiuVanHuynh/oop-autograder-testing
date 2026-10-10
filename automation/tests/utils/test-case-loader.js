@@ -12,7 +12,7 @@ async function loadTestCase(tcCode) {
 
   const stepRows = await query(
     `
-      SELECT *
+      SELECT ts.*
       FROM Test_Steps ts
       JOIN Test_Cases tc
         ON ts.test_id = tc.test_id
@@ -49,17 +49,23 @@ async function loadTestCase(tcCode) {
     data: dataRows,
 
     getData(field) {
-      const row = dataRows.find(
-        (item) => item.field_name === field
-      );
-
-      return row ? row.value : undefined;
+      const row = dataRows.find((i) => i.field_name === field);
+      if (!row)
+        throw new Error(
+          `Thieu field "${field}" trong Test_Data cua ${tcCode}.`,
+        );
+      const value = row.value;
+      if (typeof value === "string" && value.startsWith("env:")) {
+        const key = value.slice(4);
+        if (!process.env[key])
+          throw new Error(`Thieu bien moi truong ${key} (${tcCode}.${field}).`);
+        return process.env[key];
+      }
+      return value;
     },
 
     getStep(n) {
-      const step = stepRows.find(
-        (item) => item.step_order === n
-      );
+      const step = stepRows.find((item) => item.step_order === n);
 
       return step;
     },
