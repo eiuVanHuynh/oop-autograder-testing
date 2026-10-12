@@ -11,6 +11,9 @@ import {
   Terminal,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../controllers/AuthContext';
+import { canManageTemplates } from '../models/permissions';
+import { listTemplates, createTemplate } from '../services/templateService';
 
 export default function TestCreation() {
   const navigate = useNavigate();
@@ -31,38 +34,32 @@ export default function TestCreation() {
   const [logs, setLogs] = useState([]);
   const [testStatus, setTestStatus] = useState('IDLE'); // IDLE, RUNNING, COMPLETED, FAILED
 
-  // Templates data mẫu
-  const templates = {
-    oop: {
-      name: 'OOP Core Logic Validation',
-      req: 'Verify encapsulation, inheritance, and polymorphism for service classes.',
-      scope: 'API',
-      expected: 'All unit test assertions pass with 0 memory leaks.',
-    },
-    api: {
-      name: 'RESTful API Endpoint Load & Security',
-      req: 'Test rate limiting, payload validation, and authentication headers.',
-      scope: 'API',
-      expected: 'Status code 200 OK for valid tokens, 401 for unauthorized.',
-    },
-    ui: {
-      name: 'Dashboard UI Responsiveness & Flow',
-      req: 'Check sidebar toggle, dark mode transitions, and role-based views.',
-      scope: 'UI',
-      expected: 'Elements render correctly across mobile and desktop breakpoints.',
-    },
-  };
+  // Template lấy từ templateService (dùng chung với trang Quản lý Template)
+  const [templates, setTemplates] = useState(() => listTemplates());
+  const { user } = useAuth();
 
   const handleTemplateChange = (e) => {
-    const key = e.target.value;
-    setTemplate(key);
-    if (templates[key]) {
-      setTestName(templates[key].name);
-      setRequirements(templates[key].req);
-      setScope(templates[key].scope);
-      setExpectedOutput(templates[key].expected);
+    const id = e.target.value;
+    setTemplate(id);
+    const tpl = templates.find((t) => t.id === id);
+    if (tpl) {
+      setTestName(tpl.name);
+      setRequirements(tpl.requirements);
+      setScope(tpl.scope);
+      setExpectedOutput(tpl.expectedOutput);
       toast.success('Template loaded successfully!');
     }
+  };
+
+  const handleSaveTemplate = () => {
+    if (!canManageTemplates(user?.role)) return toast.error('Bạn không có quyền lưu template.');
+    if (!testName || !requirements) {
+      return toast.error('Please fill in Test Name and Requirements!');
+    }
+    const created = createTemplate({ name: testName, requirements, scope, expectedOutput }, user?.name);
+    setTemplates(listTemplates());
+    setTemplate(created.id);
+    toast.success('Đã lưu thành template.');
   };
 
   // Giả lập Real-time Execution (SSE/Polling simulation)
@@ -86,8 +83,10 @@ export default function TestCreation() {
       let currentStep = 0;
       interval = setInterval(() => {
         if (currentStep < steps.length) {
-          setProgress(steps[currentStep].prog);
-          setLogs((prev) => [...prev, steps[currentStep].log]);
+          // Chốt step vào biến cục bộ: updater của setLogs chạy trễ, lúc đó currentStep đã tăng
+          const step = steps[currentStep];
+          setProgress(step.prog);
+          setLogs((prev) => [...prev, step.log]);
           currentStep++;
         } else {
           clearInterval(interval);
@@ -134,9 +133,11 @@ export default function TestCreation() {
             className="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm"
           >
             <option value="">-- Choose a Test Template --</option>
-            <option value="oop">OOP Core Logic Validation</option>
-            <option value="api">RESTful API Endpoint Test</option>
-            <option value="ui">Dashboard UI Flow Test</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -264,6 +265,16 @@ export default function TestCreation() {
                 className="w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl shadow-lg shadow-red-500/25 flex items-center justify-center gap-2 transition"
               >
                 <Square size={18} /> Cancel Execution
+              </button>
+            )}
+            {canManageTemplates(user?.role) && (
+              <button
+                type="button"
+                onClick={handleSaveTemplate}
+                disabled={isRunning}
+                className="w-full mt-3 py-2.5 px-4 bg-white border border-gray-300 hover:border-purple-600 hover:text-purple-600 text-gray-700 font-medium rounded-xl text-sm transition disabled:opacity-50"
+              >
+                Lưu thành Template
               </button>
             )}
           </div>

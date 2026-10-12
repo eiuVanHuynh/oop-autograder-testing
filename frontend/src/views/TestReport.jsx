@@ -13,10 +13,13 @@ import {
   Copy,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../controllers/AuthContext';
+import { canRunTest } from '../models/permissions';
 
 export default function TestReport() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('breakdowns'); // 'breakdowns' | 'diff'
 
   // Dữ liệu mẫu báo cáo chi tiết kèm thông tin Diff (Expected vs Actual)
@@ -92,12 +95,14 @@ export default function TestReport() {
         </button>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={handleRerun}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-xl text-sm font-medium transition border border-purple-200"
-          >
-            <Play size={16} /> Re-run Test
-          </button>
+          {canRunTest(user?.role) && (
+            <button
+              onClick={handleRerun}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-xl text-sm font-medium transition border border-purple-200"
+            >
+              <Play size={16} /> Re-run Test
+            </button>
+          )}
           <button
             onClick={handleShare}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition"

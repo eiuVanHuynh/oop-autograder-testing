@@ -7,6 +7,8 @@ import History from '../views/History';
 import UserManagement from '../views/UserManagement';
 import TestCreation from '../views/TestCreation';
 import TestReport from '../views/TestReport';
+import Dashboard from '../views/Dashboard';
+import Templates from '../views/Templates';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user } = useAuth();
@@ -40,14 +42,19 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route
-          path="dashboard"
-          element={<div className="p-8 text-2xl font-bold">Automated Testing Dashboard</div>}
-        />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="templates" element={<Templates />} />
         <Route path="history" element={<History />} />
 
         {/* Đưa 2 trang mới vào đây để có chung Sidebar & Logout */}
-        <Route path="tests/new" element={<TestCreation />} />
+        <Route
+          path="tests/new"
+          element={
+            <ProtectedRoute allowedRoles={['Admin', 'Tester', 'Dev']}>
+              <TestCreation />
+            </ProtectedRoute>
+          }
+        />
         <Route path="runs/:id" element={<TestReport />} />
 
         <Route

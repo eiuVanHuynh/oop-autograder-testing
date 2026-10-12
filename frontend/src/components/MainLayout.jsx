@@ -1,9 +1,9 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, History, Users, PlusCircle, LogOut, Shield } from 'lucide-react'; // 1. Thêm PlusCircle vào đây
+import { LayoutDashboard, History, Users, PlusCircle, LogOut, Shield, FileText } from 'lucide-react';
 import { useAuth } from '../controllers/AuthContext';
 
 export default function MainLayout() {
-  const { user, logout } = useAuth();
+  const { user, login, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -20,6 +20,12 @@ export default function MainLayout() {
       roles: ['Admin', 'Tester', 'Dev', 'Viewer'],
     },
     {
+      path: '/templates',
+      label: 'Templates',
+      icon: FileText,
+      roles: ['Admin', 'Tester', 'Dev', 'Viewer'],
+    },
+    {
       path: '/history',
       label: 'Test History',
       icon: History,
@@ -29,7 +35,7 @@ export default function MainLayout() {
       path: '/tests/new', // 2. Thêm đường dẫn tới trang tạo test mới
       label: 'New Test',
       icon: PlusCircle,
-      roles: ['Admin', 'Tester', 'Dev', 'Viewer'],
+      roles: ['Admin', 'Tester', 'Dev'], // Viewer không được Run Test
     },
     { path: '/admin/users', label: 'User Management', icon: Users, roles: ['Admin'] },
   ];
@@ -75,6 +81,19 @@ export default function MainLayout() {
 
         {/* Phần dưới cùng của Sidebar: Tên user, vai trò và nút Logout */}
         <div className="pt-4 border-t border-gray-200">
+          {/* Chỉ hiện khi chạy `npm run dev`: đổi role nhanh để kiểm tra ma trận phân quyền */}
+          {import.meta.env.DEV && (
+            <select
+              value={user?.role}
+              onChange={(e) => login({ ...user, role: e.target.value }, localStorage.getItem('token'))}
+              className="w-full mb-3 px-2 py-1.5 text-xs border border-dashed border-gray-300 rounded-lg text-gray-500"
+              title="Dev only: switch role"
+            >
+              {['Admin', 'Tester', 'Viewer'].map((r) => (
+                <option key={r}>{r}</option>
+              ))}
+            </select>
+          )}
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold">
               {user?.name?.[0] || 'U'}
