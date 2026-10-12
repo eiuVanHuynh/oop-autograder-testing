@@ -1,14 +1,16 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) setUser(JSON.parse(savedUser));
-  }, []);
+  // Khởi tạo đồng bộ để reload trang không bị ProtectedRoute đá về /login
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user'));
+    } catch {
+      return null;
+    }
+  });
 
   const login = (userData, token) => {
     setUser(userData);
