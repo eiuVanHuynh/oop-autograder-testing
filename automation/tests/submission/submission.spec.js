@@ -280,3 +280,161 @@ test(`${tc15TestCase.testId} - ${tc15TestCase.title}`, async ({ page }) => {
 
   await expect(page.getByTestId("challenge-2-score")).not.toHaveText("0");
 });
+
+// ==========================================
+// THÊM PHẦN HÀM HELPER LOAD DATABASE (D7)
+// ==========================================
+// Giả định bạn có hàm loadTestCase từ helper hoặc viết trực tiếp logic query DB ở đây:
+// const { loadTestCase } = require("../../helpers/dbHelper");
+
+// Hoặc hàm loadTestCase mẫu tích hợp vào file test:
+async function loadTestCase(tcCode) {
+  // Logic kết nối DB và lấy steps, data dựa theo tcCode
+  // Trả về đối tượng gồm { steps, data }
+  // Ví dụ cấu trúc mock/thực tế từ DB:
+  return {
+    steps: [], // Lấy từ bảng Test_Steps
+    data: [], // Lấy từ bảng Test_Data (trong đó có chứa đường dẫn fixture hoặc scenario)
+  };
+}
+
+// Hàm hỗ trợ phân giải cú pháp action/target động từ DB
+async function executeDynamicSteps(page, tcCode) {
+  const { steps, data } = await loadTestCase(tcCode);
+
+  // Chuyển đổi data thành map để dễ tra cứu giá trị động (ví dụ: lấy fixture path từ DB)
+  const dataMap = data.reduce((acc, item) => {
+    acc[item.field_name] = item.value;
+    return acc;
+  }, {});
+
+  for (const step of steps.sort((a, b) => a.step_order - b.step_order)) {
+    const { action, target } = step;
+
+    switch (action) {
+      case "NAVIGATE":
+        await page.goto(target);
+        break;
+      case "CLICK":
+        await page.locator(target).click();
+        break;
+      case "UPLOAD": {
+        // Lấy đường dẫn fixture động từ trường dữ liệu trong Test_Data (đã lưu trong DB)
+        const fixtureRelPath =
+          dataMap["fixture_path"] || dataMap["scenario"] || "";
+        const fullPath = path.resolve(
+          __dirname,
+          `../../fixtures/${fixtureRelPath}`,
+        );
+        await page
+          .locator(target || 'input[type="file"]')
+          .setInputFiles(fullPath);
+        break;
+      }
+      case "VERIFY":
+        if (target) {
+          await expect(page.locator(target)).toBeVisible();
+        }
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+// ==========================================
+// LÔ TIẾP THEO: TC-16, TC-17, TC-18 (D7 - Dùng loadTestCase động)
+// ==========================================
+
+test("TC-16 - Kiểm tra validate khi thiếu challenge bắt buộc", async ({
+  page,
+}) => {
+  await loginAsStudent(page);
+  await page.goto("/labs/lab-1/submission");
+
+  // Tải dữ liệu và bước động từ database cho TC-16
+  await executeDynamicSteps(page, "TC-16");
+
+  // Các bước kiểm tra bổ sung đặc thù cho TC-16 nếu cần
+  await expect(page.getByText(/missing challenge|thiếu/i)).toBeVisible();
+});
+
+test("TC-17 - Kiểm tra upload sai định dạng file", async ({ page }) => {
+  await loginAsStudent(page);
+  await page.goto("/labs/lab-1/submission");
+
+  // Tải dữ liệu và bước động từ database cho TC-17
+  await executeDynamicSteps(page, "TC-17");
+
+  await expect(page.getByText(/invalid format|sai định dạng/i)).toBeVisible();
+});
+
+test("TC-18 - Kiểm tra hiển thị lịch sử submission", async ({ page }) => {
+  await loginAsStudent(page);
+  await page.goto("/labs/lab-1/submission");
+
+  // Tải dữ liệu và bước động từ database cho TC-18
+  await executeDynamicSteps(page, "TC-18");
+
+  await expect(page.getByTestId("submission-history-list")).toBeVisible();
+});
+// ==========================================
+// LÔ TIẾP THEO: TC-19, TC-20, TC-21, TC-22 (D7)
+// ==========================================
+
+test("TC-19 - Kiểm tra tính năng xóa bài nộp hoặc reset submission", async ({
+  page,
+}) => {
+  await loginAsStudent(page);
+  await page.goto("/labs/lab-1/submission");
+
+  // Tải dữ liệu và bước động từ database cho TC-19
+  await executeDynamicSteps(page, "TC-19");
+
+  // Kiểm tra xác nhận reset/xóa file nộp thành công
+  await expect(
+    page.getByText(/reset|xóa thành công|bắt đầu lại/i),
+  ).toBeVisible();
+});
+
+test("TC-20 - Kiểm tra giới hạn số lần nộp bài (Submission Limit)", async ({
+  page,
+}) => {
+  await loginAsStudent(page);
+  await page.goto("/labs/lab-1/submission");
+
+  // Tải dữ liệu và bước động từ database cho TC-20
+  await executeDynamicSteps(page, "TC-20");
+
+  // Kiểm tra thông báo vượt quá số lần nộp cho phép
+  await expect(page.getByText(/limit reached|vượt quá số lần/i)).toBeVisible();
+});
+
+test("TC-21 - Kiểm tra xem chi tiết điểm số từng challenge sau khi chấm", async ({
+  page,
+}) => {
+  await loginAsStudent(page);
+  await page.goto("/labs/lab-1/submission");
+
+  // Tải dữ liệu và bước động từ database cho TC-21
+  await executeDynamicSteps(page, "TC-21");
+
+  // Kiểm tra hiển thị bảng điểm chi tiết các tiêu chí (Declaration, Operational, MMD)
+  await expect(page.getByTestId("grading-breakdown-panel")).toBeVisible();
+});
+
+test("TC-22 - Kiểm tra phản hồi lỗi cú pháp biên dịch code Java từ hệ thống", async ({
+  page,
+}) => {
+  await loginAsStudent(page);
+  await page.goto("/labs/lab-1/submission");
+
+  // Tải dữ liệu và bước động từ database cho TC-22
+  await executeDynamicSteps(page, "TC-22");
+
+  // Kiểm tra hiển thị log lỗi biên dịch (Compilation Error)
+  await expect(
+    page.getByText(/compilation error|lỗi biên dịch|syntax error/i),
+  ).toBeVisible();
+});
+gi;
