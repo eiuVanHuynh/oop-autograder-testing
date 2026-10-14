@@ -83,7 +83,7 @@ class MySQLLoggerReporter {
 
         const executionId = resultInsert.insertId;
 
-        if (item.screenshotPath && item.status === 'failed') {
+        if (item.screenshotPath) {
           await query(
             `INSERT INTO Test_Evidences
        (result_id, type, file_path)
