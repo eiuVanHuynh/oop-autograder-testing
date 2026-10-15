@@ -105,3 +105,14 @@ WHERE tc.tc_code IN ('TC-01','TC-02','TC-03','TC-04','TC-05','TC-06','TC-07','TC
   AND (NOT REGEXP_LIKE(ts.action, '^[A-Z]+$', 'c')
        OR (ts.target IS NOT NULL AND ts.action <> 'NAVIGATE'
            AND ts.target NOT REGEXP '^(text|placeholder|testid)='));
+
+-- 7. Kiểm tra TC-23..TC-30 đã có ít nhất 1 Step và 1 Test Data (kỳ vọng: 0 dòng)
+SELECT tc.tc_code,
+       COUNT(DISTINCT ts.step_id) AS step_count,
+       COUNT(DISTINCT td.data_id) AS data_count
+FROM test_cases tc
+LEFT JOIN test_steps ts ON ts.test_id = tc.test_id
+LEFT JOIN test_data  td ON td.test_id = tc.test_id
+WHERE tc.tc_code IN ('TC-23','TC-24','TC-25','TC-26','TC-27','TC-28','TC-29','TC-30')
+GROUP BY tc.test_id, tc.tc_code
+HAVING COUNT(DISTINCT ts.step_id) = 0 OR COUNT(DISTINCT td.data_id) = 0;

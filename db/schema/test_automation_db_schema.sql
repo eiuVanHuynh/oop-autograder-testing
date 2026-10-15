@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   email         VARCHAR(255) NOT NULL,
   password_hash VARCHAR(255) NULL,
   auth_provider ENUM('LOCAL', 'GOOGLE') NOT NULL, -- su dung cho Google OAuth thi GOOGLE con binh thuong la LOCAL - backend xu ly
-  user_role          ENUM('admin','tester','dev','viewer') NOT NULL,      --đã thêm dev và viewer 
+  user_role          ENUM('admin','tester','dev','viewer') NOT NULL,      -- đã thêm dev và viewer 
   user_status        ENUM('active','inactive') NOT NULL DEFAULT 'active',
   created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id),
@@ -26,8 +26,8 @@ CREATE TABLE IF NOT EXISTS test_suites (
   updated_by  INT UNSIGNED NULL,
   updated_at  DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (suite_id),
-  CONSTRAINT fk_suites_created_by FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL,   --xoa user nhung suite van ton tai 
-  CONSTRAINT fk_suites_updated_by FOREIGN KEY (updated_by) REFERENCES users(user_id) ON DELETE SET NULL    --xoa user nhung suite van ton tai 
+  CONSTRAINT fk_suites_created_by FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL,   -- xoa user nhung suite van ton tai 
+  CONSTRAINT fk_suites_updated_by FOREIGN KEY (updated_by) REFERENCES users(user_id) ON DELETE SET NULL    -- xoa user nhung suite van ton tai 
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 3. Test_Specs (yeu cau/man hinh can test, nguon tu bao cao A) -------
@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS test_evidences (
   evidence_type       ENUM('screenshot','trace') NOT NULL,
   file_path  VARCHAR(500) NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
+  PRIMARY KEY (evidence_id),
   CONSTRAINT fk_evidences_result FOREIGN KEY (result_id) REFERENCES test_results(execution_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
