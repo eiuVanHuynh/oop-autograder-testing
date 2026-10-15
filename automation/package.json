@@ -17,6 +17,7 @@
   "type": "commonjs",
   "devDependencies": {
     "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.5",
     "md-to-pdf": "^5.2.5"
   },
   "dependencies": {
