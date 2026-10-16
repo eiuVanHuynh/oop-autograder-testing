@@ -313,7 +313,7 @@ test(`${tc09TestCase.testId} - ${tc09TestCase.title}`, async ({ page }) => {
 
 test.describe.serial("TC-08 -> TC-12 - Lecturer User Management", () => {
   const testUser = {
-    runId: Date.now().toString().slice(-6),
+    runId: newRunId(),
     newIrn: null,
     originalName: null,
     updatedName: null,

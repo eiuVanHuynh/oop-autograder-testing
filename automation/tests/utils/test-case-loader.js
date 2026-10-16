@@ -4,7 +4,7 @@ async function loadTestCase(tcCode) {
   const testCaseRows = await query(
     `
       SELECT *
-      FROM Test_Cases
+      FROM test_cases
       WHERE tc_code = ?
     `,
     [tcCode],
@@ -13,8 +13,8 @@ async function loadTestCase(tcCode) {
   const stepRows = await query(
     `
       SELECT ts.*
-      FROM Test_Steps ts
-      JOIN Test_Cases tc
+      FROM test_steps ts
+      JOIN test_cases tc
         ON ts.test_id = tc.test_id
       WHERE tc.tc_code = ?
       ORDER BY ts.step_order
@@ -24,11 +24,9 @@ async function loadTestCase(tcCode) {
 
   const dataRows = await query(
     `
-      SELECT
-        td.field_name,
-        td.\`value\`
-      FROM Test_Data td
-      JOIN Test_Cases tc
+      SELECT td.*
+      FROM test_data td
+      JOIN test_cases tc
         ON td.test_id = tc.test_id
       WHERE tc.tc_code = ?
     `,
@@ -46,7 +44,7 @@ async function loadTestCase(tcCode) {
   return {
     testCase: testCaseRows[0],
     steps: stepRows,
-    data: dataRows,
+    data: dataRows.map((r) => ({ ...r, value: r.data_value !== undefined ? r.data_value : r.value })),
 
     getData(field) {
       const row = dataRows.find((i) => i.field_name === field);
@@ -54,7 +52,7 @@ async function loadTestCase(tcCode) {
         throw new Error(
           `Thieu field "${field}" trong Test_Data cua ${tcCode}.`,
         );
-      const value = row.value;
+      const value = row.data_value !== undefined ? row.data_value : row.value; // schema thuc: data_value; 002 cu: value
       if (typeof value === "string" && value.startsWith("env:")) {
         const key = value.slice(4);
         if (!process.env[key])
