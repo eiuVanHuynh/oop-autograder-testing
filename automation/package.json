@@ -9,7 +9,9 @@
   },
   "scripts": {
     "test": "playwright test",
-    "report:db": "node scripts/export-report.js"
+    "report:db": "node scripts/export-report.js",
+    "data:apply": "node scripts/apply-autotest-data.js",
+    "check:x1x3": "node scripts/check-x1-x3.js"
   },
   "keywords": [],
   "author": "",
@@ -22,7 +24,7 @@
   },
   "dependencies": {
     "dotenv": "^17.4.2",
-    "mysql2": "^3.24.4",
+    "mysql2": "^3.24.6",
     "pdfkit": "^0.20.2"
   }
 }

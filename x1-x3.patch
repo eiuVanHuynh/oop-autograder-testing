@@ -1,0 +1,560 @@
+From c47ff5874408ff0c4ec16bcc0b524e7c695af3fc Mon Sep 17 00:00:00 2001
+From: x <x@x>
+Date: Fri, 16 Oct 2026 05:20:06 +0000
+Subject: [PATCH] feat(test-data): X1-X3 test data rules, helpers, manual test
+ records
+
+---
+ .env.example                              | 15 +++-
+ automation/package.json                   |  4 +-
+ automation/scripts/apply-autotest-data.js | 76 +++++++++++++++++++
+ automation/scripts/check-x1-x3.js         | 90 +++++++++++++++++++++++
+ automation/tests/auth/auth.spec.js        |  3 +-
+ automation/tests/utils/test-data.js       | 18 +++++
+ db/migrations/005_autotest_data_rules.sql | 27 +++++++
+ docs/manual-tests/README.md               | 18 +++++
+ docs/manual-tests/TC-03.md                | 24 ++++++
+ docs/manual-tests/TC-04.md                | 21 ++++++
+ docs/manual-tests/TC-05.md                | 23 ++++++
+ docs/manual-tests/TC-07.md                | 20 +++++
+ docs/manual-tests/evidence/.gitkeep       |  0
+ docs/test-data-rules.md                   | 80 ++++++++++++++++++++
+ 14 files changed, 416 insertions(+), 3 deletions(-)
+ create mode 100644 automation/scripts/apply-autotest-data.js
+ create mode 100644 automation/scripts/check-x1-x3.js
+ create mode 100644 automation/tests/utils/test-data.js
+ create mode 100644 db/migrations/005_autotest_data_rules.sql
+ create mode 100644 docs/manual-tests/README.md
+ create mode 100644 docs/manual-tests/TC-03.md
+ create mode 100644 docs/manual-tests/TC-04.md
+ create mode 100644 docs/manual-tests/TC-05.md
+ create mode 100644 docs/manual-tests/TC-07.md
+ create mode 100644 docs/manual-tests/evidence/.gitkeep
+ create mode 100644 docs/test-data-rules.md
+
+diff --git a/.env.example b/.env.example
+index c1213c2..23c2e14 100644
+--- a/.env.example
++++ b/.env.example
+@@ -1,4 +1,4 @@
+-BASE_URL=https://oop-autograder.vercel.app
++BASE_URL=https://oop-autograder-test.vercel.app
+ PW_BROWSER=chromium
+ 
+ TEST_STUDENT_IRN=20210000
+@@ -18,3 +18,16 @@ DB_PASSWORD=
+ DB_NAME=test_automation_db
+ DB_POOL_SIZE=5
+ DB_SSL=false
++
++# --- Quy tắc dữ liệu test: docs/test-data-rules.md ---
++# Giá trị thật (tên đăng nhập, mật khẩu) chỉ để trong .env. KHÔNG ghi vào file này, repo là public.
++# Mật khẩu mới đặt khi test (TEST_NEW_USER_PASSWORD, TEST_TEMP_PASSWORD, TEST_RESET_PASSWORD) phải dài >= 8 ký tự.
++TEST_DATA_PREFIX=AUTOTEST
++TEST_IRN_PREFIX=2099
++TEST_EMAIL_DOMAIN=@eiu.edu.vn
++# Student thứ hai (TC-28 realtime). Bỏ trống nếu chưa có.
++TEST_STUDENT2_IRN=
++TEST_STUDENT2_PASSWORD=
++# Chỉ cho kiểm thử thủ công TC-03/04/05 (docs/manual-tests): email trường @eiu.edu.vn và 1 Gmail ngoài trường
++TEST_GOOGLE_EIU_EMAIL=
++TEST_GOOGLE_OUTSIDE_EMAIL=
+diff --git a/automation/package.json b/automation/package.json
+index 82cc863..9ef7de4 100644
+--- a/automation/package.json
++++ b/automation/package.json
+@@ -9,7 +9,9 @@
+   },
+   "scripts": {
+     "test": "playwright test",
+-    "report:db": "node scripts/export-report.js"
++    "report:db": "node scripts/export-report.js",
++    "data:apply": "node scripts/apply-autotest-data.js",
++    "check:x1x3": "node scripts/check-x1-x3.js"
+   },
+   "keywords": [],
+   "author": "",
+diff --git a/automation/scripts/apply-autotest-data.js b/automation/scripts/apply-autotest-data.js
+new file mode 100644
+index 0000000..7e3e3ee
+--- /dev/null
++++ b/automation/scripts/apply-autotest-data.js
+@@ -0,0 +1,76 @@
++// X1/X2: dua du lieu TC-08 trong DB ve quy tac docs/test-data-rules.md.
++// Tu nhan biet ten bang/cot (test_data.data_value hay Test_Data.value), nen chay duoc voi ca hai kieu schema.
++//   npm run data:apply            -> ap dung
++//   npm run data:apply -- --dry-run -> chi in ra, khong ghi
++const { query, closeDb } = require("../tests/utils/db-client");
++
++const DRY = process.argv.includes("--dry-run");
++
++const TARGET = {
++  "TC-08": {
++    irn_prefix: "2099",
++    full_name_prefix: "AUTOTEST Tran Thi B",
++    email_prefix: "autotest.",
++  },
++};
++
++async function findName(table, column) {
++  const rows = await query(
++    `SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS
++     WHERE TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME) = ? ${column ? "AND COLUMN_NAME IN (?, ?)" : ""}`,
++    column ? [table, ...column] : [table],
++  );
++  return rows;
++}
++
++async function main() {
++  const dataCols = await findName("test_data", ["data_value", "value"]);
++  const caseCols = await findName("test_cases", null);
++  if (!dataCols.length || !caseCols.length) {
++    throw new Error("Khong thay bang test_data / test_cases trong database dang ket noi (kiem tra DB_NAME).");
++  }
++  const dataTable = dataCols[0].TABLE_NAME;
++  const valueCol = dataCols[0].COLUMN_NAME;
++  const caseTable = caseCols[0].TABLE_NAME;
++  console.log(`Schema: ${dataTable}.${valueCol}, ${caseTable}${DRY ? "  [DRY-RUN]" : ""}`);
++
++  let missing = 0;
++  let changed = 0;
++  for (const [tc, fields] of Object.entries(TARGET)) {
++    for (const [field, wanted] of Object.entries(fields)) {
++      const rows = await query(
++        `SELECT td.\`${valueCol}\` AS v FROM \`${dataTable}\` td
++         JOIN \`${caseTable}\` tc ON td.test_id = tc.test_id
++         WHERE tc.tc_code = ? AND td.field_name = ?`,
++        [tc, field],
++      );
++      if (!rows.length) {
++        console.log(`  ! ${tc}.${field}: THIEU trong DB (chua seed migration 002?)`);
++        missing++;
++        continue;
++      }
++      if (rows[0].v === wanted) {
++        console.log(`  = ${tc}.${field}: da dung (${wanted})`);
++        continue;
++      }
++      console.log(`  ~ ${tc}.${field}: "${rows[0].v}" -> "${wanted}"`);
++      changed++;
++      if (!DRY) {
++        await query(
++          `UPDATE \`${dataTable}\` td JOIN \`${caseTable}\` tc ON td.test_id = tc.test_id
++           SET td.\`${valueCol}\` = ? WHERE tc.tc_code = ? AND td.field_name = ?`,
++          [wanted, tc, field],
++        );
++      }
++    }
++  }
++  console.log(`Xong: ${changed} gia tri ${DRY ? "se doi" : "da doi"}, ${missing} thieu.`);
++  process.exitCode = missing ? 1 : 0;
++}
++
++main()
++  .catch((e) => {
++    console.error("LOI:", e.message);
++    process.exitCode = 1;
++  })
++  .finally(closeDb);
+diff --git a/automation/scripts/check-x1-x3.js b/automation/scripts/check-x1-x3.js
+new file mode 100644
+index 0000000..32dc588
+--- /dev/null
++++ b/automation/scripts/check-x1-x3.js
+@@ -0,0 +1,90 @@
++// Tu kiem tra X1-X3:  npm run check:x1x3
++// Chi doc file (va DB neu co DB_USER). Khong goi mang, khong ghi gi.
++const fs = require("fs");
++const path = require("path");
++const root = path.resolve(__dirname, "../..");
++const rd = (p) => {
++  try {
++    return fs.readFileSync(path.join(root, p), "utf8");
++  } catch {
++    return null;
++  }
++};
++
++let fail = 0;
++let pending = 0;
++const ok = (m) => console.log(`  [OK]   ${m}`);
++const bad = (m) => {
++  fail++;
++  console.log(`  [LOI]  ${m}`);
++};
++const todo = (m) => {
++  pending++;
++  console.log(`  [CHO]  ${m}`);
++};
++const check = (cond, m) => (cond ? ok(m) : bad(m));
++
++async function main() {
++  console.log("X1 - Quy tac du lieu test");
++  const rules = rd("docs/test-data-rules.md");
++  check(rules && rules.includes("AUTOTEST"), "docs/test-data-rules.md co quy tac tien to AUTOTEST");
++  const env = rd(".env.example") || "";
++  for (const k of ["TEST_DATA_PREFIX", "TEST_IRN_PREFIX", "TEST_EMAIL_DOMAIN", "TEST_GOOGLE_EIU_EMAIL", "TEST_GOOGLE_OUTSIDE_EMAIL"]) {
++    check(new RegExp(`^${k}=`, "m").test(env), `.env.example co bien ${k}`);
++  }
++  check(/^BASE_URL=https:\/\/oop-autograder-test\.vercel\.app\s*$/m.test(env), ".env.example: BASE_URL tro toi moi truong test");
++  const leaked = /^\s*TEST_[A-Z0-9_]*PASSWORD\s*=\s*(?!your|example|changeme|\s*$)\S+/im.test(env) && /123456/.test(env);
++  check(!leaked, ".env.example khong chua mat khau that");
++
++  console.log("\nX2 - Tai khoan va du lieu user");
++  const td = require("../tests/utils/test-data.js");
++  const run = td.newRunId();
++  const irn = td.uniqueIrn(run);
++  check(/^2099\d{6}$/.test(irn), `uniqueIrn -> ${irn} (10 chu so, dau 2099)`);
++  check(/^AUTOTEST_Lab_\d{6}$/.test(td.autotestLab(run)) && /^autotest\.\d{6}@eiu\.edu\.vn$/.test(td.autotestEmail(run)), "ten Lab / email theo quy tac");
++  for (const f of ["student_list_batch1.csv", "student_list_duplicate.csv", "student_list_invalid_rows.csv", "student_list_empty.csv", "student_list_wrong_format.txt"]) {
++    check(rd(`automation/fixtures/${f}`) !== null, `fixtures/${f} (TC-09)`);
++  }
++  check(rd("db/migrations/005_autotest_data_rules.sql") !== null, "migration 005 (du lieu TC-08 theo quy tac)");
++  check(/newRunId\(\)/.test(rd("automation/tests/auth/auth.spec.js") || ""), "auth.spec.js TC-08 dung newRunId() de sinh IRN duy nhat");
++  check(/TEST_(STUDENT|LECTURER)_IRN=/.test(env), ".env.example co TEST_STUDENT_IRN / TEST_LECTURER_IRN (gia tri that dat trong .env)");
++
++  if (process.env.DB_USER) {
++    try {
++      const { query, closeDb } = require("../tests/utils/db-client");
++      const cols = await query(
++        "SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME)='test_data' AND COLUMN_NAME IN ('data_value','value')",
++      );
++      const cs = await query("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME)='test_cases'");
++      if (cols.length && cs.length) {
++        const rows = await query(
++          `SELECT td.field_name f, td.\`${cols[0].COLUMN_NAME}\` v FROM \`${cols[0].TABLE_NAME}\` td JOIN \`${cs[0].TABLE_NAME}\` tc ON td.test_id=tc.test_id WHERE tc.tc_code='TC-08'`,
++        );
++        const v = Object.fromEntries(rows.map((r) => [r.f, r.v]));
++        check(v.irn_prefix === "2099" && v.email_prefix === "autotest." && /^AUTOTEST /.test(v.full_name_prefix || ""), "DB: du lieu TC-08 da theo quy tac (neu chua: npm run data:apply)");
++      } else bad("DB: khong thay bang test_data / test_cases");
++      await closeDb();
++    } catch (e) {
++      bad(`DB: khong ket noi duoc (${e.code || e.message})`);
++    }
++  } else {
++    todo("DB: bo qua (chua co DB_USER). Dat bien DB_* roi chay lai de kiem tra du lieu TC-08");
++  }
++
++  console.log("\nX3 - Bien ban thu cong");
++  for (const tc of ["TC-03", "TC-04", "TC-05", "TC-07"]) {
++    const t = rd(`docs/manual-tests/${tc}.md`);
++    if (!t) {
++      bad(`${tc}: thieu file docs/manual-tests/${tc}.md`);
++      continue;
++    }
++    const line = (t.match(/^- Trạng thái:.*$/m) || [""])[0];
++    const done = /\[x\]\s*(Pass|Fail|\*\*Blocked\*\*|Blocked)/i.test(line);
++    if (done) ok(`${tc}: ${line.replace(/^- Trạng thái:\s*/, "").slice(0, 90)}`);
++    else todo(`${tc}: co bien ban, chua co ket qua (thuc hien tay roi tick Pass/Fail/Blocked)`);
++  }
++
++  console.log(`\nKet qua: ${fail} loi, ${pending} muc cho (thu cong / DB).`);
++  process.exitCode = fail ? 1 : 0;
++}
++main();
+diff --git a/automation/tests/auth/auth.spec.js b/automation/tests/auth/auth.spec.js
+index 52cdf29..1fe9e70 100644
+--- a/automation/tests/auth/auth.spec.js
++++ b/automation/tests/auth/auth.spec.js
+@@ -1,6 +1,7 @@
+ const { test, expect } = require("@playwright/test");
+ const { loadTestCase } = require("../utils/test-case-loader");
+ const { closeDb } = require("../utils/db-client");
++const { newRunId } = require("../utils/test-data");
+ test.afterAll(async () => {
+   await closeDb();
+ });
+@@ -313,7 +314,7 @@ test(`${tc09TestCase.testId} - ${tc09TestCase.title}`, async ({ page }) => {
+ 
+ test.describe.serial("TC-08 -> TC-12 - Lecturer User Management", () => {
+   const testUser = {
+-    runId: Date.now().toString().slice(-6),
++    runId: newRunId(),
+     newIrn: null,
+     originalName: null,
+     updatedName: null,
+diff --git a/automation/tests/utils/test-data.js b/automation/tests/utils/test-data.js
+new file mode 100644
+index 0000000..4810074
+--- /dev/null
++++ b/automation/tests/utils/test-data.js
+@@ -0,0 +1,18 @@
++// Sinh dữ liệu test duy nhất mỗi lần chạy. Quy tắc: docs/test-data-rules.md
++const PREFIX = "AUTOTEST";
++const IRN_PREFIX = "2099"; // IRN giả, khớp CSV trong automation/fixtures
++
++// 6 số cuối timestamp; gọi 1 lần rồi dùng chung trong cả lần chạy.
++const newRunId = () => Date.now().toString().slice(-6);
++
++// IRN 10 chữ số, duy nhất mỗi lần chạy. Có thể truyền irn_prefix lấy từ DB.
++const uniqueIrn = (runId = newRunId(), irnPrefix = IRN_PREFIX) => `${irnPrefix}${runId}`;
++
++const autotestName = (base, runId = newRunId()) => `${PREFIX} ${base} ${runId}`;
++
++const autotestEmail = (runId = newRunId(), domain = "@eiu.edu.vn") =>
++  `${PREFIX.toLowerCase()}.${runId}${domain}`;
++
++const autotestLab = (runId = newRunId()) => `${PREFIX}_Lab_${runId}`;
++
++module.exports = { PREFIX, IRN_PREFIX, newRunId, uniqueIrn, autotestName, autotestEmail, autotestLab };
+diff --git a/db/migrations/005_autotest_data_rules.sql b/db/migrations/005_autotest_data_rules.sql
+new file mode 100644
+index 0000000..f5a0ce6
+--- /dev/null
++++ b/db/migrations/005_autotest_data_rules.sql
+@@ -0,0 +1,27 @@
++-- ============================================================
++-- Migration 005: dua du lieu TC-08 ve quy tac docs/test-data-rules.md
++-- Chay SAU 002 va 004 (003 chua co tren dev). Chay lai nhieu lan duoc (chi UPDATE).
++-- Neu chay lai 002 thi phai chay lai file nay.
++--
++-- Ten bang/cot theo db/schema/test_automation_db_schema.sql: test_data(data_value), test_cases(tc_code).
++-- Neu DB that dung ten cu cua 002 (Test_Data, cot `value`) thi doi:
++--   test_data -> Test_Data, test_cases -> Test_Cases, data_value -> `value`.
++--
++-- Spec TC-08 ghep: irn   = irn_prefix + runId(6 so)   -> 2099 + 6 so = 10 chu so
++--                  name  = full_name_prefix + ' ' + runId
++--                  email = email_prefix + runId + email_domain
++-- ============================================================
++UPDATE test_data td
++JOIN test_cases tc ON td.test_id = tc.test_id
++SET td.data_value = '2099'
++WHERE tc.tc_code = 'TC-08' AND td.field_name = 'irn_prefix';
++
++UPDATE test_data td
++JOIN test_cases tc ON td.test_id = tc.test_id
++SET td.data_value = 'AUTOTEST Tran Thi B'
++WHERE tc.tc_code = 'TC-08' AND td.field_name = 'full_name_prefix';
++
++UPDATE test_data td
++JOIN test_cases tc ON td.test_id = tc.test_id
++SET td.data_value = 'autotest.'
++WHERE tc.tc_code = 'TC-08' AND td.field_name = 'email_prefix';
+diff --git a/docs/manual-tests/README.md b/docs/manual-tests/README.md
+new file mode 100644
+index 0000000..939b91e
+--- /dev/null
++++ b/docs/manual-tests/README.md
+@@ -0,0 +1,18 @@
++# Biên bản kiểm thử thủ công (X3)
++
++Môi trường: https://oop-autograder-test.vercel.app/
++Các TC này chưa tự động hóa được bằng Playwright. Mỗi TC có một file `TC-xx.md`; ảnh chụp để trong `evidence/`, đặt tên `TC-xx_buoc<N>.png`.
++
++| TC | Lý do chưa tự động | Cần có để làm | Trạng thái |
++|---|---|---|---|
++| TC-03 | Google OAuth, không có test hook | Email trường `@eiu.edu.vn` đã đăng nhập web (chạy sau TC-05) | Chưa làm |
++| TC-04 | Google OAuth, không có test hook | 1 Gmail ngoài trường | Chưa làm |
++| TC-05 | Cần đăng nhập Google lần đầu | Email trường `@eiu.edu.vn` **chưa từng** đăng nhập web | Chưa làm |
++| TC-07 | Cần link reset trong email | Chức năng gửi email reset | **Blocked**: giảng viên báo email reset đang lỗi |
++
++**Thứ tự nên làm: TC-04 → TC-05 → TC-03.** TC-05 tạo hồ sơ cho email trường, sau đó chính tài khoản đó dùng được cho TC-03.
++Làm xong thì xóa user (Users → thùng rác) để lần sau còn là "lần đầu".
++
++Điền cột Trạng thái: `Pass` / `Fail` / `Blocked: <lý do>`.
++X3 xong khi mỗi TC có biên bản có kết quả hoặc ghi rõ lý do chưa test được.
++Dữ liệu tạo ra khi test theo `docs/test-data-rules.md` và được dọn theo mục 5 của file đó.
+diff --git a/docs/manual-tests/TC-03.md b/docs/manual-tests/TC-03.md
+new file mode 100644
+index 0000000..85655c9
+--- /dev/null
++++ b/docs/manual-tests/TC-03.md
+@@ -0,0 +1,24 @@
++# TC-03 - Đăng nhập Google OAuth (domain EIU)
++
++- Người test: ........  Ngày: ........  Môi trường: https://oop-autograder-test.vercel.app
++- Điều kiện cần: email trường @eiu.edu.vn (biến TEST_GOOGLE_EIU_EMAIL) đã hoàn tất TC-05 (đã có IRN + mật khẩu). Thầy xác nhận dùng mail trường cho Google.
++- Trạng thái: [ ] Pass  [ ] Fail  [ ] Blocked - lý do: ........
++
++## Các bước
++1. Mở /login
++2. Bấm "Sign in with Google"
++3. Chọn tài khoản @eiu.edu.vn
++4. Quan sát trang sau đăng nhập
++
++## Kết quả mong đợi
++Đăng nhập thành công và được chuyển tự động theo vai trò:
++- Giảng viên: /lecturer-dashboard
++- Sinh viên đã ghi danh term hiện tại: /student-dashboard
++- Sinh viên chưa ghi danh term hiện tại: /student-history
++
++## Kết quả thực tế
++........ (ghi nguyên văn thông báo hiện trên màn hình)
++
++## Bằng chứng
++Ảnh: `evidence/TC-03_buoc1.png`, `evidence/TC-03_buoc2.png` ...
++
+diff --git a/docs/manual-tests/TC-04.md b/docs/manual-tests/TC-04.md
+new file mode 100644
+index 0000000..ef0b829
+--- /dev/null
++++ b/docs/manual-tests/TC-04.md
+@@ -0,0 +1,21 @@
++# TC-04 - Từ chối Google OAuth (sai domain)
++
++- Người test: ........  Ngày: ........  Môi trường: https://oop-autograder-test.vercel.app
++- Điều kiện cần: Một Gmail ngoài trường (biến TEST_GOOGLE_OUTSIDE_EMAIL). Chỉ thử đăng nhập và bị từ chối, không tạo dữ liệu, nên dùng Gmail cá nhân được.
++- Trạng thái: [ ] Pass  [ ] Fail  [ ] Blocked - lý do: ........
++
++## Các bước
++1. Mở /login
++2. Bấm "Sign in with Google"
++3. Chọn tài khoản @gmail.com
++4. Quan sát thông báo
++
++## Kết quả mong đợi
++Bị chặn, không vào được hệ thống. Hướng dẫn sử dụng nói chỉ chấp nhận tài khoản @eiu.edu.vn; ghi lại thông báo thật có nhắc domain @eiu.edu.vn hay không.
++
++## Kết quả thực tế
++........ (ghi nguyên văn thông báo hiện trên màn hình)
++
++## Bằng chứng
++Ảnh: `evidence/TC-04_buoc1.png`, `evidence/TC-04_buoc2.png` ...
++
+diff --git a/docs/manual-tests/TC-05.md b/docs/manual-tests/TC-05.md
+new file mode 100644
+index 0000000..8e2af03
+--- /dev/null
++++ b/docs/manual-tests/TC-05.md
+@@ -0,0 +1,23 @@
++# TC-05 - Thiết lập tài khoản Google lần đầu
++
++- Người test: ........  Ngày: ........  Môi trường: https://oop-autograder-test.vercel.app
++- Điều kiện cần: Email trường @eiu.edu.vn CHƯA từng đăng nhập web (chỉ dùng được một lần; xóa user sau test thì làm lại được).
++- Trạng thái: [ ] Pass  [ ] Fail  [ ] Blocked - lý do: ........
++
++## Các bước
++1. Mở /login, bấm "Sign in with Google", chọn tài khoản mới
++2. Hệ thống yêu cầu đặt IRN và mật khẩu (trang /setup-account)
++3. Nhập IRN theo quy tắc (2099 + 6 số), mật khẩu từ .env (>= 8 ký tự), nhập thêm các ô khác nếu có (Name, ngày sinh tùy chọn)
++4. Bấm "Complete Setup"
++
++## Kết quả mong đợi
++Tài khoản Google được liên kết với IRN, tạo hồ sơ, rồi chuyển vào dashboard theo vai trò (xem TC-03).
++
++## Kết quả thực tế
++........ (ghi nguyên văn thông báo hiện trên màn hình)
++
++## Bằng chứng
++Ảnh: `evidence/TC-05_buoc1.png`, `evidence/TC-05_buoc2.png` ...
++
++## Dọn sau khi test
++Ghi lại IRN vừa tạo. Đăng nhập lecturer, vào Users, xóa user đó (thùng rác, xóa vĩnh viễn). Xem docs/test-data-rules.md mục 5.
+diff --git a/docs/manual-tests/TC-07.md b/docs/manual-tests/TC-07.md
+new file mode 100644
+index 0000000..1794fb0
+--- /dev/null
++++ b/docs/manual-tests/TC-07.md
+@@ -0,0 +1,20 @@
++# TC-07 - Đặt lại mật khẩu qua liên kết email
++
++- Môi trường: https://oop-autograder-test.vercel.app/
++- Trạng thái: [ ] Pass  [ ] Fail  [x] **Blocked** - lý do: giảng viên/người phụ trách báo chức năng gửi email reset mật khẩu của web test đang lỗi (ghi trong X0), nên không nhận được link reset.
++- Người ghi: ........  Ngày: ........
++
++## Các bước (làm khi chức năng hoạt động lại)
++1. Mở /login, bấm "Forgot password?", nhập email trường (hoặc email của user test), gửi
++2. Mở hộp thư, mở link reset mới nhận
++3. Nhập mật khẩu mới (>= 8 ký tự) và xác nhận khớp nhau, Submit
++4. Đăng nhập lại bằng mật khẩu mới
++
++## Kết quả mong đợi
++Cập nhật mật khẩu thành công, chuyển về trang đăng nhập; đăng nhập được bằng mật khẩu mới.
++
++## Bằng chứng cho trạng thái Blocked
++Chụp ảnh sau khi bấm gửi (thông báo lỗi hoặc không có email sau vài phút, kiểm cả thư rác): `evidence/TC-07_buoc1.png`.
++Có thể ghi thêm như một bug của web test để báo lại giảng viên.
++
++Khi chức năng hoạt động lại: lấy token từ link để điền `TEST_RESET_TOKEN` cho bản tự động (mỗi token dùng một lần; bản tự động bỏ qua nếu biến này trống).
+diff --git a/docs/manual-tests/evidence/.gitkeep b/docs/manual-tests/evidence/.gitkeep
+new file mode 100644
+index 0000000..e69de29
+diff --git a/docs/test-data-rules.md b/docs/test-data-rules.md
+new file mode 100644
+index 0000000..5611479
+--- /dev/null
++++ b/docs/test-data-rules.md
+@@ -0,0 +1,80 @@
++# Quy tắc dữ liệu test (X1)
++
++Áp dụng cho cả nhóm. Môi trường test: **https://oop-autograder-test.vercel.app/** (do giảng viên cấp; `BASE_URL` trong `.env`).
++Mọi thứ bộ test tạo ở đây là dữ liệu thật của môi trường này, nên phải nhận biết và dọn được.
++Quy tắc khớp với CSV trong `automation/fixtures/` (IRN đầu `2099`, email `autotest.`).
++
++## 0. Chạy nhanh
++
++```
++cd automation
++npm install
++npm run data:apply      # ghi dữ liệu TC-08 theo quy tắc vào DB (tự nhận schema; thêm -- --dry-run để chỉ xem)
++npm run check:x1x3      # kiểm tra X1, X2, X3 (đặt biến DB_* để kiểm cả DB)
++```
++
++`check:x1x3` báo `[OK]` / `[LOI]` / `[CHO]`. `[CHO]` là việc phải làm tay (biên bản thủ công X3).
++
++## 1. Quy tắc đặt tên
++
++| Dữ liệu | Quy tắc | Ví dụ |
++|---|---|---|
++| IRN user test | `2099` + `runId` (10 chữ số, đầu `2099` là giả) | `2099482913` |
++| Họ tên | `AUTOTEST <Tên> <runId>` | `AUTOTEST Tran Thi B 482913` |
++| Email | `autotest.<runId>@eiu.edu.vn` | `autotest.482913@eiu.edu.vn` |
++| Tên Lab (Projects → + New Lab) | `AUTOTEST_Lab_<runId>` | `AUTOTEST_Lab_482913` |
++| Mật khẩu | lấy từ `.env`, tối thiểu 8 ký tự | `TEST_NEW_USER_PASSWORD` |
++
++`runId` = 6 số cuối của `Date.now()`, sinh một lần mỗi lần chạy (`automation/tests/utils/test-data.js`).
++
++Tài khoản giảng viên cấp có IRN dạng chữ (`lecturer.tester`, `student.tester`), nên IRN **có thể không bắt buộc là số**.
++Khi chạy TC-08 lần đầu, thử thêm IRN dạng `AUTOTEST_<runId>`; nếu web nhận thì đổi `irn_prefix` cho dễ nhận biết. Hiện giữ `2099` cho khớp CSV.
++
++Dữ liệu TC-08 trong DB (`irn_prefix=2024`, `full_name_prefix=Tran Thi B`, `email_prefix=tranthib`) chưa theo quy tắc;
++chạy `npm run data:apply` (hoặc `db/migrations/005_autotest_data_rules.sql`) để đổi. Spec TC-08 đọc 3 giá trị này từ DB nên **không cần sửa code**.
++
++## 2. Tài khoản test (X2)
++
++- Giảng viên cấp 2 tài khoản cho môi trường test: **lecturer** (`lecturer.tester`) và **student** (`student.tester`).
++  Tên đăng nhập và mật khẩu chỉ ghi trong `.env` (`TEST_LECTURER_IRN/PASSWORD`, `TEST_STUDENT_IRN/PASSWORD`).
++  **Không ghi vào repo** (repo public) và không commit file `X0.docx`.
++- Mật khẩu hiện tại chỉ 6 ký tự, ngắn hơn mức tối thiểu 8 ký tự của chức năng đổi mật khẩu. Không chạy test đổi mật khẩu lên chính hai tài khoản này; TC-11 chỉ đổi mật khẩu user do TC-08 tạo (`TEST_TEMP_PASSWORD` >= 8 ký tự).
++- **Kiểm tra student đã ghi danh term hiện tại**: đăng nhập `student.tester`. Vào `/student-dashboard` là đạt. Vào `/student-history` nghĩa là chưa ghi danh,
++  nhờ lecturer thêm vào term hiện tại (Terms → chọn term → Available Students), nếu không các TC nộp bài sẽ lỗi.
++- TC-28 cần student thứ hai (`TEST_STUDENT2_*`). Chưa có thì xin giảng viên hoặc tạo một user theo mục 1 và ghi danh.
++
++## 3. Việc không nên làm
++
++- Không bấm **Set as Current Term**. Cả nhóm dùng chung môi trường và mọi TC dựa vào term hiện tại.
++- Không bật **Student Visible** cho Lab test nếu không cần.
++- Không dùng IRN, email, tài khoản của người thật làm dữ liệu tạo mới.
++
++## 4. CSV (TC-09)
++
++Dùng các file có sẵn trong `automation/fixtures/` (`student_list_batch1.csv`, `_duplicate`, `_invalid_rows`, `_empty`, `_wrong_format.txt`).
++Theo hướng dẫn sử dụng, Import trong Terms **chỉ ghi danh sinh viên đã có sẵn**, không tạo tài khoản (khớp ghi chú BLOCKED của TC-09).
++Trước khi import phải tạo user `2099000001`...`2099000005` (Users → Add User hoặc qua TC-08). File nhận `.xlsx`, `.xls`, `.csv`.
++
++## 5. Dọn dữ liệu test
++
++Giảng viên **chưa trả lời** cách dọn dữ liệu test. Trong lúc chờ, theo hướng dẫn sử dụng: **Delete (thùng rác) là xóa vĩnh viễn**
++(lịch sử nộp bài vẫn còn), còn **Suspend** chỉ khóa đăng nhập (chỉ cho STUDENT). TC-12 chỉ Suspend nên user vẫn còn.
++
++1. Lecturer → **Users**, tìm `AUTOTEST` và `autotest.`, xóa từng user.
++2. **Terms** → term hiện tại, gỡ các student `2099...` khỏi Enrolled Students (✕).
++3. **Projects**, xóa Lab `AUTOTEST_Lab_...` nếu có.
++4. Làm vào cuối tuần và trước ngày nộp. Bảng trong DB `test_automation_db` chỉ lưu kết quả test, không cần dọn.
++
++## 6. Lab 1 và bài nộp mẫu
++
++- Lab 1 đã có trên môi trường test, nhưng giảng viên nói các loại bài tập/lab **không theo thứ tự cố định**: tên "Lab 1" không đảm bảo là bài trong fixtures mẫu (`Student`, `Shape/Circle`).
++- Thầy đã gửi thư mục bài nộp tham chiếu (`Submission.zip`): `0000000000_Perfect_Solution_<tên lab>` cho `Lab_2`, `Lab_3`, `Lab_6`, `Lab_7`, `253F`, `Cake_Shop`, `Flower_Shop`.
++  Việc cần làm: đăng nhập lecturer, mở **Projects**, xem Lab 1 thật sự là bài nào rồi ghép với thư mục tương ứng để thay `valid_full`. Zip không có thư mục tên Lab 1.
++- `0000000000` là IRN giả. Nếu web đối chiếu IRN trong tên thư mục với tài khoản đăng nhập thì đổi tên thư mục gốc theo `TEST_STUDENT_IRN` (cách làm của `fixture-builder.js`).
++- Mỗi lần nộp thành một attempt trong History của tài khoản student, sinh viên không tự xóa được, nên chỉ nộp bằng `student.tester`.
++
++## 7. Điểm cần thống nhất trong repo
++
++- **Tên bảng/cột:** `db/schema/test_automation_db_schema.sql`, migration 004 và `testData.ts` dùng `test_data.data_value`; migration 002 và `test-case-loader.js` dùng `Test_Data.value`. Cần chốt theo DB thật rồi sửa phía còn lại.
++- **Migration 004** (TC-23 → TC-30) đang dùng tài khoản mẫu `student01@example.com`, `student02@example.com`, `lecturer01@example.com`.
++  Nên đổi thành `env:TEST_STUDENT_IRN`, `env:TEST_STUDENT2_IRN`, `env:TEST_LECTURER_IRN` như các TC khác.
+-- 
+2.43.0
+
