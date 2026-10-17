@@ -143,3 +143,10 @@ blob-report/
 
 # Test artifacts
 *.zip
+
+# private workspace
+tmp/*
+
+# Private docs – không commit cả thư mục
+docs/frontend/
+docs/parallel/

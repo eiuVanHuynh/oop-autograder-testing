@@ -18,6 +18,7 @@
 - **Log real-time dùng polling** `GET /runs/:id/logs?after=<seq>`, không dùng WebSocket; SSE chỉ khi chạy local.
 - **Trạng thái một lần chạy được tính ra** từ dữ liệu có sẵn, không lưu cột `run_status` riêng.
 - **Token reset mật khẩu không lưu trong DB** – JWT hạn 15 phút, ký kèm một phần `password_hash` hiện tại.
+- **Bỏ khái niệm "Template".** Thứ người dùng chọn để chạy là **Test Suite** (`test_suites` → `test_specs` → `test_cases`, đã có sẵn trong schema). Backend sinh biểu thức `--grep` từ danh sách `tc_code` của suite – không cần bảng mới. Xem [`backend-design.md`](./backend-design.md) mục 7.
 - Mọi endpoint bắt đầu bằng `/api`. Response: `{ data, meta? }` · Lỗi: `{ error: { code, message, details? } }`.
 - Phân quyền chặn ở **cả FE (ẩn nút) lẫn BE (trả 403)**. Chỉ ẩn nút là chưa đủ.
 
@@ -35,11 +36,12 @@ Phần còn lại của `backend-design.md` (luồng GitHub Actions, polling, c�
 
 ## Những điều CHƯA chốt
 
-- **Template**: bấm Run từ một template thì GitHub Actions chạy *những test nào*? 3 phương án (theo suite / theo tag / theo danh sách test case) ở [`backend-design.md`](./backend-design.md) mục 7. Trong lúc chờ, backend chừa sẵn trường `test_selector`.
+Không còn điểm nào treo ở tầng backend. Hai thứ còn phụ thuộc quyết định chung của nhóm:
+chuyển MySQL → Supabase, và quyền cụ thể của vai trò `dev` (xem bảng ở trên).
 
 ## Quy tắc bảo trì
 
 - Hai file này phải **khớp nhau**: thêm endpoint vào `api-endpoints.md` thì kiểm tra `backend-design.md` mục 6 xem có cần thay đổi DB không, và ngược lại.
 - Mỗi endpoint phải ghi rõ **quyền hạn** và **status code** – đây là thứ frontend và người viết test dựa vào.
 - Ưu tiên: 🔴 Cần thiết · 🟡 Tiềm năng. Khi làm xong một endpoint 🟡 thì cập nhật lại độ ưu tiên.
-- Ma trận phân quyền ở Phụ lục A của `api-endpoints.md` phải khớp với [`../frontend/02-yeu-cau-giao-dien-v2.md`](../frontend/02-yeu-cau-giao-dien-v2.md) và `frontend/src/models/permissions.js`.
+- Ma trận phân quyền ở Phụ lục A của `api-endpoints.md` phải khớp với `docs/frontend/02-yeu-cau-giao-dien-v2.md` *(không commit lên git)* và `frontend/src/models/permissions.js`.

@@ -25,8 +25,10 @@ Giải thích đầy đủ: [`database/phan-biet-cac-loai-database.md`](./databa
 | [`testing/`](./testing/) | Test plan, ma trận `TC-01` → `TC-31`, ánh xạ FR ↔ TC, **tham chiếu SUT** (route, API, selector thật) | Khi viết spec Playwright hoặc kiểm tra độ phủ |
 | [`database/`](./database/) | Phân biệt các loại DB + bảng phân công công việc DB & dữ liệu test (hướng b) | Khi làm migration, seed, fixture hoặc không rõ mình phụ trách việc nào |
 | [`backend/`](./backend/) | Thiết kế backend dashboard + danh sách API endpoint | Khi code `backend/` hoặc gọi API từ `frontend/` |
-| [`frontend/`](./frontend/) | Yêu cầu giao diện bản 1 và bản 2 | Khi code `frontend/` |
-| [`parallel/`](./parallel/) | Brief cho hướng tiếp cận song song (AI agent) – dùng ở **repo khác** | Khi so sánh hai hướng làm đồ án |
+| `frontend/` 🔒 | Yêu cầu giao diện bản 1 và bản 2 | Khi code `frontend/` |
+| `parallel/` 🔒 | Brief cho hướng tiếp cận song song (AI agent) – dùng ở **repo khác** | Khi so sánh hai hướng làm đồ án |
+
+🔒 = **không commit lên git** (`.gitignore`). Chỉ có trên máy từng người, hỏi trong nhóm nếu bạn chưa có.
 
 ## Trạng thái hiện tại (17/10/2026)
 
@@ -35,8 +37,8 @@ Giải thích đầy đủ: [`database/phan-biet-cac-loai-database.md`](./databa
 - Hướng đã chốt cho chạy test: **GitHub Actions** (`workflow_dispatch`), không chạy Playwright trên Vercel.
 - 🛑 **Chặn:** `db/migrations/004` gán TC-23 → TC-27 cho kịch bản *sinh viên*, lệch với ma trận (*giảng viên*) – phải chốt trước khi viết spec.
 - 🛑 **Chặn:** SUT không có `data-testid` nào → quy ước `testid=` trong `db/README.md` không dùng được.
-- Còn **chưa chốt**: cơ chế "Template" (xem [`backend/backend-design.md`](./backend/backend-design.md) mục 7)
-  và việc chuyển MySQL → Supabase theo SRS.
+- Đã chốt: **bỏ "Template", dùng Test Suite** làm thứ người dùng chọn để chạy (xem [`backend/backend-design.md`](./backend/backend-design.md) mục 7).
+- Còn **chưa chốt**: việc chuyển MySQL → Supabase theo SRS.
 
 ## Nguồn chuẩn khi tài liệu mâu thuẫn nhau
 
@@ -58,7 +60,7 @@ sửa file nguồn chuẩn **trước**, rồi mới cập nhật tài liệu ph
 | --- | --- | --- |
 | Code là MySQL, SRS ghi **Supabase/PostgreSQL** | Theo SRS → đích là Supabase | [`architecture/kien-truc-va-luong-du-lieu.md`](./architecture/kien-truc-va-luong-du-lieu.md) mục 4 |
 | `seed.sql`, migration `001`, `002` dùng tên bảng chữ hoa và cột `description` | Theo schema → `test_suites`, `suite_description`, chữ thường | [`GIT_WORKFLOW.md`](./GIT_WORKFLOW.md) mục 9 |
-| `permissions.js` xếp `Dev` ngang `Tester` | Theo SRS → **giữ 4 vai trò**, `dev` chỉ được xem + request chạy lại *(đảo lại đề xuất bỏ `dev` ở `backend/backend-design.md`)* | [`frontend/Explain.md`](./frontend/Explain.md) |
+| `permissions.js` xếp `Dev` ngang `Tester` | Theo SRS → **giữ 4 vai trò**, `dev` chỉ được xem + request chạy lại *(đảo lại đề xuất bỏ `dev` ở `backend/backend-design.md`)* | `frontend/Explain.md` 🔒 |
 | Thiếu `db/migrations/003_submission_steps_data.sql` | — | [`database/phan-cong-db-va-du-lieu.md`](./database/phan-cong-db-va-du-lieu.md) mục D6 |
 | `seed.sql` có `DELETE FROM Test_Suites` | — | [`GIT_WORKFLOW.md`](./GIT_WORKFLOW.md) mục 8 và 9 |
 
@@ -66,7 +68,6 @@ sửa file nguồn chuẩn **trước**, rồi mới cập nhật tài liệu ph
 
 - **Bộ mã test case:** `TC-AUTH-xxx` (seed) vs `TC-01` → `TC-31` (spec và `docs/testing/`). Schema không ràng buộc bộ mã nào.
 - **DB cloud:** nhà cung cấp, SSL, user riêng — gắn với quyết định MySQL ↔ Supabase.
-- **Template:** bấm Run từ template thì chạy test nào — [`backend/backend-design.md`](./backend/backend-design.md) mục 7.
 
 ## Quy ước viết tài liệu
 

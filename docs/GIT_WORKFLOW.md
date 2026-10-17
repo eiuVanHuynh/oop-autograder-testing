@@ -255,4 +255,10 @@ sửa file nguồn chuẩn **trước**, rồi mới cập nhật tài liệu ph
   Schema không ràng buộc bộ mã nào nên đây là quyết định thuần của nhóm. Hiện tài liệu đang dùng **`TC-01` → `TC-31` (31 test case)**;
   mọi chỗ ghi "TC-01 → TC-44" là tài liệu cũ sai.
 - **DB cloud:** chọn nhà cung cấp, cấu hình SSL, tạo user riêng (không dùng `root`). Gắn với quyết định MySQL ↔ Supabase ở trên.
-- **Template:** bấm Run từ một template thì chạy những test nào – xem [`backend/backend-design.md`](./backend/backend-design.md) mục 7.
+
+### Đã chốt gần đây
+
+- **Bỏ khái niệm "Template", dùng Test Suite.** Thứ người dùng chọn để chạy là một bộ test (`test_suites` → `test_specs` →
+  `test_cases`), backend sinh biểu thức `--grep` từ danh sách `tc_code`. Không cần bảng DB mới.
+  Xem [`backend/backend-design.md`](./backend/backend-design.md) mục 7.
+  ⚠️ Việc này làm lỗi thời một phần tài liệu yêu cầu giao diện (màn hình Template Management, form nhập "Yêu cầu test").
