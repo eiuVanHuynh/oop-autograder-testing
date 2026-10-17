@@ -80,7 +80,7 @@ Phục vụ các trang: **Login, Register, Forgot password**.
 | 🔴 | `GET /auth/me` | Mọi user | `200`, `401` | **"Tôi là ai?"** Khi người dùng mở lại web (F5), giao diện gọi cái này để biết họ còn đăng nhập không và có vai trò gì, từ đó ẩn/hiện nút cho đúng. |
 | 🔴 | `POST /auth/logout` | Mọi user | `204`, `401` | **Đăng xuất.** Hủy "vé vào cửa" hiện tại. |
 | 🔴 | `POST /auth/forgot-password` | Công khai | `200`, `400`, `429` | **Quên mật khẩu.** Gửi email lên, hệ thống gửi link đặt lại mật khẩu về email. Luôn trả `200` **kể cả khi email không tồn tại** – để kẻ xấu không dò được email nào có trong hệ thống. |
-| 🔴 | `POST /auth/reset-password` | Công khai | `200`, `400`, `410` | **Đặt mật khẩu mới** bằng mã trong link email. Link quá hạn hoặc đã dùng rồi → `410`. *(DB cần thêm bảng lưu mã này.)* |
+| 🔴 | `POST /auth/reset-password` | Công khai | `200`, `400`, `410` | **Đặt mật khẩu mới** bằng mã trong link email. Link quá hạn hoặc đã dùng rồi → `410`. *(Không cần lưu vào DB: mã là token có hạn 15 phút, tự mất hiệu lực sau khi đổi mật khẩu.)* |
 | 🔴 | `GET /auth/google` | Công khai | `302` | **Đăng nhập bằng Google** – chuyển người dùng sang trang của Google. |
 | 🔴 | `GET /auth/google/callback` | Công khai | `302`, `401` | Google **trả người dùng về** đây sau khi họ đồng ý. Backend tạo/tìm tài khoản rồi chuyển về Dashboard. Người dùng bấm "Hủy" trên Google → `401`. |
 
@@ -192,7 +192,7 @@ Phục vụ trang: **RunDetail** (nút Tải PDF / Export HTML / Copy link) và 
 | :-: | --- | --- | --- | --- |
 | 🔴 | `POST /ingest/runs` | Máy (API key) | `201`, `400`, `401` | **Báo "bắt đầu chạy"** – tạo một lần chạy mới, kèm thông tin: trình duyệt, môi trường, nhánh code, người chạy. |
 | 🔴 | `POST /ingest/runs/:id/results` | Máy (API key) | `201`, `400`, `401`, `404` | **Gửi kết quả từng test case**: đạt/lỗi, kết quả thực tế, thời gian chạy, thông báo lỗi. Có thể gửi nhiều kết quả một lúc. |
-| 🔴 | `POST /ingest/runs/:id/logs` | Máy (API key) | `202`, `400`, `401`, `404` | **Gửi từng dòng log** khi đang chạy, để người xem trên web thấy chữ chạy trực tiếp (mục 6). *(DB cần thêm bảng lưu log.)* |
+| 🔴 | `POST /ingest/runs/:id/logs` | Máy (API key) | `202`, `400`, `401`, `404` | **Gửi từng dòng log** khi đang chạy, để người xem trên web thấy chữ chạy trực tiếp (mục 6). *(Log chỉ lưu tạm, bị xóa sau khi lần chạy kết thúc.)* |
 | 🔴 | `PATCH /ingest/runs/:id/finish` | Máy (API key) | `200`, `400`, `401`, `404`, `409` | **Báo "đã chạy xong"** – ghi giờ kết thúc và kết quả chung. Gọi 2 lần cho cùng một lần chạy → `409`. |
 | 🟡 | `POST /ingest/results/:id/evidences` | Máy (API key) | `201`, `400`, `401`, `404`, `413` | **Gửi ảnh chụp màn hình / file trace** của test bị lỗi. File quá lớn → `413`. |
 
@@ -237,23 +237,32 @@ Cho phép người dùng **báo một lỗi phần mềm** từ một kết qu�
 
 ## Phụ lục A – Ma trận phân quyền tóm tắt
 
-| Chức năng | Admin | Tester | Viewer |
-| --- | :-: | :-: | :-: |
-| Xem Dashboard, Lịch sử, Báo cáo, Template | ✔ | ✔ | ✔ |
-| Xuất báo cáo, tạo link chia sẻ | ✔ | ✔ | ✔ |
-| Chạy test / Chạy lại / Hủy | ✔ | ✔ | ✘ |
-| Lưu nháp cấu hình test | ✔ | ✔ | ✘ |
-| Thêm / sửa / xóa Template | ✔ | ✔ | ✘ |
-| Báo lỗi (Bug) | ✔ | ✔ | ✘ |
-| Quản lý thành viên (đổi vai trò, khóa tài khoản) | ✔ | ✘ | ✘ |
-| Xóa lần chạy khỏi lịch sử | ✔ | ✘ | ✘ |
+Nguồn chuẩn về vai trò: [`../architecture/SRS.md`](../architecture/SRS.md) mục 4, khớp `ENUM('admin','tester','dev','viewer')` trong `db/schema/`.
+
+| Chức năng | Admin | Tester | Dev | Viewer |
+| --- | :-: | :-: | :-: | :-: |
+| Xem Dashboard, Lịch sử, Báo cáo, Template | ✔ | ✔ | ✔ | ✔ |
+| Xem log, chuỗi bước chi tiết, bằng chứng | ✔ | ✔ | ✔ | ✔ |
+| Xuất báo cáo, tạo link chia sẻ | ✔ | ✔ | ✔ | ✔ |
+| Request chạy lại | ✔ | ✔ | ✔ | ✘ |
+| Chạy test / Hủy | ✔ | ✔ | ✘ | ✘ |
+| Lưu nháp cấu hình test | ✔ | ✔ | ✘ | ✘ |
+| Thêm / sửa / xóa Template | ✔ | ✔ | ✘ | ✘ |
+| Báo lỗi (Bug) | ✔ | ✔ | ✔ | ✘ |
+| Quản lý thành viên (đổi vai trò, khóa tài khoản) | ✔ | ✘ | ✘ | ✘ |
+| Xóa lần chạy khỏi lịch sử | ✔ | ✘ | ✘ | ✘ |
+
+> ⚠️ Vai trò **Dev** mới được giữ lại theo nguồn chuẩn (trước đó `backend-design.md` đề xuất bỏ). Các dòng của `Dev` ở trên là
+> **suy ra từ SRS mục 4**, nhóm cần xác nhận – nhất là "Request chạy lại" (gửi yêu cầu cho Admin/Tester hay tự gọi `POST /runs`?)
+> và quyền báo lỗi. Bảng ký hiệu quyền hạn ở mục 0 cũng cần bổ sung dòng **Dev**.
 
 ## Phụ lục B – Những thứ Database cần bổ sung để làm được các endpoint trên
 
 1. **Bảng `templates`** – lưu kịch bản mẫu (mục 4).
 2. **Bảng lưu bản nháp cấu hình test** (mục 5), hoặc gộp chung với `templates` bằng một cột phân loại.
-4. **Bảng lưu log** (mã lần chạy, số thứ tự dòng, nội dung, thời gian) – cho khung log trực tiếp (mục 6, 8).
-5. **Bảng lưu mã đặt lại mật khẩu** (kèm thời hạn) – cho chức năng Quên mật khẩu.
+3. **Bảng lưu log tạm** `run_logs` (mã lần chạy, số thứ tự dòng, nội dung, thời gian) – cho khung log trực tiếp (mục 6, 8). Log bị **xóa sau khi lần chạy kết thúc**. Câu lệnh `CREATE TABLE` có sẵn ở [`backend-design.md`](./backend-design.md) mục 6.
+4. **2 cột mới cho `test_runs`**: `run_name` và `config_json` (phục vụ "Chạy lại") – xem [`backend-design.md`](./backend-design.md) mục 6.
+5. ~~Bảng lưu mã đặt lại mật khẩu~~ – **không cần**: dùng token có hạn, không lưu trữ (xem [`backend-design.md`](./backend-design.md) mục 6).
 
 ## Phụ lục C – Thứ tự nên làm (nếu thiếu thời gian)
 
