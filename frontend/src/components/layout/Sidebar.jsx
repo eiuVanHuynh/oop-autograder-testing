@@ -10,12 +10,12 @@ export const MENU = [
   {
     group: 'CORE MODULES',
     items: [
-      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Tester', 'Dev', 'Viewer'] },
-      { path: '/tests/new', label: 'Create Test', icon: PlusCircle, roles: ['Admin', 'Tester'] },
-      { path: '/templates', label: 'Templates', icon: FileText, roles: ['Admin', 'Tester', 'Dev', 'Viewer'] },
+      { path: '/dashboard', label: 'Dashboard',   icon: LayoutDashboard,  roles: ['Admin', 'Tester', 'Dev', 'Viewer'] },
+      { path: '/tests/new', label: 'Create Test', icon: PlusCircle,       roles: ['Admin', 'Tester'] },
+      { path: '/templates', label: 'Templates',   icon: FileText,         roles: ['Admin', 'Tester', 'Dev', 'Viewer'] },
       // match: tiền tố để /runs/:id vẫn làm sáng mục History.
       // match: prefix so /runs/:id still highlights the History item.
-      { path: '/history', label: 'History', icon: History, roles: ['Admin', 'Tester', 'Dev', 'Viewer'], match: ['/history', '/runs'] },
+      { path: '/history',   label: 'History',     icon: History,          roles: ['Admin', 'Tester', 'Dev', 'Viewer'], match: ['/history', '/runs'] },
     ],
   },
   {

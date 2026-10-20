@@ -17,7 +17,7 @@ const ALL_ROLES = ['Admin', 'Tester', 'Dev', 'Viewer']; // Check tên với back
 // Chưa đăng nhập thì về /login; sai vai trò thì hiện trang 403 thay vì đá đi nơi khác.
 // Not signed in → /login; wrong role → render the 403 page instead of redirecting elsewhere.
 const ProtectedRoute = ({ children, allowedRoles }) => {
- // Tôi ví dụ sơ sơ
+ // Tôi ví dụ sơ sơ 
   const { user } = useAuth();
 
   if (!user) // Chưa đăng nhập
@@ -34,23 +34,23 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 export default function AppRoutes() {
   return (
     <Routes>
+      {/* Trước khi đăng nhập */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
       {/* Các trang sau khi đăng nhập dùng chung Sidebar + TopBar. */}
       {/* Signed-in pages share the Sidebar + TopBar frame. */}
-      <Route
-        element={
+      <Route element={
           <ProtectedRoute allowedRoles={ALL_ROLES}>
             <MainLayout />
           </ProtectedRoute>
-        }
-      >
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="templates" element={<Templates />} />
-        <Route path="history" element={<History />} />
-        <Route path="runs/:id" element={<TestReport />} />
+        }>
+
+        <Route path="dashboard" element= {<Dashboard /> } />
+        <Route path="templates" element= {<Templates /> } />
+        <Route path="history"   element= {<History />   } />
+        <Route path="runs/:id"  element= {<TestReport />} />
 
         <Route
           path="tests/new"
