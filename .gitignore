@@ -148,5 +148,4 @@ blob-report/
 tmp/*
 
 # Private docs – không commit cả thư mục
-docs/frontend/
 docs/parallel/

@@ -115,35 +115,36 @@ Phục vụ trang: **Dashboard** (các thẻ số liệu + biểu đồ).
 
 ---
 
-## 4. Bộ test (Suite) – thứ người dùng chọn để chạy
+## 4. Template – thứ người dùng chọn để chạy
 
-Phục vụ trang: **Suite Management** và ô **"Chọn bộ test"** trong trang Tạo Test.
+Phục vụ trang: **Template Management** và ô **"Chọn Template"** trong trang Tạo Test.
 
-> **Đã bỏ khái niệm "Template".** Thứ người dùng chọn để chạy là **bộ test (Test Suite)** – quan hệ
-> `test_suites` → `test_specs` → `test_cases` đã có sẵn trong `db/schema/`, **không cần bảng mới**.
-> Lý do và cách sinh biểu thức `--grep` từ một suite: [`backend-design.md`](./backend-design.md) mục 7.
+> **Nhóm đã chốt lại: dùng Template, thay cho Suite.** Một template trỏ thẳng tới *target test* – danh sách
+> test sẽ chạy – và nằm ở **bảng mới** `test_templates`. Suite / spec / case vẫn là nơi khai báo test (mục 9).
+> Cấu trúc bảng và cách sinh biểu thức `--grep`: [`backend-design.md`](./backend-design.md) mục 7.
 
 | Ưu tiên | Endpoint | Quyền hạn | Status code | Ghi chú |
 | :-: | --- | --- | --- | --- |
-| 🔴 | `GET /suites?q=` | Mọi user | `200`, `401` | **Xem danh sách bộ test** (ví dụ: bộ test Đăng nhập, bộ test Giảng viên…). Dùng cho cả bảng quản lý lẫn ô chọn trước khi Run. Nên kèm số test case `ready` của mỗi suite để giao diện chặn sớm suite rỗng. |
-| 🔴 | `GET /suites/:id` | Mọi user | `200`, `401`, `404` | **Xem chi tiết 1 bộ test** kèm danh sách đặc tả và test case bên trong. |
-| 🔴 | `POST /suites` | Admin, Tester | `201`, `400`, `401`, `403`, `409` | **Tạo bộ test mới.** Trùng `suite_name` → `409`. Viewer gọi → `403`. |
-| 🔴 | `PUT /suites/:id` | Admin, Tester | `200`, `400`, `401`, `403`, `404` | **Sửa bộ test** (tên, mô tả). Hệ thống tự ghi `updated_by` / `updated_at`. |
-| 🔴 | `DELETE /suites/:id` | Admin, Tester | `204`, `401`, `403`, `404`, `409` | **Xóa bộ test.** Bên trong còn đặc tả → `409` (khóa ngoại `ON DELETE RESTRICT`). Giao diện nên hỏi xác nhận. |
-| 🟡 | `POST /suites/:id/duplicate` | Admin, Tester | `201`, `401`, `403`, `404` | **Nhân bản bộ test** để sửa thành bản mới mà không nhập lại từ đầu. |
+| 🔴 | `GET /templates?q=&scope=` | Mọi user | `200`, `401` | **Xem danh sách template.** Dùng cho cả bảng quản lý lẫn ô chọn trước khi Run. Nên kèm số test case `ready` mà `target_json` trỏ tới, để giao diện chặn sớm template rỗng. |
+| 🔴 | `GET /templates/:id` | Mọi user | `200`, `401`, `404` | **Xem chi tiết 1 template**: mô tả, phạm vi, danh sách test được chọn, môi trường & timeout mặc định. |
+| 🔴 | `POST /templates` | Admin, Tester | `201`, `400`, `401`, `403`, `409` | **Tạo template mới.** Bắt buộc có `target_json` (`{ suiteId }` hoặc `{ testIds }`) – thiếu → `400`. Trùng `template_name` → `409`. Viewer gọi → `403`. |
+| 🔴 | `PUT /templates/:id` | Admin, Tester | `200`, `400`, `401`, `403`, `404` | **Sửa template.** Sửa xong **không** ảnh hưởng các lần chạy cũ: lịch sử đã chụp `grep` vào `test_runs.config_json`. |
+| 🔴 | `DELETE /templates/:id` | Admin, Tester | `204`, `401`, `403`, `404` | **Xóa template.** Lịch sử chạy vẫn giữ nguyên, không `409`. Giao diện nên hỏi xác nhận. |
+| 🟡 | `POST /templates/:id/duplicate` | Admin, Tester | `201`, `401`, `403`, `404` | **Nhân bản template** để sửa thành bản mới mà không chọn lại test từ đầu. |
 
-Quản lý **đặc tả** và **test case** bên trong suite: xem mục 9.
+Chọn test để điền vào `target_json`: dùng `GET /suites?q=` và `GET /cases?...` ở mục 9.
 
 ---
 
 ## 5. ~~Cấu hình test & Bản nháp~~ – ĐÃ BỎ
 
 Mục này phục vụ form nhập "Yêu cầu test" bằng chữ tự do rồi lưu nháp. Form đó **không còn**: người dùng
-**chọn một bộ test có sẵn** rồi bấm Run, nên không có gì để lưu nháp.
+**chọn một template có sẵn** rồi bấm Run. Muốn lưu một tổ hợp test hay dùng thì **tạo template** (mục 4),
+không cần bảng nháp riêng.
 
 | Endpoint cũ | Thay bằng |
 | --- | --- |
-| `POST/GET/PUT/DELETE /tests` (bản nháp) | ❌ Bỏ. Muốn lưu một tổ hợp test hay dùng → tạo một **suite** (mục 4) |
+| `POST/GET/PUT/DELETE /tests` (bản nháp) | ❌ Bỏ. Muốn lưu một tổ hợp test hay dùng → tạo một **template** (mục 4) |
 | `POST /tests/:id/attachments` | ❌ Bỏ. Dữ liệu test thuộc `test_data` và `automation/fixtures/`, không upload qua form |
 | `GET /meta/options` | ✅ **Giữ lại** – 🟡, Mọi user, `200`/`401`. Trả các lựa chọn có sẵn (môi trường, `priority`, `test_type`, `test_status`) để giao diện không ghi cứng |
 
@@ -157,14 +158,14 @@ Phục vụ trang: **Create new test** (nút Run + khung log), **RunDetail**, **
 
 | Ưu tiên | Endpoint | Quyền hạn | Status code | Ghi chú |
 | :-: | --- | --- | --- | --- |
-| 🔴 | `POST /runs` | Admin, Tester | `202`, `400`, `401`, `403`, `404`, `409` | **Bấm "Run Test".** Gửi lên `{ suiteId }` **hoặc** `{ testIds: ["TC-05", …] }`. Backend đổi ra biểu thức `--grep`, tạo lần chạy và trả **mã số** ngay (`202` = "đã nhận, đang chạy"). Giao diện dùng mã số này để theo dõi log. Suite không tồn tại → `404`. **Suite không có test case `ready` nào → `409`** (không gọi workflow, tránh báo `passed` giả). Viewer gọi → `403`. |
+| 🔴 | `POST /runs` | Admin, Tester | `202`, `400`, `401`, `403`, `404`, `409` | **Bấm "Run Test".** Gửi lên `{ templateId, env?, timeout? }` **hoặc** `{ testIds: ["TC-05", …] }`. Backend đọc `target_json` của template, đổi ra biểu thức `--grep`, tạo lần chạy và trả **mã số** ngay (`202` = "đã nhận, đang chạy"). Giao diện dùng mã số này để theo dõi log. Template không tồn tại → `404`. **Template không ra test case `ready` nào → `409`** (không gọi workflow, tránh báo `passed` giả). Viewer gọi → `403`. |
 | 🔴 | `GET /runs?q=&status=&from=&to=&page=` | Mọi user | `200`, `400`, `401` | **Lịch sử chạy test.** Tìm theo tên (`q`), lọc Đạt/Lỗi (`status`), lọc theo khoảng ngày (`from`→`to`), chia trang. Mỗi dòng có: mã, tên, người chạy, thời gian, trạng thái. Ngày sai định dạng → `400`. |
 | 🔴 | `GET /runs/:id` | Mọi user | `200`, `401`, `404` | **Xem chi tiết 1 lần chạy** (trang báo cáo): Đạt hay Lỗi, chạy mất bao lâu, chạy lúc nào, **so sánh Kết quả mong đợi vs Kết quả thực tế**, và bảng từng bước. |
 | 🔴 | `GET /runs/:id/logs/stream` | Mọi user | `200`, `401`, `404` | **Xem log trực tiếp** (chữ chạy liên tục trong khung log + thanh tiến độ). Kết nối được **giữ mở**, server có gì mới là đẩy ngay xuống – người dùng không cần bấm tải lại. *(Kỹ thuật: SSE.)* |
 | 🔴 | `GET /runs/:id/logs?after=` | Mọi user | `200`, `401`, `404` | **Phương án dự phòng** cho cái trên: giao diện **cứ vài giây hỏi một lần** "có log mới không?". `after` = "lấy các dòng sau dòng số X". Cần vì khi deploy lên **Vercel**, kết nối giữ mở lâu có thể bị cắt. |
 | 🔴 | `POST /runs/:id/cancel` | Admin, Tester | `200`, `401`, `403`, `404`, `409` | **Bấm "Hủy"** để dừng test đang chạy. Test đã chạy xong rồi thì không hủy được → `409`. |
 | 🔴 | `POST /runs/:id/rerun` | Admin, Tester | `202`, `401`, `403`, `404` | **Bấm "Chạy lại"** – đọc `test_runs.config_json` của lần chạy cũ và gửi lại y nguyên, tạo một lần chạy **mới**. Lần chạy cũ vẫn giữ trong lịch sử. |
-| 🟡 | `GET /runs/:id/results/:resultId/evidences` | Mọi user | `200`, `401`, `404` | **Xem bằng chứng** của một bước bị lỗi: ảnh chụp màn hình, file ghi lại quá trình chạy (trace). |
+| 🔴 | `GET /runs/:id/results/:resultId/evidences` | Mọi user | `200`, `401`, `404` | **Xem bằng chứng** của một bước – cả bước lỗi lẫn bước đạt: ảnh chụp màn hình, file ghi lại quá trình chạy (trace). |
 | 🟡 | `DELETE /runs/:id` | Admin | `204`, `401`, `403`, `404`, `409` | **Xóa một lần chạy** khỏi lịch sử. Đang chạy dở → `409` (phải hủy trước). |
 
 ---
@@ -200,13 +201,14 @@ Phục vụ trang: **RunDetail** (nút Tải PDF / Export HTML / Copy link) và 
 
 ## 9. Bên trong một bộ test: đặc tả, test case, các bước
 
-Quản lý dữ liệu test gốc đã có trong Database (`test_specs`, `test_cases`, `test_steps`, `test_data`).
-CRUD của chính `test_suites` nằm ở **mục 4**.
+Quản lý dữ liệu test gốc đã có trong Database (`test_suites`, `test_specs`, `test_cases`, `test_steps`, `test_data`).
+Đây là **nơi khai báo test**; còn *chọn test nào để chạy* là việc của Template ở **mục 4**.
 
 Đây là nguồn dữ liệu cho **cả hai phía**: giao diện chọn test để chạy, **và** helper `loadTestCase(tcCode)` mà spec Playwright dùng.
 
 | Ưu tiên | Endpoint | Quyền hạn | Status code | Ghi chú |
 | :-: | --- | --- | --- | --- |
+| 🔴 | `GET /suites?q=` | Mọi user | `200`, `401` | **Xem danh sách bộ test**, dùng khi chọn `target_json` cho template. Nên kèm số test case `ready` của mỗi suite. |
 | 🔴 | `GET /suites/:id/specs` | Mọi user | `200`, `401`, `404` | **Xem các đặc tả** (yêu cầu) thuộc một bộ test. |
 | 🔴 | `GET /cases?suite=&type=&priority=&status=` | Mọi user | `200`, `401` | **Xem danh sách test case**, lọc theo bộ test, loại test, mức độ ưu tiên, trạng thái. Giao diện "chọn test lẻ để chạy" dùng cái này. |
 | 🔴 | `GET /cases/:id` | Mọi user | `200`, `401`, `404` | **Xem chi tiết 1 test case**, kèm các bước thực hiện và dữ liệu test. |
@@ -214,15 +216,16 @@ CRUD của chính `test_suites` nằm ở **mục 4**.
 | 🟡 | `PUT /specs/:id`, `PUT /cases/:id` | Admin, Tester | `200`, `400`, `401`, `403`, `404` | **Sửa** đặc tả / test case. |
 | 🟡 | `DELETE /specs/:id`, `DELETE /cases/:id` | Admin, Tester | `204`, `401`, `403`, `404`, `409` | **Xóa.** Còn dữ liệu con → `409` (`ON DELETE RESTRICT`). Nên đổi `test_status` thành `deprecated` thay vì xóa. |
 | 🟡 | `PUT /cases/:id/steps` | Admin, Tester | `200`, `400`, `401`, `403`, `404` | **Sửa lại toàn bộ các bước** của một test case (thêm/bớt/đổi thứ tự). |
+| 🟡 | `POST /suites`, `PUT /suites/:id`, `DELETE /suites/:id` | Admin, Tester | `201`/`200`/`204`, `400`, `401`, `403`, `404`, `409` | **CRUD bộ test.** Trùng `suite_name` → `409`; xóa khi bên trong còn đặc tả → `409` (`ON DELETE RESTRICT`). |
 
 > **`test_status` quyết định test có được chạy hay không.** Chỉ `ready` mới vào biểu thức `--grep`;
-> `draft` và `deprecated` bị bỏ qua – xem [`backend-design.md`](./backend-design.md) mục 7.4.
+> `draft` và `deprecated` bị bỏ qua – xem [`backend-design.md`](./backend-design.md) mục 7.3.
 
 ---
 
 ## 10. Báo lỗi (Bug)
 
-Cho phép người dùng **báo một lỗi phần mềm** từ một kết quả test bị Fail. *(Bảng `Bug_Feedbacks` trong DB đang tạm tắt.)*
+Cho phép người dùng **báo một lỗi phần mềm** từ một kết quả test bị Fail. *(Bảng `Bug_Feedbacks` trong DB đã bị xóa.)*
 
 | Ưu tiên | Endpoint | Quyền hạn | Status code | Ghi chú |
 | :-: | --- | --- | --- | --- |
@@ -246,29 +249,30 @@ Nguồn chuẩn về vai trò: [`../architecture/SRS.md`](../architecture/SRS.md
 
 | Chức năng | Admin | Tester | Dev | Viewer |
 | --- | :-: | :-: | :-: | :-: |
-| Xem Dashboard, Lịch sử, Báo cáo, Suite | ✔ | ✔ | ✔ | ✔ |
+| Xem Dashboard, Lịch sử, Báo cáo, Template | ✔ | ✔ | ✔ | ✔ |
 | Xem log, chuỗi bước chi tiết, bằng chứng | ✔ | ✔ | ✔ | ✔ |
 | Xuất báo cáo, tạo link chia sẻ | ✔ | ✔ | ✔ | ✔ |
 | Request chạy lại | ✔ | ✔ | ✔ | ✘ |
 | Chạy test / Hủy | ✔ | ✔ | ✘ | ✘ |
-| Thêm / sửa / xóa Suite, đặc tả, test case | ✔ | ✔ | ✘ | ✘ |
+| Thêm / sửa / xóa Template, bộ test, đặc tả, test case | ✔ | ✔ | ✘ | ✘ |
 | Báo lỗi (Bug) | ✔ | ✔ | ✔ | ✘ |
 | Quản lý thành viên (đổi vai trò, khóa tài khoản) | ✔ | ✘ | ✘ | ✘ |
 | Xóa lần chạy khỏi lịch sử | ✔ | ✘ | ✘ | ✘ |
 
 > ⚠️ Vai trò **Dev** mới được giữ lại theo nguồn chuẩn (trước đó `backend-design.md` đề xuất bỏ). Các dòng của `Dev` ở trên là
-> **suy ra từ SRS mục 4**, nhóm cần xác nhận – nhất là "Request chạy lại" (gửi yêu cầu cho Admin/Tester hay tự gọi `POST /runs`?)
+> **suy ra từ SRS mục 4**, nhóm cần xác nhận – nhất là "Request chạy lại" (gửi yêu cầu cho Admin/Tester hay tự gọi `POST /runs`? – đề xuất: cho gọi `POST /runs/:id/rerun`)
 > và quyền báo lỗi. Bảng ký hiệu quyền hạn ở mục 0 cũng cần bổ sung dòng **Dev**.
 
 ## Phụ lục B – Những thứ Database cần bổ sung để làm được các endpoint trên
 
 1. **Bảng lưu log tạm** `run_logs` (mã lần chạy, số thứ tự dòng, nội dung, thời gian) – cho khung log trực tiếp (mục 6, 8). Log bị **xóa sau khi lần chạy kết thúc**. Câu lệnh `CREATE TABLE` có sẵn ở [`backend-design.md`](./backend-design.md) mục 6.
-2. **2 cột mới cho `test_runs`**: `run_name` và `config_json` (lưu `{ suiteId | testIds, grep, env, timeout }`, phục vụ "Chạy lại") – xem [`backend-design.md`](./backend-design.md) mục 6.
-3. ~~Bảng `templates`~~ – **không cần**: đã bỏ khái niệm Template, dùng `test_suites` có sẵn (mục 4).
-4. ~~Bảng lưu bản nháp cấu hình test~~ – **không cần**: không còn form nhập chữ tự do (mục 5).
+2. **2 cột mới cho `test_runs`**: `run_name` và `config_json` (lưu `{ templateId, grep, env, timeout }`, phục vụ "Chạy lại") – xem [`backend-design.md`](./backend-design.md) mục 6.
+3. **Bảng nghiệp vụ mới** `test_templates` (tên, mô tả, phạm vi, `target_json`, môi trường & timeout mặc định, người tạo) – cho mục 4. `target_json` **bắt buộc**, nếu không template lại không trỏ tới thứ gì chạy được. Câu lệnh `CREATE TABLE` ở [`backend-design.md`](./backend-design.md) mục 6.
+4. ~~Bảng lưu bản nháp cấu hình test~~ – **không cần**: template chính là bản cấu hình lưu sẵn (mục 5).
 5. ~~Bảng lưu mã đặt lại mật khẩu~~ – **không cần**: dùng token có hạn, không lưu trữ (xem [`backend-design.md`](./backend-design.md) mục 6).
 
-> Tổng cộng: **1 bảng tạm + 2 cột**. Không có bảng nghiệp vụ mới nào.
+> Tổng cộng: **1 bảng nghiệp vụ mới + 1 bảng tạm + 2 cột**.
+> ⚠️ Chưa áp vào `db/schema/` – nhóm chốt thời điểm chạy migration.
 
 ## Phụ lục C – Thứ tự nên làm (nếu thiếu thời gian)
 
@@ -278,5 +282,5 @@ Nguồn chuẩn về vai trò: [`../architecture/SRS.md`](../architecture/SRS.md
 4. Mục 7 – Xuất báo cáo
 5. Mục 2 – Quản lý thành viên
 6. Mục 3 – Dashboard
-7. Mục 4 – Suite Management
+7. Mục 4 – Template Management
 8. Các mục 🟡 Tiềm năng còn lại

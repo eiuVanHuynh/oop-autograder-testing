@@ -2,42 +2,47 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../controllers/AuthContext';
 import Login from '../views/Login';
 import Register from '../views/Register';
+import ForgotPassword from '../views/ForgotPassword';
 import MainLayout from '../components/MainLayout';
-import History from '../views/History';
-import UserManagement from '../views/UserManagement';
-import TestCreation from '../views/TestCreation';
-import TestReport from '../views/TestReport';
 import Dashboard from '../views/Dashboard';
 import Templates from '../views/Templates';
+import History from '../views/History';
+import TestCreation from '../views/TestCreation';
+import TestReport from '../views/TestReport';
+import UserManagement from '../views/UserManagement';
+import Forbidden from '../views/Forbidden';
 
+const ALL_ROLES = ['Admin', 'Tester', 'Dev', 'Viewer']; // Check tên với back-end
+
+// Chưa đăng nhập thì về /login; sai vai trò thì hiện trang 403 thay vì đá đi nơi khác.
+// Not signed in → /login; wrong role → render the 403 page instead of redirecting elsewhere.
 const ProtectedRoute = ({ children, allowedRoles }) => {
+ // Tôi ví dụ sơ sơ
   const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white p-8 rounded-lg shadow-md text-center">
-          <h1 className="text-xl font-bold text-red-600 mb-2">403 - Access Denied</h1>
-          <p className="text-gray-600">
-            The role ({user.role}) is not allowed to access this resource.
-          </p>
-        </div>
-      </div>
-    );
-  }
+
+  if (!user) // Chưa đăng nhập
+    return <Navigate to="/login" replace />;
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) // Thiếu quyền
+    return <Forbidden />;
+
   return children;
 };
 
+// File này đã khai báo đủ route của bản thiết kế v3 — thêm trang mới thì mới cần sửa ở đây.
+// This file already declares every route in design v3 — only edit it when adding a new page.
 export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
-      {/* MainLayout làm khung chung cho các trang sau khi đăng nhập */}
+      {/* Các trang sau khi đăng nhập dùng chung Sidebar + TopBar. */}
+      {/* Signed-in pages share the Sidebar + TopBar frame. */}
       <Route
         element={
-          <ProtectedRoute allowedRoles={['Admin', 'Tester', 'Dev', 'Viewer']}>
+          <ProtectedRoute allowedRoles={ALL_ROLES}>
             <MainLayout />
           </ProtectedRoute>
         }
@@ -45,18 +50,16 @@ export default function AppRoutes() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="templates" element={<Templates />} />
         <Route path="history" element={<History />} />
+        <Route path="runs/:id" element={<TestReport />} />
 
-        {/* Đưa 2 trang mới vào đây để có chung Sidebar & Logout */}
         <Route
           path="tests/new"
           element={
-            <ProtectedRoute allowedRoles={['Admin', 'Tester', 'Dev']}>
+            <ProtectedRoute allowedRoles={['Admin', 'Tester']}>
               <TestCreation />
             </ProtectedRoute>
           }
         />
-        <Route path="runs/:id" element={<TestReport />} />
-
         <Route
           path="admin/users"
           element={

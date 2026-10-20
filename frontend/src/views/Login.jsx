@@ -95,11 +95,7 @@ export default function Login() {
               <span className="ml-2 text-gray-600 dark:text-gray-400">Remember me</span>
             </label>
             <a
-              href="#forgot"
-              onClick={(e) => {
-                e.preventDefault();
-                toast('Password reset feature is under development!');
-              }}
+              href="/forgot-password"
               className="text-purple-600 dark:text-purple-400 hover:underline font-medium"
             >
               Forgot password?
