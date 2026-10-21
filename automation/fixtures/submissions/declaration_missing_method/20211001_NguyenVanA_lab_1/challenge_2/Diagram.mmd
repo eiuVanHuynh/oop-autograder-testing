@@ -1,0 +1,12 @@
+classDiagram
+    class Shape {
+        <<abstract>>
+        +area() double
+        +describe() String
+    }
+    class Circle {
+        -double radius
+        +Circle(double radius)
+        +area() double
+    }
+    Shape <|-- Circle

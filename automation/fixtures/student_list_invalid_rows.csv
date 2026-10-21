@@ -1,0 +1,7 @@
+irn,email
+2099000011,autotest.ok11@eiu.edu.vn
+2099000012,not-an-email
+,autotest.noirn@eiu.edu.vn
+ABCDEFGHIJ,autotest.badirn@eiu.edu.vn
+2099000015,
+2099000016,autotest.ok16@eiu.edu.vn

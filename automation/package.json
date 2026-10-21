@@ -1,0 +1,30 @@
+{
+  "name": "oop-autograder-testing",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "report:db": "node scripts/export-report.js",
+    "data:apply": "node scripts/apply-autotest-data.js",
+    "check:x1x3": "node scripts/check-x1-x3.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.5",
+    "md-to-pdf": "^5.2.5"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "mysql2": "^3.24.6",
+    "pdfkit": "^0.20.2"
+  }
+}

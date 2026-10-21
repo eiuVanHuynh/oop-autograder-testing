@@ -1,0 +1,13 @@
+classDiagram
+    class Student {
+        -String id
+        -String name
+        -double gpa
+        +Student(String id, String name, double gpa)
+        +getId() String
+        +getName() String
+        +getGpa() double
+        +setGpa(double gpa) void
+        +isHonor() boolean
+        +toString() String
+    }
