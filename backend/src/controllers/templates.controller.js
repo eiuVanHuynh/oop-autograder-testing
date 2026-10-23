@@ -16,23 +16,25 @@ const getTemplates = asyncHandler(async (req, res) => {
     scope: req.query.scope,
   };
   const data = await templateService.getAllTemplates(filters);
-  return res.status(200).json({ success: true, data });
+  // Bỏ success: true theo đúng backend-design.md mục 4[cite: 2]
+  return res.status(200).json({ data });
 });
 
 const getTemplateById = asyncHandler(async (req, res) => {
   const data = await templateService.getTemplateById(req.params.id);
-  return res.status(200).json({ success: true, data });
+  return res.status(200).json({ data });
 });
 
 const createTemplate = asyncHandler(async (req, res) => {
-  const userId = req.user ? req.user.user_id : 1;
+  // Sửa req.user.user_id thành req.user.id cho khớp với requireAuth middleware
+  const userId = req.user ? req.user.id : 1;
   const data = await templateService.createTemplate(userId, req.body);
-  return res.status(201).json({ success: true, data });
+  return res.status(201).json({ data });
 });
 
 const updateTemplate = asyncHandler(async (req, res) => {
   const data = await templateService.updateTemplate(req.params.id, req.body);
-  return res.status(200).json({ success: true, data });
+  return res.status(200).json({ data });
 });
 
 const deleteTemplate = asyncHandler(async (req, res) => {
@@ -41,9 +43,10 @@ const deleteTemplate = asyncHandler(async (req, res) => {
 });
 
 const duplicateTemplate = asyncHandler(async (req, res) => {
-  const userId = req.user ? req.user.user_id : 1;
+  // Sửa req.user.user_id thành req.user.id cho khớp với requireAuth middleware
+  const userId = req.user ? req.user.id : 1;
   const data = await templateService.duplicateTemplate(req.params.id, userId);
-  return res.status(201).json({ success: true, data });
+  return res.status(201).json({ data });
 });
 
 module.exports = {

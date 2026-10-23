@@ -34,6 +34,7 @@ router.post("/:id/cancel", runsController.cancelRun);
 router.post("/:id/rerun", runsController.rerunRun);
 
 // GET /api/runs/:id/results/:resultId/evidences - Xem bằng chứng/screenshot của bước (Mọi user)
-router.get("/:id/results/:resultId/evidences", runsController.getRunEvidences);
+// Đã sửa getRunEvidences thành getEvidences cho khớp với runs.controller.js
+router.get("/:id/results/:resultId/evidences", runsController.getEvidences);
 
 module.exports = router;
