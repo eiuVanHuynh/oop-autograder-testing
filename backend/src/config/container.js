@@ -1,3 +1,7 @@
+const UserRepository = require("../repositories/user.repository");
+const AuthService = require("../services/auth.service");
+const AuthController = require("../controllers/auth.controller");
+
 // Factory ráp sẵn repository vào service, và service vào controller.
 // Factory that wires repositories into services, and services into controllers.
 // Nhờ nó, test có thể dựng service với repository giả mà không cần thư viện DI.
@@ -8,4 +12,10 @@
 // - Giữ file này chỉ để nối dây: không có if, không có quy tắc nghiệp vụ.
 
 // TODO: khởi tạo repository rồi truyền vào từng service
-module.exports = {};
+const authRepository = UserRepository;
+const authService = new AuthService(authRepository);
+const authController = new AuthController(authService);
+
+module.exports = {
+  authController,
+};
