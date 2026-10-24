@@ -1,6 +1,7 @@
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = require("../config/env");
+const AppError = require("../utils/AppError");
 
 // Đăng nhập, đăng ký, quên mật khẩu, Google OAuth.
 // Login, register, forgot password, Google OAuth.
@@ -15,33 +16,35 @@ const { JWT_SECRET } = require("../config/env");
 // - forgot-password luôn trả 200 kể cả email không tồn tại, tránh dò email.
 class AuthService {
   constructor(deps = {}) {
-    // TODO: nhận repository cần dùng từ config/container.js
-    // Hỗ trợ cả truyền trực tiếp repository hoặc truyền dạng object { userRepository }
-    this.userRepository = deps.findByEmail ? deps : deps.userRepository || deps;
+    this.userRepository = deps.userRepository;
   }
 
-  // TODO
   async login({ email, password }) {
-    // Find user by email
     const user = await this.userRepository.findByEmail(email);
-    if (!user) {
-      const error = new Error("Invalid email or password");
-      error.statusCode = 401;
-      throw error;
+
+    // Thông điệp giống nhau cho email sai và mật khẩu sai, tránh dò email.
+    // password_hash NULL = tài khoản Google chưa đặt mật khẩu (auth_provider='GOOGLE');
+    // bcrypt.compare với null sẽ throw, nên chặn trước.
+    if (!user || !user.password_hash) {
+      throw new AppError(401, 'INVALID_CREDENTIALS', 'Email hoặc mật khẩu không đúng');
     }
 
-    // Compare password with bcrypt
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      const error = new Error("Invalid email or password");
-      error.statusCode = 401;
-      throw error;
+      throw new AppError(401, 'INVALID_CREDENTIALS', 'Email hoặc mật khẩu không đúng');
     }
 
-    // Sign JWT token
-    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, {
-      expiresIn: "1d",
-    });
+    // Kiểm tra khóa SAU khi mật khẩu đúng, để không tiết lộ trạng thái tài khoản
+    // cho người đang dò mật khẩu.
+    if (user.user_status !== 'active') {
+      throw new AppError(423, 'ACCOUNT_LOCKED', 'Tài khoản đang bị khóa');
+    }
+
+    const token = jwt.sign(
+      { user_id: user.user_id, role: user.user_role },
+      JWT_SECRET,
+      { expiresIn: "1d" },
+    );
 
     // Omit password hash from returned user object
     const { password_hash, ...userWithoutPassword } = user;

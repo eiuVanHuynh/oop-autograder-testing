@@ -93,7 +93,7 @@ class RunsService {
       run_name: runName,
       status: "running",
       user_id: userId,
-      config_json: JSON.stringify(configJson),
+      config_json: configJson, // JSONB: pg tự tuần tự hóa, không stringify
     });
 
     // 5. Gọi CI qua testRunner (Adapter), truyền grep và thông tin chạy

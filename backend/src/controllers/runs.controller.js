@@ -6,7 +6,7 @@ const asyncHandler = require('../utils/asyncHandler');
 // Thin controller: read req → call the service → res.json({ data }). No business rules here.
 //
 // Cần làm / To do:
-- POST /runs (202), GET /runs có lọc, GET /runs/:id, logs?after= và logs/stream, cancel, rerun.
+// - POST /runs (202), GET /runs có lọc, GET /runs/:id, logs?after= và logs/stream, cancel, rerun.
 // - Trả đúng status code ghi trong api-endpoints.md mục 6.
 
 // TODO: các hàm xử lý, bọc trong asyncHandler

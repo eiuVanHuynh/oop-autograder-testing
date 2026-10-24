@@ -4,7 +4,7 @@ const { z } = require('zod');
 // zod schemas for the reports group; the validate() middleware consumes them.
 //
 // Cần làm / To do:
-- exportQuerySchema: format là 'pdf' | 'html'.
+// - exportQuerySchema: format là 'pdf' | 'html'.
 
 // TODO
 

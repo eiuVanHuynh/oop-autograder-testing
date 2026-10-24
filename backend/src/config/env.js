@@ -10,7 +10,10 @@ require('dotenv').config();
 // - Khi deploy Vercel nhớ khai báo đúng những tên này trong Project Settings.
 const required = ['DATABASE_URL', 'JWT_SECRET'];
 
-// TODO: kiểm tra `required` có đủ trong process.env, thiếu thì throw.
+const missing = required.filter((key) => !process.env[key]);
+if (missing.length) {
+  throw new Error(`Thiếu biến môi trường bắt buộc: ${missing.join(', ')}`);
+}
 
 module.exports = {
   PORT: process.env.PORT || 5000,

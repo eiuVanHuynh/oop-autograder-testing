@@ -4,7 +4,7 @@ const { z } = require('zod');
 // zod schemas for the bugs group; the validate() middleware consumes them.
 //
 // Cần làm / To do:
-- createBugSchema: tiêu đề, mô tả, mức độ nghiêm trọng.
+// - createBugSchema: tiêu đề, mô tả, mức độ nghiêm trọng.
 
 // TODO
 

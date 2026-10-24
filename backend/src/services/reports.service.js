@@ -6,7 +6,7 @@
 // Takes its repositories through the constructor so tests can pass fakes.
 //
 // Cần làm / To do:
-- Dùng lại logic từ automation/scripts/export-report.js, đừng viết lại.
+// - Dùng lại logic từ automation/scripts/export-report.js, đừng viết lại.
 // - Vercel chỉ ghi được /tmp → stream thẳng về client.
 // - Run chưa xong → 409. Link chia sẻ hết hạn → 410.
 class ReportsService {

@@ -1,5 +1,5 @@
 const asyncHandler = require("../utils/asyncHandler");
-const templateService = require("../services/templates.service");
+const { templatesService: templateService } = require("../config/container");
 
 // Template – thứ người dùng chọn để chạy (bảng mới test_templates).
 // Templates – what the user picks to run (the new test_templates table).
@@ -25,7 +25,7 @@ const getTemplateById = asyncHandler(async (req, res) => {
 });
 
 const createTemplate = asyncHandler(async (req, res) => {
-  const userId = req.user ? req.user.user_id : 1;
+  const userId = req.user.user_id;
   const data = await templateService.createTemplate(userId, req.body);
   return res.status(201).json({ success: true, data });
 });
@@ -41,7 +41,7 @@ const deleteTemplate = asyncHandler(async (req, res) => {
 });
 
 const duplicateTemplate = asyncHandler(async (req, res) => {
-  const userId = req.user ? req.user.user_id : 1;
+  const userId = req.user.user_id;
   const data = await templateService.duplicateTemplate(req.params.id, userId);
   return res.status(201).json({ success: true, data });
 });

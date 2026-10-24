@@ -4,7 +4,7 @@ const { z } = require('zod');
 // zod schemas for the catalog group; the validate() middleware consumes them.
 //
 // Cần làm / To do:
-- caseQuerySchema: suite, type, priority, status.
+// - caseQuerySchema: suite, type, priority, status.
 
 // TODO
 

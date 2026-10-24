@@ -6,7 +6,7 @@
 // Takes its repositories through the constructor so tests can pass fakes.
 //
 // Cần làm / To do:
-- Chỉ báo lỗi được khi kết quả đó là Fail; test đã đạt → 409.
+// - Chỉ báo lỗi được khi kết quả đó là Fail; test đã đạt → 409.
 class BugsService {
   constructor(deps = {}) {
     // TODO: nhận repository cần dùng từ config/container.js

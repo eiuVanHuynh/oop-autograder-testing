@@ -30,25 +30,9 @@ const createTemplateSchema = z.object({
 
 const updateTemplateSchema = createTemplateSchema.partial();
 
-const validate = (schema) => (req, res, next) => {
-  try {
-    schema.parse(req.body);
-    next();
-  } catch (error) {
-    return res.status(400).json({
-      success: false,
-      error: error.errors
-        ? error.errors
-            .map((e) => `${e.path.join(".")}: ${e.message}`)
-            .join(", ")
-        : "Validation error",
-    });
-  }
-};
-
+// Chỉ export schema. Việc kiểm tra do middlewares/validate.js làm, để mọi nhóm
+// endpoint trả lỗi 400 cùng một hình dạng.
 module.exports = {
   createTemplateSchema,
   updateTemplateSchema,
-  validateCreateTemplate: validate(createTemplateSchema),
-  validateUpdateTemplate: validate(updateTemplateSchema),
 };

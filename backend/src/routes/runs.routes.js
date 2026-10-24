@@ -1,6 +1,9 @@
 const router = require("express").Router();
-const runsController = require("../controllers/runs.controller");
-const { validateCreateRun } = require("../validators/runs.schema");
+// shortcut: runs.controller.js còn rỗng (module.exports = {}) nên mọi route dưới đây bị
+// tắt — gắn vào sẽ làm cả app crash lúc boot (Route.get() requires a callback).
+// Bỏ // ở hai import và các router.* bên dưới khi controller xong.
+// const runsController = require("../controllers/runs.controller");
+// const { validateCreateRun } = require("../validators/runs.schema");
 // const { verifyToken, requireRole } = require('../middlewares/auth.middleware'); // Bật lên khi tích hợp middleware chính thức
 
 // Chạy test, theo dõi log, lịch sử, hủy, chạy lại.
@@ -13,27 +16,27 @@ const { validateCreateRun } = require("../validators/runs.schema");
 // - Route chỉ khai báo URL, không có logic.
 
 // GET /api/runs - Xem lịch sử chạy test (Mọi user)
-router.get("/", runsController.getRuns);
+// router.get("/", runsController.getRuns);
 
 // GET /api/runs/:id - Xem chi tiết 1 lần chạy (Mọi user)
-router.get("/:id", runsController.getRunById);
+// router.get("/:id", runsController.getRunById);
 
 // POST /api/runs - Bấm "Run Test" tạo lần chạy mới (Admin, Tester)
-router.post("/", validateCreateRun, runsController.createRun);
+// router.post("/", validateCreateRun, runsController.createRun);
 
 // GET /api/runs/:id/logs/stream - Xem log trực tiếp qua SSE (Mọi user)
-router.get("/:id/logs/stream", runsController.streamRunLogs);
+// router.get("/:id/logs/stream", runsController.streamRunLogs);
 
 // GET /api/runs/:id/logs - Xem log dự phòng theo phân đoạn after (Mọi user)
-router.get("/:id/logs", runsController.getRunLogs);
+// router.get("/:id/logs", runsController.getRunLogs);
 
 // POST /api/runs/:id/cancel - Hủy test đang chạy (Admin, Tester)
-router.post("/:id/cancel", runsController.cancelRun);
+// router.post("/:id/cancel", runsController.cancelRun);
 
 // POST /api/runs/:id/rerun - Chạy lại test dựa trên config cũ (Admin, Tester)
-router.post("/:id/rerun", runsController.rerunRun);
+// router.post("/:id/rerun", runsController.rerunRun);
 
 // GET /api/runs/:id/results/:resultId/evidences - Xem bằng chứng/screenshot của bước (Mọi user)
-router.get("/:id/results/:resultId/evidences", runsController.getRunEvidences);
+// router.get("/:id/results/:resultId/evidences", runsController.getRunEvidences);
 
 module.exports = router;

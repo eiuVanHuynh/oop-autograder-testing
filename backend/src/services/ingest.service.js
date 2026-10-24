@@ -6,7 +6,7 @@
 // Takes its repositories through the constructor so tests can pass fakes.
 //
 // Cần làm / To do:
-- finish gọi lần thứ hai cho cùng một run → 409.
+// - finish gọi lần thứ hai cho cùng một run → 409.
 // - Nhận log theo seq để polling ?after= không bị trùng/thiếu dòng.
 // - Chạy xong thì xóa log tạm của run đó.
 class IngestService {

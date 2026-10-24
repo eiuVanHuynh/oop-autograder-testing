@@ -4,7 +4,7 @@ const { z } = require('zod');
 // zod schemas for the stats group; the validate() middleware consumes them.
 //
 // Cần làm / To do:
-- dailyQuerySchema: days là số nguyên 1..90.
+// - dailyQuerySchema: days là số nguyên 1..90.
 
 // TODO
 

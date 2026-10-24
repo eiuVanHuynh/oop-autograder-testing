@@ -1,6 +1,8 @@
-const UserRepository = require("../repositories/user.repository");
+const UserRepository = require("../repositories/UserRepository");
+const TemplateRepository = require("../repositories/TemplateRepository");
 const AuthService = require("../services/auth.service");
 const AuthController = require("../controllers/auth.controller");
+const TemplatesService = require("../services/templates.service");
 
 // Factory ráp sẵn repository vào service, và service vào controller.
 // Factory that wires repositories into services, and services into controllers.
@@ -11,11 +13,16 @@ const AuthController = require("../controllers/auth.controller");
 // - Mỗi nhóm tính năng thêm đúng một dòng vào đây khi service của nhóm xong.
 // - Giữ file này chỉ để nối dây: không có if, không có quy tắc nghiệp vụ.
 
-// TODO: khởi tạo repository rồi truyền vào từng service
-const authRepository = UserRepository;
-const authService = new AuthService(authRepository);
+const userRepository = new UserRepository();
+const templateRepository = new TemplateRepository();
+
+const authService = new AuthService({ userRepository });
 const authController = new AuthController(authService);
+
+const templatesService = new TemplatesService({ templateRepository });
 
 module.exports = {
   authController,
+  templatesService,
+  userRepository, // requireAuth cần để kiểm tra trạng thái khóa của tài khoản
 };

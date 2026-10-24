@@ -1,48 +1,44 @@
-const mysql = require("mysql2/promise");
+const { Pool } = require("pg");
 require("dotenv").config();
 
 // Singleton: cả tiến trình dùng chung một pool. Vercel serverless tái dùng lại
-// container nên tạo pool mới mỗi request sẽ cạn kết nối của MySQL.
-// container, so a new pool per request would exhaust MySQL's connections.
+// container nên tạo pool mới mỗi request sẽ cạn kết nối của PostgreSQL.
+// container, so a new pool per request would exhaust PostgreSQL's connections.
 //
-// Cần làm / To do:
-// - Khởi tạo Pool từ DATABASE_URL (hoặc cấu hình MySQL), bật ssl nếu cần.
-// - query(): bọc pool.query, log thời gian chạy khi ở chế độ dev.
-// - Chỉ repositories/ được require file này. Service không chạm vào đây.
+// Chỉ repositories/ được require file này. Service không chạm vào đây.
+// Only repositories/ may require this file. Services never touch it.
 let pool;
 
 const getPool = () => {
   if (!pool) {
-    // Hỗ trợ dùng DATABASE_URL dạng mysql://user:pass@host:port/dbname hoặc các biến rời
-    pool = mysql.createPool({
-      uri:
-        process.env.DATABASE_URL ||
-        `mysql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST || "localhost"}:${process.env.DB_PORT || 3306}/${process.env.DB_NAME}`,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      // Nhỏ (1-5) để tránh vượt giới hạn kết nối của DB cloud,
+      // theo đúng ghi chú ở automation/tests/utils/db-client.js
+      max: Number(process.env.DB_POOL_SIZE || 5),
+      // Supabase bắt buộc SSL; Postgres local thường không bật. Cùng quy ước DB_SSL.
+      ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: true } : undefined,
     });
   }
   return pool;
 };
 
+// Trả về NGUYÊN result của pg: đọc thì dùng .rows, ghi thì dùng .rowCount.
+// Returns pg's result object as-is: read via .rows, write via .rowCount.
 const query = async (text, params) => {
   const start = Date.now();
   try {
-    // MySQL2 trả về kết quả dạng mảng [rows, fields], ta destructure lấy rows
-    const [rows] = await getPool().query(text, params);
-    const duration = Date.now() - start;
+    const res = await getPool().query(text, params);
 
-    // Log thời gian chạy khi ở chế độ dev
     if (process.env.NODE_ENV !== "production") {
-      console.log("⚡ [MySQL Query]", {
+      console.log("⚡ [Postgres Query]", {
         text,
-        duration: `${duration}ms`,
-        rowCount: Array.isArray(rows) ? rows.length : rows.affectedRows,
+        duration: `${Date.now() - start}ms`,
+        rowCount: res.rowCount,
       });
     }
 
-    return rows;
+    return res;
   } catch (error) {
     console.error("❌ [DB Error]", { text, error: error.message });
     throw error;

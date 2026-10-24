@@ -14,26 +14,28 @@ class UserRepository extends BaseRepository {
 
   // TODO
   async findByEmail(email) {
-    const rows = await query("SELECT * FROM users WHERE email = ? LIMIT 1", [
+    const res = await query("SELECT * FROM users WHERE email = $1 LIMIT 1", [
       email,
     ]);
-    return rows[0] || null;
+    return res.rows[0] || null;
   }
 
+  // Cột là user_role / user_status, không phải role / status
+  // (db/schema/test_automation_db_schema.sql mục 1).
   async updateRole(userId, role) {
-    const result = await query("UPDATE users SET role = ? WHERE user_id = ?", [
-      role,
-      userId,
-    ]);
-    return result.affectedRows > 0;
+    const res = await query(
+      "UPDATE users SET user_role = $1 WHERE user_id = $2",
+      [role, userId],
+    );
+    return res.rowCount > 0;
   }
 
   async updateStatus(userId, status) {
-    const result = await query(
-      "UPDATE users SET status = ? WHERE user_id = ?",
+    const res = await query(
+      "UPDATE users SET user_status = $1 WHERE user_id = $2",
       [status, userId],
     );
-    return result.affectedRows > 0;
+    return res.rowCount > 0;
   }
 }
 

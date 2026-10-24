@@ -4,7 +4,7 @@ const { z } = require('zod');
 // zod schemas for the system group; the validate() middleware consumes them.
 //
 // Cần làm / To do:
-- Không cần schema.
+// - Không cần schema.
 
 // TODO
 
