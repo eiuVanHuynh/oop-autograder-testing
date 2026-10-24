@@ -6,7 +6,7 @@
 // Takes its repositories through the constructor so tests can pass fakes.
 //
 // Cần làm / To do:
-// - Admin không được tự hạ quyền hay tự khóa mình → 400 (tránh hệ thống hết Admin).
+- Admin không được tự hạ quyền hay tự khóa mình → 400 (tránh hệ thống hết Admin).
 // - Khuyến nghị khóa thay vì xóa, để lịch sử 'ai chạy test nào' không mất.
 class UsersService {
   constructor(deps = {}) {
