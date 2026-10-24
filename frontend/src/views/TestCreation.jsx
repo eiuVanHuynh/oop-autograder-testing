@@ -1,359 +1,469 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+// Trang Tạo & Chạy Test (/tests/new).
+// Create & run test page (/tests/new).
+//
+// Theo docs/backend/api-endpoints.md mục 5-6: người dùng CHỌN một template có sẵn,
+// chọn môi trường + timeout rồi bấm Run. Không còn form nhập "Yêu cầu test" tự do,
+// không còn Expected Output, Scope, file đính kèm, Lưu nháp, Lưu thành Template
+// (tạo template là việc của trang Templates, vì cần target_json).
+//
+// Hiện dùng dữ liệu giả. Mọi chỗ cần thay bằng backend đều có nhãn "BACKEND-TODO [n]".
+// Tìm nhanh bằng cách search "BACKEND-TODO".
+//
+// BACKEND-TODO – danh sách tổng hợp:
+//  [1] Danh sách template  -> GET /templates (hiện: listTemplates() đọc localStorage)
+//  [2] Danh sách môi trường -> GET /meta/options (🟡, hiện: hằng số ENVIRONMENTS)
+//  [3] Bấm Run              -> POST /runs { templateId, env, timeout } (hiện: hàm giả startRun)
+//  [4] Log + trạng thái     -> GET /runs/:id/logs?after= (hiện: hàm giả fetchRunLogs)
+//  [5] Bấm Hủy              -> POST /runs/:id/cancel (hiện: hàm giả cancelRun)
+//  [6] Thanh tiến độ        -> API không trả %, cần tự tính hoặc bỏ
+//  [7] Đơn vị timeout       -> form dùng GIÂY, DB dùng default_timeout_ms (MILI-GIÂY), cần chốt
+//  [8] Trạng thái "đang chuẩn bị máy chạy" (20-60s đầu, backend-design.md mục 5)
+//  [9] Nút "View Full Report" -> /runs/:id thật (hiện: mã run giả)
+
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Play,
   Square,
   FileText,
   CheckCircle2,
-  AlertCircle,
-  Upload,
-  Settings,
+  Server,
   Terminal,
-} from 'lucide-react';
-import toast from 'react-hot-toast';
-import { useAuth } from '../controllers/AuthContext';
-import { canManageTemplates } from '../models/permissions';
-import { listTemplates, createTemplate } from '../services/templateService';
+} from "lucide-react";
+import toast from "react-hot-toast";
+import { useAuth } from "../controllers/AuthContext";
+import { canRunTest } from "../models/permissions";
+import { listTemplates } from "../services/templateService";
+
+// BACKEND-TODO [2]: thay bằng dữ liệu từ GET /meta/options (không ghi cứng).
+const ENVIRONMENTS = [
+  "Development",
+  "Testing Sandbox",
+  "Staging Lab",
+  "Production Cert",
+];
+// BACKEND-TODO [7]: đơn vị GIÂY. Khi gửi lên backend, chốt lại là giây hay mili-giây.
+const TIMEOUTS = ["15", "30", "60", "120"];
+const POLL_MS = 1200; // BACKEND-TODO [4]: chu kỳ hỏi log mới (1-2 giây)
+
+const inputCls =
+  "w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500";
+
+// Trạng thái hiển thị của khung log. Backend dùng: running / passed / failed / cancelled.
+// Display statuses. Backend uses: running / passed / failed / cancelled.
+const STATUS_STYLES = {
+  IDLE: "bg-gray-100 text-gray-500",
+  RUNNING: "bg-yellow-100 text-yellow-700 animate-pulse",
+  PASSED: "bg-green-100 text-green-700",
+  FAILED: "bg-red-100 text-red-700",
+  CANCELLED: "bg-orange-100 text-orange-700",
+};
+
+// Thông báo cho các mã lỗi của POST /runs (api-endpoints.md mục 6).
+const RUN_ERRORS = {
+  403: "Bạn không có quyền chạy test.",
+  404: "Template không tồn tại.",
+  409: "Template này không có test case nào ở trạng thái ready.",
+};
+
+/* =====================================================================
+ * PHẦN GIẢ LẬP – xóa cả khối này khi backend xong, thay bằng gọi API thật.
+ * MOCK SECTION – delete this whole block when the backend is ready.
+ * Chữ ký các hàm giữ đúng với dạng backend sẽ trả, nên phần component bên dưới
+ * không cần sửa gì ngoài việc đổi thân hàm.
+ * ===================================================================== */
+const MOCK_RUN_ID = 101; // BACKEND-TODO [9]: backend trả mã run thật trong 202
+const MOCK_LINES = [
+  { prog: 0, text: "[INFO] Initializing test container..." },
+  { prog: 0, text: "[INFO] Connecting to environment..." },
+  { prog: 25, text: "[INFO] Compiling codebase and loading test scripts..." },
+  { prog: 50, text: "[RUNNING] Executing test suites in sandbox mode..." },
+  {
+    prog: 75,
+    text: "[CHECK] Validating assertions against expected output...",
+  },
+  { prog: 100, text: "[SUCCESS] Test execution finished successfully!" },
+];
+const mockRun = { startedAt: 0, cancelled: false };
+
+// BACKEND-TODO [3]: POST /runs { templateId, env, timeout } -> 202 { runId }.
+// Lỗi: 403 (Viewer), 404 (template không tồn tại), 409 (template không có test ready).
+async function startRun({ templateId, env, timeout }) {
+  void templateId;
+  void env;
+  void timeout;
+  mockRun.startedAt = Date.now();
+  mockRun.cancelled = false;
+  return { runId: MOCK_RUN_ID };
+}
+
+// BACKEND-TODO [4]: GET /runs/:id/logs?after=<số dòng đã nhận> -> { lines, status }.
+// status: 'running' | 'passed' | 'failed' | 'cancelled'.
+// Nếu muốn nhận log trực tiếp: GET /runs/:id/logs/stream (SSE). Trên Vercel kết nối dài
+// có thể bị cắt nên vẫn giữ polling làm phương án dự phòng.
+// BACKEND-TODO [6]: 'progress' hiện do mock tự tính. API không trả %.
+async function fetchRunLogs(runId, after) {
+  void runId;
+  if (mockRun.cancelled) return { lines: [], progress: 0, status: "cancelled" };
+  const shown = Math.min(
+    MOCK_LINES.length,
+    Math.floor((Date.now() - mockRun.startedAt) / POLL_MS) + 1,
+  );
+  const progress = MOCK_LINES[shown - 1].prog;
+  return {
+    lines: MOCK_LINES.slice(after, shown).map((l) => l.text),
+    progress,
+    status: shown >= MOCK_LINES.length ? "passed" : "running",
+  };
+}
+
+// BACKEND-TODO [5]: POST /runs/:id/cancel -> 200. Run đã xong rồi thì trả 409.
+async function cancelRun(runId) {
+  void runId;
+  mockRun.cancelled = true;
+}
+/* ======================= HẾT PHẦN GIẢ LẬP ======================= */
 
 export default function TestCreation() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canRun = canRunTest(user?.role);
 
-  // Form states
-  const [testName, setTestName] = useState('');
-  const [template, setTemplate] = useState('');
-  const [requirements, setRequirements] = useState('');
-  const [scope, setScope] = useState('API'); // UI, API, DB
-  const [expectedOutput, setExpectedOutput] = useState('');
-  const [environment, setEnvironment] = useState('Staging');
-  const [timeout, setTimeoutVal] = useState('30');
-  const [fileName, setFileName] = useState('');
+  // BACKEND-TODO [1]: thay bằng GET /templates (async, useEffect + setTemplates).
+  // Mỗi template từ backend có: id, name, description, scope, readyCount,
+  // defaultEnv, defaultTimeoutMs. Dữ liệu giả hiện chỉ có name/requirements/scope.
+  const [templates] = useState(() => listTemplates());
 
-  // Execution & Real-time panel states
+  // Form
+  const [templateId, setTemplateId] = useState("");
+  const [environment, setEnvironment] = useState("Testing Sandbox");
+  const [timeout, setTimeoutSec] = useState("30");
+
+  // Chạy test & khung log
+  const [runId, setRunId] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState([]);
-  const [testStatus, setTestStatus] = useState('IDLE'); // IDLE, RUNNING, COMPLETED, FAILED
+  const [testStatus, setTestStatus] = useState("IDLE");
 
-  // Template lấy từ templateService (dùng chung với trang Quản lý Template)
-  const [templates, setTemplates] = useState(() => listTemplates());
-  const { user } = useAuth();
+  const selected = templates.find((t) => t.id === templateId);
 
   const handleTemplateChange = (e) => {
     const id = e.target.value;
-    setTemplate(id);
+    setTemplateId(id);
     const tpl = templates.find((t) => t.id === id);
-    if (tpl) {
-      setTestName(tpl.name);
-      setRequirements(tpl.requirements);
-      setScope(tpl.scope);
-      setExpectedOutput(tpl.expectedOutput);
-      toast.success('Template loaded successfully!');
+    if (!tpl) return;
+    // BACKEND-TODO [1]: điền sẵn môi trường/timeout mặc định của template (nếu có).
+    if (tpl.defaultEnv && ENVIRONMENTS.includes(tpl.defaultEnv)) {
+      setEnvironment(tpl.defaultEnv);
     }
+    // BACKEND-TODO [7]: default_timeout_ms là mili-giây, đổi sang giây cho form.
+    const sec = tpl.defaultTimeoutMs ? String(tpl.defaultTimeoutMs / 1000) : "";
+    if (TIMEOUTS.includes(sec)) setTimeoutSec(sec);
   };
 
-  const handleSaveTemplate = () => {
-    if (!canManageTemplates(user?.role)) return toast.error('Bạn không có quyền lưu template.');
-    if (!testName || !requirements) {
-      return toast.error('Please fill in Test Name and Requirements!');
-    }
-    const created = createTemplate({ name: testName, requirements, scope, expectedOutput }, user?.name);
-    setTemplates(listTemplates());
-    setTemplate(created.id);
-    toast.success('Đã lưu thành template.');
-  };
-
-  // Giả lập Real-time Execution (SSE/Polling simulation)
-  useEffect(() => {
-    let interval;
-    if (isRunning) {
-      setTestStatus('RUNNING');
-      setProgress(0);
-      setLogs([
-        '[INFO] Initializing test container...',
-        '[INFO] Connecting to environment: ' + environment,
-      ]);
-
-      const steps = [
-        { prog: 25, log: '[INFO] Compiling codebase and loading test scripts...' },
-        { prog: 50, log: '[RUNNING] Executing test suites in sandbox mode...' },
-        { prog: 75, log: '[CHECK] Validating assertions against expected output...' },
-        { prog: 100, log: '[SUCCESS] Test execution finished successfully!' },
-      ];
-
-      let currentStep = 0;
-      interval = setInterval(() => {
-        if (currentStep < steps.length) {
-          // Chốt step vào biến cục bộ: updater của setLogs chạy trễ, lúc đó currentStep đã tăng
-          const step = steps[currentStep];
-          setProgress(step.prog);
-          setLogs((prev) => [...prev, step.log]);
-          currentStep++;
-        } else {
-          clearInterval(interval);
-          setIsRunning(false);
-          setTestStatus('COMPLETED');
-          toast.success('Test execution completed!');
-        }
-      }, 1200);
-    }
-    return () => clearInterval(interval);
-  }, [isRunning, environment]);
-
-  const handleStartTest = (e) => {
+  const handleStartTest = async (e) => {
     e.preventDefault();
-    if (!testName || !requirements) {
-      toast.error('Please fill in Test Name and Requirements!');
-      return;
+    if (!canRun) return toast.error(RUN_ERRORS[403]);
+    if (!selected) return toast.error("Please select a template!");
+    // BACKEND-TODO [1]: backend trả readyCount; chặn sớm để khỏi nhận 409.
+    if (selected.readyCount === 0) return toast.error(RUN_ERRORS[409]);
+
+    setStarting(true);
+    try {
+      const res = await startRun({
+        templateId: selected.id,
+        env: environment,
+        timeout: Number(timeout), // BACKEND-TODO [7]: chốt giây hay mili-giây
+      });
+      setRunId(res.runId);
+      setProgress(0);
+      // BACKEND-TODO [8]: hiện "đang chuẩn bị máy chạy" trong lúc GitHub Actions khởi động.
+      setLogs([]);
+      setTestStatus("RUNNING");
+      setIsRunning(true);
+    } catch (err) {
+      toast.error(
+        RUN_ERRORS[err.response?.status] ||
+          err.response?.data?.message ||
+          "Cannot start the test run.",
+      );
+    } finally {
+      setStarting(false);
     }
-    setIsRunning(true);
   };
 
-  const handleCancelTest = () => {
-    setIsRunning(false);
-    setTestStatus('FAILED');
-    setLogs((prev) => [...prev, '[WARN] Test execution cancelled by user.']);
-    toast.error('Test execution stopped.');
+  // Hỏi log mới theo chu kỳ. BACKEND-TODO [4]: giữ nguyên khung này, chỉ đổi fetchRunLogs.
+  useEffect(() => {
+    if (!isRunning || !runId) return;
+    let after = 0;
+    let stopped = false;
+
+    const tick = async () => {
+      try {
+        const res = await fetchRunLogs(runId, after);
+        if (stopped) return;
+        if (res.lines.length) {
+          setLogs((prev) => [...prev, ...res.lines]);
+          after += res.lines.length;
+        }
+        setProgress(res.progress);
+        if (res.status !== "running") {
+          setIsRunning(false);
+          setTestStatus(res.status.toUpperCase());
+          if (res.status === "passed")
+            toast.success("Test execution completed!");
+          if (res.status === "failed") toast.error("Test execution failed.");
+        }
+      } catch {
+        // Mất mạng thoáng qua: bỏ qua, lần hỏi sau sẽ thử lại.
+      }
+    };
+
+    const timer = setInterval(tick, POLL_MS);
+    tick();
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [isRunning, runId]);
+
+  const handleCancelTest = async () => {
+    try {
+      await cancelRun(runId);
+      setIsRunning(false);
+      setTestStatus("CANCELLED");
+      setLogs((prev) => [...prev, "[WARN] Test execution cancelled by user."]);
+      toast.error("Test execution stopped.");
+    } catch (err) {
+      // 409: run đã chạy xong, không hủy được nữa.
+      toast.error(
+        err.response?.status === 409
+          ? "Run đã kết thúc, không thể hủy."
+          : "Cannot cancel the run.",
+      );
+    }
   };
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Create & Run Automated Test</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Configure parameters and monitor real-time execution logs.
-          </p>
-        </div>
-        {/* Template Selector */}
-        <div className="w-72">
-          <select
-            value={template}
-            onChange={handleTemplateChange}
-            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm"
-          >
-            <option value="">-- Choose a Test Template --</option>
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Create New Test</h1>
+        <p className="text-sm text-gray-600 mt-1">
+          Select a template, choose the sandbox environment, and execute in
+          real-time
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* LEFT COLUMN: Test Configuration Form */}
-        <form
-          onSubmit={handleStartTest}
-          className="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-5"
-        >
-          <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
-            <FileText size={18} className="text-purple-600" /> Test Specification
+      <form
+        onSubmit={handleStartTest}
+        className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start"
+      >
+        {/* CỘT TRÁI: chọn template (chỉ đọc phần mô tả) */}
+        <section className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <FileText size={20} className="text-brand-600" /> Test Template
           </h3>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Test Name *</label>
-            <input
-              type="text"
-              value={testName}
-              onChange={(e) => setTestName(e.target.value)}
-              placeholder="e.g., User Authentication Suite"
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-
-          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Test Requirements *
+              Select Assignment Template *
             </label>
-            <textarea
-              rows={3}
-              value={requirements}
-              onChange={(e) => setRequirements(e.target.value)}
-              placeholder="Describe what needs to be verified..."
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
+            <select
+              value={templateId}
+              onChange={handleTemplateChange}
+              disabled={isRunning}
+              className={inputCls}
+            >
+              <option value="">-- Choose a Test Template --</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Testing Scope</label>
-              <select
-                value={scope}
-                onChange={(e) => setScope(e.target.value)}
-                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="UI">UI (Frontend)</option>
-                <option value="API">API (Backend)</option>
-                <option value="DB">Database</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Environment</label>
-              <select
-                value={environment}
-                onChange={(e) => setEnvironment(e.target.value)}
-                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="Staging">Staging</option>
-                <option value="Production">Production</option>
-                <option value="Local">Local Sandbox</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Expected Output / Assertion
-            </label>
-            <input
-              type="text"
-              value={expectedOutput}
-              onChange={(e) => setExpectedOutput(e.target.value)}
-              placeholder="e.g., Response time < 200ms, status 200"
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-
-          {/* Advanced Configs */}
-          <div className="pt-4 border-t border-gray-100 grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Timeout (seconds)
-              </label>
-              <input
-                type="number"
-                value={timeout}
-                onChange={(e) => setTimeoutVal(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Attach Test Data (JSON/CSV)
-              </label>
-              <div className="flex items-center gap-2">
-                <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-1.5 transition">
-                  <Upload size={16} /> Upload
-                  <input
-                    type="file"
-                    className="hidden"
-                    onChange={(e) => setFileName(e.target.files[0]?.name || '')}
-                  />
-                </label>
-                <span className="text-xs text-gray-500 truncate max-w-[140px]">
-                  {fileName || 'No file'}
+          {/* Thông tin template: chỉ đọc, không cho sửa ở trang này */}
+          {selected && (
+            <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 space-y-2 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-semibold text-gray-900">
+                  {selected.name}
                 </span>
+                {selected.scope && (
+                  <span className="px-2 py-0.5 rounded-full bg-brand-50 text-brand-600 text-xs font-semibold">
+                    {selected.scope}
+                  </span>
+                )}
+              </div>
+              {/* BACKEND-TODO [1]: trường mô tả của backend là "description"
+                  (dữ liệu giả đang dùng "requirements"). */}
+              <p className="text-gray-600">
+                {selected.description ?? selected.requirements}
+              </p>
+              {selected.readyCount !== undefined && (
+                <p className="text-xs text-gray-500">
+                  {selected.readyCount} ready test case(s)
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* CỘT PHẢI: môi trường, timeout, nút chạy */}
+        <div className="lg:col-span-5 space-y-6">
+          <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Server size={20} className="text-brand-600" /> Sandbox Execution
+              Configuration
+            </h3>
+
+            {/* Môi trường */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Isolated Container Environment
+              </label>
+              <div className="grid grid-cols-2 gap-2 bg-gray-100 p-1 rounded-xl">
+                {ENVIRONMENTS.map((env) => (
+                  <button
+                    key={env}
+                    type="button"
+                    disabled={isRunning}
+                    onClick={() => setEnvironment(env)}
+                    className={`py-2 rounded-lg text-sm transition ${
+                      environment === env
+                        ? "bg-white text-brand-600 font-semibold shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    {env}
+                  </button>
+                ))}
               </div>
             </div>
+
+            {/* Timeout */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Execution Timeout Limit
+                </label>
+                <span className="text-sm font-semibold text-brand-600">
+                  {timeout} seconds
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {TIMEOUTS.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    disabled={isRunning}
+                    onClick={() => setTimeoutSec(t)}
+                    className={`py-2 rounded-lg text-sm transition ${
+                      timeout === t
+                        ? "bg-brand-600 text-white font-semibold"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    {t}s
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isRunning || starting || !canRun}
+              title={canRun ? undefined : RUN_ERRORS[403]}
+              className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-lg shadow-brand-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50"
+            >
+              <Play size={18} /> {starting ? "Starting..." : "Run Test Now"}
+            </button>
+          </section>
+        </div>
+      </form>
+
+      {/* Real-time Execution Logs */}
+      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Terminal size={20} className="text-brand-600" /> Real-time
+              Execution Logs
+            </h3>
+            <span
+              className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[testStatus]}`}
+            >
+              {testStatus}
+            </span>
           </div>
 
-          {/* Action Button */}
-          <div className="pt-4">
-            {!isRunning ? (
-              <button
-                type="submit"
-                className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 transition"
-              >
-                <Play size={18} /> Start Test Execution
-              </button>
-            ) : (
+          <div className="flex items-center gap-2">
+            {isRunning && (
               <button
                 type="button"
                 onClick={handleCancelTest}
-                className="w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl shadow-lg shadow-red-500/25 flex items-center justify-center gap-2 transition"
+                className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm font-medium flex items-center gap-1.5 transition"
               >
-                <Square size={18} /> Cancel Execution
+                <Square size={14} /> Cancel Test
               </button>
             )}
-            {canManageTemplates(user?.role) && (
+            {/* BACKEND-TODO [9]: runId là mã run thật do POST /runs trả về. */}
+            {(testStatus === "PASSED" || testStatus === "FAILED") && (
               <button
                 type="button"
-                onClick={handleSaveTemplate}
-                disabled={isRunning}
-                className="w-full mt-3 py-2.5 px-4 bg-white border border-gray-300 hover:border-purple-600 hover:text-purple-600 text-gray-700 font-medium rounded-xl text-sm transition disabled:opacity-50"
+                onClick={() => navigate(`/runs/${runId}`)}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 transition"
               >
-                Lưu thành Template
+                <CheckCircle2 size={14} /> View Full Report
               </button>
             )}
           </div>
-        </form>
+        </div>
 
-        {/* RIGHT COLUMN: Real-time Panel & Logs */}
-        <div className="lg:col-span-5 bg-gray-900 rounded-2xl shadow-xl border border-gray-800 p-6 flex flex-col justify-between text-gray-100">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold flex items-center gap-2 text-purple-400">
-                <Terminal size={18} /> Real-Time Console Logs
-              </h3>
-              <span
-                className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                  testStatus === 'RUNNING'
-                    ? 'bg-yellow-500/20 text-yellow-400 animate-pulse'
-                    : testStatus === 'COMPLETED'
-                      ? 'bg-green-500/20 text-green-400'
-                      : testStatus === 'FAILED'
-                        ? 'bg-red-500/20 text-red-400'
-                        : 'bg-gray-800 text-gray-400'
-                }`}
-              >
-                {testStatus}
-              </span>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="mb-6">
-              <div className="flex justify-between text-xs text-gray-400 mb-1">
-                <span>Progress</span>
-                <span>{progress}%</span>
-              </div>
-              <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-purple-500 h-full transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* Terminal Screen */}
-            <div className="bg-black/50 rounded-xl p-4 font-mono text-xs h-64 overflow-y-auto space-y-2 border border-gray-800">
-              {logs.length === 0 ? (
-                <p className="text-gray-500 italic">
-                  Ready to run. Click "Start Test Execution" to begin...
-                </p>
-              ) : (
-                logs.map((log, index) => (
-                  <div
-                    key={index}
-                    className={
-                      log.includes('SUCCESS')
-                        ? 'text-green-400 font-semibold'
-                        : log.includes('WARN')
-                          ? 'text-yellow-400'
-                          : 'text-gray-300'
-                    }
-                  >
-                    {log}
-                  </div>
-                ))
-              )}
-            </div>
+        {/* Progress. BACKEND-TODO [6]: API không trả %; tính từ số test đã xong hoặc bỏ thanh này. */}
+        <div>
+          <div className="flex justify-between text-xs text-gray-500 mb-1">
+            <span>Progress</span>
+            <span>{progress}%</span>
           </div>
+          <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+            <div
+              className="bg-brand-600 h-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
 
-          {/* Bottom Action when completed */}
-          {testStatus === 'COMPLETED' && (
-            <div className="mt-6 pt-4 border-t border-gray-800">
-              <button
-                onClick={() => navigate('/runs/101')}
-                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition"
+        {/* Terminal */}
+        <div className="bg-gray-900 rounded-xl p-4 font-mono text-xs h-64 overflow-y-auto space-y-2">
+          {logs.length === 0 ? (
+            <p className="text-gray-500 italic">
+              {isRunning
+                ? "Waiting for the runner to start..."
+                : 'Ready to run. Click "Run Test Now" to begin...'}
+            </p>
+          ) : (
+            logs.map((log, index) => (
+              <div
+                key={index}
+                className={
+                  log.includes("SUCCESS")
+                    ? "text-green-400 font-semibold"
+                    : log.includes("WARN")
+                      ? "text-yellow-400"
+                      : "text-gray-300"
+                }
               >
-                <CheckCircle2 size={16} /> View Final Test Report
-              </button>
-            </div>
+                {log}
+              </div>
+            ))
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

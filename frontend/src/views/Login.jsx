@@ -1,13 +1,18 @@
-import { useState } from 'react';
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { useAuth } from '../controllers/AuthContext';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowRight, Mail } from "lucide-react";
+import { FcGoogle } from "react-icons/fc";
+import toast from "react-hot-toast";
+import { useAuth } from "../controllers/AuthContext";
+import AuthLayout from "../components/AuthLayout"
+import AuthCard from "../components/ui/AuthCard";
+import FormField from "../components/ui/FormField";
+import PasswordField from "../components/ui/PasswordField";
+import Button from "../components/ui/Button";
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
 
   const { login } = useAuth();
@@ -16,110 +21,96 @@ export default function Login() {
   const handleLogin = (e) => {
     e.preventDefault();
     if (!email || !password) {
-      toast.error('Please fill in all fields!');
+      toast.error("Please fill in all fields!");
       return;
     }
 
-    const fakeUser = { name: 'Nguyễn Văn A', email, role: 'Admin' };
-    login(fakeUser, 'fake-jwt-token');
-    toast.success('Login successful!');
-    navigate('/dashboard');
+    // BACKEND-TODO: POST /auth/login { email, password, rememberMe } -> { token, user }
+    //   Lỗi: 400 sai dữ liệu · 401 sai mật khẩu · 423 tài khoản bị khóa · 429 thử quá nhiều lần.
+    //   user.role phải là 'Admin' | 'Tester' | 'Dev' | 'Viewer' (khớp ALL_ROLES ở AppRoutes).
+    //   rememberMe: backend quyết định hạn token; FE chọn localStorage / sessionStorage.
+    //   Hiện đang dùng user giả để làm giao diện.
+    const fakeUser = { name: "Nguyễn Văn A", email, role: "Admin" };
+    login(fakeUser, "fake-jwt-token");
+    toast.success("Login successful!");
+    navigate("/dashboard");
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 w-full">
-      <div className="max-w-md w-full bg-white dark:bg-[#1f2028] rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-[#2e303a] text-left">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Automated Testing System
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Automated OOP Testing Platform
-          </p>
-        </div>
+    <AuthLayout>
+      <AuthCard title="Welcome Back" subtitle="Sign in to access OOP Grader.">
+        <form onSubmit={handleLogin} className="space-y-4">
+          <FormField
+            id="email"
+            label="Academic / Work Email"
+            icon={Mail}
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            placeholder="john.doe@university.edu"
+          />
+          <PasswordField
+            id="password"
+            label="Password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            placeholder="Enter your password"
+          />
 
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Email
-            </label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                <Mail size={18} />
-              </span>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="pl-10 w-full px-3 py-2.5 bg-gray-50 dark:bg-[#16171d] border border-gray-300 dark:border-[#2e303a] rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-gray-100 text-sm"
-                placeholder="name@example.com"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Password
-            </label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                <Lock size={18} />
-              </span>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="pl-10 pr-10 w-full px-3 py-2.5 bg-gray-50 dark:bg-[#16171d] border border-gray-300 dark:border-[#2e303a] rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-gray-100 text-sm"
-                placeholder="••••••••"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-
+          {/* Remember me + Forgot password */}
           <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center cursor-pointer">
+            <label className="flex cursor-pointer items-center gap-2 text-slate-900">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                className="h-[18px] w-[18px] cursor-pointer rounded accent-brand-600"
               />
-              <span className="ml-2 text-gray-600 dark:text-gray-400">Remember me</span>
+              Remember me
             </label>
-            <a
-              href="/forgot-password"
-              className="text-purple-600 dark:text-purple-400 hover:underline font-medium"
+            <Link
+              to="/forgot-password"
+              className="font-semibold text-brand-600 hover:text-brand-700 hover:underline"
             >
               Forgot password?
-            </a>
+            </Link>
           </div>
 
-          <button
-            type="submit"
-            className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition duration-200 shadow-lg shadow-purple-500/25"
-          >
-            Login
-          </button>
+          <Button type="submit">
+            Sign in <ArrowRight size={16} />
+          </Button>
         </form>
 
-        <p className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
-          Don't have an account?{' '}
-          <a
-            href="/register"
-            className="text-purple-600 dark:text-purple-400 font-semibold hover:underline"
+        <div className="my-6 flex items-center gap-3">
+          <span className="h-px flex-1 bg-slate-200" />
+          <span className="text-xs text-slate-500">Or continue with</span>
+          <span className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        {/* BACKEND-TODO: GET /auth/google (302 sang Google). Callback về Dashboard do backend xử lý.
+            Khi xong: onClick = () => (window.location.href = `${API_URL}/auth/google`). */}
+        <Button
+          variant="secondary"
+          type="button"
+          onClick={() => toast("Google sign-in is not available yet")}
+        >
+          <FcGoogle size={18} /> Google
+        </Button>
+
+        <p className="mt-6 text-center text-sm text-slate-500">
+          Don't have a test account?{" "}
+          <Link
+            to="/register"
+            className="font-semibold text-brand-600 hover:text-brand-700 hover:underline"
           >
-            Sign up now!
-          </a>
+            Register now
+          </Link>
         </p>
-      </div>
-    </div>
+      </AuthCard>
+    </AuthLayout>
   );
 }
