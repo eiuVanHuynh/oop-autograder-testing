@@ -98,12 +98,12 @@ Hiện chỉ `TC-AUTH-005` làm như vậy; phải mở rộng cho **TC-01 … T
 
 | # | Việc | Người | Xong khi | Tiến độ |
 | :-: | --- | :-: | --- | --- |
-| **X2** | Tài khoản và dữ liệu user: tài khoản student/lecturer test trong `.env`; hàm sinh IRN duy nhất mỗi lần chạy cho TC-08, TC-09, TC-12; file CSV mẫu cho TC-09 (dòng hợp lệ, dòng IRN trùng, dòng thiếu email); kế hoạch dọn user test sau khi chạy. | A | TC-08…12 chạy lại nhiều lần không trùng | 🔄 5 file CSV đã có trong `automation/fixtures/` |
+| **X2** | Tài khoản và dữ liệu user: tài khoản student/lecturer test trong `.env`; hàm sinh IRN duy nhất mỗi lần chạy cho TC-08, TC-09, TC-12; file CSV mẫu cho TC-09 (dòng hợp lệ, dòng IRN trùng, dòng thiếu email); kế hoạch dọn user test sau khi chạy. | A | TC-08…12 chạy lại nhiều lần không trùng | 🔄 5 file CSV đã có trong `automation/fixtures/`. ⚠️ 23/10/2026: CSV này dùng cho **ghi danh vào quarter** (trang `Quarters`), không phải tạo tài khoản – xem TC-09 đã sửa. Sinh viên trong CSV **phải tồn tại trước**, nên vẫn cần tạo từng tài khoản qua `Add user` |
 | **X3** | Biên bản thủ công cho TC-03, 04, 05, 07 (chưa có tài khoản Google và hộp thư test): mẫu biên bản, thư mục `docs/testing/manual-tests/`, ảnh chụp và kết quả. | A | Có biên bản hoặc ghi rõ lý do chưa test được | ⬜ |
 | **X4** | Fixtures: commit 5 file CSV và 14 kịch bản bài nộp (hiện có **13**, thiếu 1); lấy lời giải tham chiếu Lab 1 và chỉnh `valid_full`; chạy từng kịch bản trên website thật, ghi điểm thực tế và cập nhật README fixtures. Thêm biến thể cho TC-16 (MMD sai một phần), TC-17 (sai access modifier), TC-18 (assertion động), TC-19, TC-20 (thiếu trụ cột / thiếu challenge). | B | Mỗi kịch bản có điểm thực tế ghi lại, đã commit | 🔄 |
 | **X5** | Dữ liệu cho `Test_Data` của B: danh sách kịch bản với tên thư mục, điểm mong đợi theo kết quả thật – phục vụ **D6**. | B | Bảng kịch bản và điểm, dùng cho migration 003 | ⬜ |
-| **X6** | Dữ liệu giảng viên: tên Lab test (`AUTOTEST_Lab`), lớp, field, method, quan hệ MMD, testcase vận hành (Example và Hidden) cho TC-23…26; mã Java tham chiếu cho dry-run TC-27 (dùng chung với B). | C | Bộ dữ liệu cấu hình sẵn dùng cho spec | 🔄 **Thiết kế xong** → [`../testing/lecturer-test-data.md`](../testing/lecturer-test-data.md) mục 1–6. Còn phải tạo thật trên web và ghi kết quả. |
-| **X7** | Dữ liệu cho TC-28, 29, 30: cần Lab có bài nộp của sinh viên (dùng bài nộp do B chạy ra), thư mục lưu file xuất Excel/PDF/SVG và cách kiểm tra file tải về. | C | Có Lab với dữ liệu nộp bài và thư mục `downloads` | 🔄 **Thiết kế xong** → [`../testing/lecturer-test-data.md`](../testing/lecturer-test-data.md) mục 7–10. Còn chờ bài nộp từ X4 của B. |
+| **X6** | Dữ liệu giảng viên: tên Lab test (`AUTOTEST_Lab`), lớp, field, method, quan hệ MMD, testcase vận hành (Example và Hidden) cho TC-23…26; mã Java tham chiếu cho dry-run TC-27 (dùng chung với B). | C | Bộ dữ liệu cấu hình sẵn dùng cho spec | ✅ **Đã tạo thật trên web 23/10/2026** – lab `AUTOTEST_LAB_1` với 2 Problem, 3 lớp (`Student`/`Shape`/`Circle`), 1 quan hệ MMD, **9 operational testcase dạng COMPOSITION** (4 Example / 5 Hidden), dry-run **9/9 pass**. Bộ dữ liệu thật: `tmp/x6/` (`lecturer_lab.json`, `reference_solution/`, `runbook-va-ket-qua.md`). ⚠️ `../testing/lecturer-test-data.md` mục 1–6 **đã lỗi thời** (thiết kế cũ dùng lớp `BankAccount`), đọc `tmp/x6/` thay thế. Còn thiếu: `labId` ở mục 10b.1. |
+| **X7** | Dữ liệu cho TC-28, 29, 30: cần Lab có bài nộp của sinh viên, thư mục lưu file xuất Excel/PDF/SVG và cách kiểm tra file tải về. | C | Có Lab với dữ liệu nộp bài và thư mục `downloads` | 🔄 **Thiết kế xong** → [`../testing/lecturer-test-data.md`](../testing/lecturer-test-data.md) mục 7–10. **Không còn chờ X4** (23/10/2026): fixture `valid_full` / `operational_logic_wrong` / `missing_challenge` đã khớp lab X6, thư mục nộp dựng sẵn ở `tmp/x7/submissions/`. Phụ thuộc thật là **4 tài khoản sinh viên có mật khẩu** (tạo từng cái qua `Add user`, xem `tmp/x7/runbook-x7.md`). |
 
 ---
 
@@ -117,7 +117,7 @@ Hiện chỉ `TC-AUTH-005` làm như vậy; phải mở rộng cho **TC-01 … T
 | **4** | D9, D10, X3 | Báo cáo PDF từ DB, biên bản thủ công |
 
 **Phụ thuộc chính:** mọi spec đọc DB đều cần **D1** (helper) và **D0** (quy ước) → C làm hai việc này trước tiên.
-B cung cấp bài nộp cho C ở **X7** và mã Java tham chiếu cho **TC-27**.
+B cung cấp mã Java tham chiếu cho **TC-27**. (**X7 không còn chờ bài nộp của B** – xem ghi chú ở dòng X7.)
 Không viết migration steps/data cho TC chưa chạy thử trên hệ thống thật.
 
 ## 5. Rủi ro riêng của hướng b
