@@ -4,6 +4,7 @@ import { ArrowRight, Mail } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
+import { getErrorMessage, loginRequest } from "../services/authService";
 import AuthLayout from "../components/AuthLayout"
 import AuthCard from "../components/ui/AuthCard";
 import FormField from "../components/ui/FormField";
@@ -14,11 +15,12 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     if (!email || !password) {
       toast.error("Please fill in all fields!");
@@ -29,11 +31,19 @@ export default function Login() {
     //   Lỗi: 400 sai dữ liệu · 401 sai mật khẩu · 423 tài khoản bị khóa · 429 thử quá nhiều lần.
     //   user.role phải là 'Admin' | 'Tester' | 'Dev' | 'Viewer' (khớp ALL_ROLES ở AppRoutes).
     //   rememberMe: backend quyết định hạn token; FE chọn localStorage / sessionStorage.
-    //   Hiện đang dùng user giả để làm giao diện.
-    const fakeUser = { name: "Nguyễn Văn A", email, role: "Admin" };
-    login(fakeUser, "fake-jwt-token");
-    toast.success("Login successful!");
-    navigate("/dashboard");
+    setLoading(true);
+    try {
+      // POST /auth/login -> { token, user }. Lỗi: 400, 401, 423 (429 chưa có ở backend).
+      const { token, user } = await loginRequest({ email, password });
+      // rememberMe: FE chọn nơi lưu token. BACKEND-TODO: backend chưa nhận rememberMe (token luôn 1 ngày).
+      login(user, token, rememberMe);
+      toast.success("Login successful!");
+      navigate("/dashboard");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Login failed. Please try again."));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

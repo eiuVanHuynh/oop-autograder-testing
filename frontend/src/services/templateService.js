@@ -1,48 +1,55 @@
-import { SEED_TEMPLATES } from '../models/mockData';
+import API from '../models/api';
 
-// Lưu tạm ở localStorage (an toàn với try/catch). Khi có backend: đổi sang API.get/post/put/delete('/templates').
-const KEY = 'templates';
+// Nối với /api/templates (backend đã có đủ 6 route). Response bọc { success, data }.
+// Chữ ký các hàm giữ như bản localStorage cũ, nhưng GIỜ LÀ ASYNC -> nơi gọi phải await.
+//
+// Backend trả snake_case: template_id, template_name, description, scope, target_json, env, timeout,
+// created_by (chỉ là id), created_at, updated_at. Adapter dưới đây đổi sang dạng FE dùng.
 
-function read() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    /* ignore */
-  }
-  return SEED_TEMPLATES;
-}
+const dateOnly = (v) => (v ? String(v).slice(0, 10) : '');
 
-function write(list) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(list));
-  } catch {
-    /* ignore */
-  }
-  return list;
-}
+export const toTemplate = (row) => ({
+  id: row.template_id,
+  name: row.template_name,
+  description: row.description || '',
+  scope: row.scope,
+  targetTestIds: row.target_json?.testIds ?? [],
+  suiteId: row.target_json?.suiteId ?? null,
+  defaultEnv: row.env,
+  defaultTimeoutMs: row.timeout,
+  // BACKEND-TODO: created_by chỉ là id. Cần backend join users để trả tên người tạo (api-endpoints.md mục 4: "người tạo").
+  createdBy: row.created_by,
+  updatedAt: dateOnly(row.updated_at || row.created_at),
+  // BACKEND-TODO: readyCount (số test case 'ready') chưa có trong response — design mục 4 yêu cầu.
+});
 
-const today = () => new Date().toISOString().slice(0, 10);
-
-export const listTemplates = () => read();
-
-export function createTemplate(data, userName) {
-  const item = {
-    ...data,
-    id: `tpl-${Date.now()}`,
-    createdBy: userName || 'Unknown',
-    updatedAt: today(),
+// Form FE -> body POST/PUT.
+export const toBody = (t) => {
+  const body = {
+    template_name: t.name,
+    description: t.description || undefined,
+    scope: t.scope,
+    env: t.defaultEnv || undefined,
+    timeout: t.defaultTimeoutMs || undefined,
   };
-  write([item, ...read()]);
-  return item;
-}
+  if (t.targetTestIds) body.target_json = { testIds: t.targetTestIds };
+  return body;
+};
 
-export function updateTemplate(id, data) {
-  const list = read().map((t) => (t.id === id ? { ...t, ...data, updatedAt: today() } : t));
-  write(list);
-  return list.find((t) => t.id === id);
-}
+export const listTemplates = async (params = {}) =>
+  (await API.get('/templates', { params })).data.data.map(toTemplate);
 
-export function deleteTemplate(id) {
-  write(read().filter((t) => t.id !== id));
-}
+export const getTemplate = async (id) => toTemplate((await API.get(`/templates/${id}`)).data.data);
+
+export const createTemplate = async (data) =>
+  toTemplate((await API.post('/templates', toBody(data))).data.data);
+
+export const updateTemplate = async (id, data) =>
+  toTemplate((await API.put(`/templates/${id}`, toBody(data))).data.data);
+
+export const deleteTemplate = async (id) => {
+  await API.delete(`/templates/${id}`);
+};
+
+export const duplicateTemplate = async (id) =>
+  toTemplate((await API.post(`/templates/${id}/duplicate`)).data.data);

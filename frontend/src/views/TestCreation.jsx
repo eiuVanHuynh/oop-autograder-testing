@@ -10,9 +10,10 @@
 // Tìm nhanh bằng cách search "BACKEND-TODO".
 //
 // BACKEND-TODO – danh sách tổng hợp:
-//  [1] Danh sách template  -> GET /templates (hiện: listTemplates() đọc localStorage)
+//  [1] Danh sách template  -> ĐÃ NỐI GET /templates (còn thiếu readyCount, xem [1] bên dưới)
 //  [2] Danh sách môi trường -> GET /meta/options (🟡, hiện: hằng số ENVIRONMENTS)
-//  [3] Bấm Run              -> POST /runs { templateId, env, timeout } (hiện: hàm giả startRun)
+//  [3] Bấm Run              -> POST /runs { templateId, env, timeout } (hiện: hàm giả startRun;
+//      runs.service.js đã có logic nhưng routes/runs.routes.js + runs.controller.js còn rỗng -> /api/runs chưa có)
 //  [4] Log + trạng thái     -> GET /runs/:id/logs?after= (hiện: hàm giả fetchRunLogs)
 //  [5] Bấm Hủy              -> POST /runs/:id/cancel (hiện: hàm giả cancelRun)
 //  [6] Thanh tiến độ        -> API không trả %, cần tự tính hoặc bỏ
@@ -34,6 +35,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
 import { canRunTest } from "../models/permissions";
 import { listTemplates } from "../services/templateService";
+import { getErrorMessage } from "../services/authService";
 
 // BACKEND-TODO [2]: thay bằng dữ liệu từ GET /meta/options (không ghi cứng).
 const ENVIRONMENTS = [
@@ -129,10 +131,17 @@ export default function TestCreation() {
   const { user } = useAuth();
   const canRun = canRunTest(user?.role);
 
-  // BACKEND-TODO [1]: thay bằng GET /templates (async, useEffect + setTemplates).
-  // Mỗi template từ backend có: id, name, description, scope, readyCount,
-  // defaultEnv, defaultTimeoutMs. Dữ liệu giả hiện chỉ có name/requirements/scope.
-  const [templates] = useState(() => listTemplates());
+  // GET /templates (đã nối). Mỗi template (sau adapter): id, name, description, scope,
+  // defaultEnv, defaultTimeoutMs, targetTestIds.
+  // BACKEND-TODO [1]: response chưa có readyCount (số test case 'ready') -> chưa chặn sớm được template rỗng.
+  const [templates, setTemplates] = useState([]);
+  useEffect(() => {
+    listTemplates()
+      .then(setTemplates)
+      .catch((err) =>
+        toast.error(getErrorMessage(err, "Cannot load templates.")),
+      );
+  }, []);
 
   // Form
   const [templateId, setTemplateId] = useState("");
@@ -147,6 +156,7 @@ export default function TestCreation() {
   const [logs, setLogs] = useState([]);
   const [testStatus, setTestStatus] = useState("IDLE");
 
+  // <select> trả chuỗi còn id từ backend là số -> so sánh dạng chuỗi.
   const selected = templates.find((t) => t.id === templateId);
 
   const handleTemplateChange = (e) => {
@@ -154,11 +164,14 @@ export default function TestCreation() {
     setTemplateId(id);
     const tpl = templates.find((t) => t.id === id);
     if (!tpl) return;
-    // BACKEND-TODO [1]: điền sẵn môi trường/timeout mặc định của template (nếu có).
-    if (tpl.defaultEnv && ENVIRONMENTS.includes(tpl.defaultEnv)) {
-      setEnvironment(tpl.defaultEnv);
-    }
-    // BACKEND-TODO [7]: default_timeout_ms là mili-giây, đổi sang giây cho form.
+    // Điền sẵn môi trường mặc định. Backend lưu chuỗi tự do ('development'), FE có 4 tên hiển thị
+    // -> so khớp không phân biệt hoa thường.
+    // BACKEND-TODO [2]: chốt danh sách môi trường chung (GET /meta/options).
+    const env = ENVIRONMENTS.find(
+      (e) => e.toLowerCase() === String(tpl.defaultEnv).toLowerCase(),
+    );
+    if (env) setEnvironment(env);
+    // [7] timeout của backend là mili-giây, form dùng giây.
     const sec = tpl.defaultTimeoutMs ? String(tpl.defaultTimeoutMs / 1000) : "";
     if (TIMEOUTS.includes(sec)) setTimeoutSec(sec);
   };
@@ -173,7 +186,7 @@ export default function TestCreation() {
     setStarting(true);
     try {
       const res = await startRun({
-        templateId: selected.id,
+        templateId: selected.id, // số, đúng kiểu validator của POST /runs (z.number())
         env: environment,
         timeout: Number(timeout), // BACKEND-TODO [7]: chốt giây hay mili-giây
       });
