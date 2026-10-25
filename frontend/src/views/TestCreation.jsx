@@ -10,14 +10,13 @@
 // Tìm nhanh bằng cách search "BACKEND-TODO".
 //
 // BACKEND-TODO – danh sách tổng hợp:
-//  [1] Danh sách template  -> ĐÃ NỐI GET /templates (còn thiếu readyCount, xem [1] bên dưới)
-//  [2] Danh sách môi trường -> GET /meta/options (🟡, hiện: hằng số ENVIRONMENTS)
-//  [3] Bấm Run              -> POST /runs { templateId, env, timeout } (hiện: hàm giả startRun;
-//      runs.service.js đã có logic nhưng routes/runs.routes.js + runs.controller.js còn rỗng -> /api/runs chưa có)
+//  [1] Danh sách template  -> ĐÃ NỐI GET /templates. Còn thiếu: readyCount để chặn sớm template rỗng
+//  [2] Danh sách môi trường -> GET /meta/options (🟡, hiện: hằng số trong models/options.js)
+//  [3] Bấm Run              -> POST /runs { templateId, env, timeout } (hiện: hàm giả startRun)
 //  [4] Log + trạng thái     -> GET /runs/:id/logs?after= (hiện: hàm giả fetchRunLogs)
 //  [5] Bấm Hủy              -> POST /runs/:id/cancel (hiện: hàm giả cancelRun)
 //  [6] Thanh tiến độ        -> API không trả %, cần tự tính hoặc bỏ
-//  [7] Đơn vị timeout       -> form dùng GIÂY, DB dùng default_timeout_ms (MILI-GIÂY), cần chốt
+//  [7] Đơn vị timeout       -> form dùng GIÂY, backend dùng MILI-GIÂY (đã đổi khi gửi POST /runs)
 //  [8] Trạng thái "đang chuẩn bị máy chạy" (20-60s đầu, backend-design.md mục 5)
 //  [9] Nút "View Full Report" -> /runs/:id thật (hiện: mã run giả)
 
@@ -36,15 +35,9 @@ import { useAuth } from "../controllers/AuthContext";
 import { canRunTest } from "../models/permissions";
 import { listTemplates } from "../services/templateService";
 import { getErrorMessage } from "../services/authService";
+import { ENVIRONMENTS } from "../models/options"; // BACKEND-TODO [2]: GET /meta/options
 
-// BACKEND-TODO [2]: thay bằng dữ liệu từ GET /meta/options (không ghi cứng).
-const ENVIRONMENTS = [
-  "Development",
-  "Testing Sandbox",
-  "Staging Lab",
-  "Production Cert",
-];
-// BACKEND-TODO [7]: đơn vị GIÂY. Khi gửi lên backend, chốt lại là giây hay mili-giây.
+// Form dùng GIÂY; khi gửi POST /runs nhân 1000 (backend lưu mili-giây).
 const TIMEOUTS = ["15", "30", "60", "120"];
 const POLL_MS = 1200; // BACKEND-TODO [4]: chu kỳ hỏi log mới (1-2 giây)
 
@@ -131,9 +124,7 @@ export default function TestCreation() {
   const { user } = useAuth();
   const canRun = canRunTest(user?.role);
 
-  // GET /templates (đã nối). Mỗi template (sau adapter): id, name, description, scope,
-  // defaultEnv, defaultTimeoutMs, targetTestIds.
-  // BACKEND-TODO [1]: response chưa có readyCount (số test case 'ready') -> chưa chặn sớm được template rỗng.
+  // GET /templates. BACKEND-TODO [1]: backend chưa trả readyCount.
   const [templates, setTemplates] = useState([]);
   useEffect(() => {
     listTemplates()
@@ -145,7 +136,7 @@ export default function TestCreation() {
 
   // Form
   const [templateId, setTemplateId] = useState("");
-  const [environment, setEnvironment] = useState("Testing Sandbox");
+  const [environment, setEnvironment] = useState("development");
   const [timeout, setTimeoutSec] = useState("30");
 
   // Chạy test & khung log
@@ -156,22 +147,18 @@ export default function TestCreation() {
   const [logs, setLogs] = useState([]);
   const [testStatus, setTestStatus] = useState("IDLE");
 
-  // <select> trả chuỗi còn id từ backend là số -> so sánh dạng chuỗi.
-  const selected = templates.find((t) => t.id === templateId);
+  const selected = templates.find((t) => String(t.id) === templateId);
 
   const handleTemplateChange = (e) => {
     const id = e.target.value;
     setTemplateId(id);
-    const tpl = templates.find((t) => t.id === id);
+    const tpl = templates.find((t) => String(t.id) === id);
     if (!tpl) return;
-    // Điền sẵn môi trường mặc định. Backend lưu chuỗi tự do ('development'), FE có 4 tên hiển thị
-    // -> so khớp không phân biệt hoa thường.
-    // BACKEND-TODO [2]: chốt danh sách môi trường chung (GET /meta/options).
-    const env = ENVIRONMENTS.find(
-      (e) => e.toLowerCase() === String(tpl.defaultEnv).toLowerCase(),
-    );
-    if (env) setEnvironment(env);
-    // [7] timeout của backend là mili-giây, form dùng giây.
+    // Điền sẵn môi trường/timeout mặc định của template (nếu có).
+    if (ENVIRONMENTS.some((e) => e.value === tpl.defaultEnv)) {
+      setEnvironment(tpl.defaultEnv);
+    }
+    // defaultTimeoutMs là mili-giây, đổi sang giây cho form.
     const sec = tpl.defaultTimeoutMs ? String(tpl.defaultTimeoutMs / 1000) : "";
     if (TIMEOUTS.includes(sec)) setTimeoutSec(sec);
   };
@@ -186,9 +173,9 @@ export default function TestCreation() {
     setStarting(true);
     try {
       const res = await startRun({
-        templateId: selected.id, // số, đúng kiểu validator của POST /runs (z.number())
+        templateId: selected.id,
         env: environment,
-        timeout: Number(timeout), // BACKEND-TODO [7]: chốt giây hay mili-giây
+        timeout: Number(timeout) * 1000, // backend dùng mili-giây
       });
       setRunId(res.runId);
       setProgress(0);
@@ -199,7 +186,7 @@ export default function TestCreation() {
     } catch (err) {
       toast.error(
         RUN_ERRORS[err.response?.status] ||
-          err.response?.data?.message ||
+          err.response?.data?.error?.message ||
           "Cannot start the test run.",
       );
     } finally {
@@ -342,17 +329,17 @@ export default function TestCreation() {
               <div className="grid grid-cols-2 gap-2 bg-gray-100 p-1 rounded-xl">
                 {ENVIRONMENTS.map((env) => (
                   <button
-                    key={env}
+                    key={env.value}
                     type="button"
                     disabled={isRunning}
-                    onClick={() => setEnvironment(env)}
+                    onClick={() => setEnvironment(env.value)}
                     className={`py-2 rounded-lg text-sm transition ${
-                      environment === env
+                      environment === env.value
                         ? "bg-white text-brand-600 font-semibold shadow-sm"
                         : "text-gray-600 hover:text-gray-900"
                     }`}
                   >
-                    {env}
+                    {env.label}
                   </button>
                 ))}
               </div>

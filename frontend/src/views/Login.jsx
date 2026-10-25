@@ -5,7 +5,7 @@ import { FcGoogle } from "react-icons/fc";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
 import { getErrorMessage, loginRequest } from "../services/authService";
-import AuthLayout from "../components/AuthLayout"
+import AuthLayout from "../components/AuthLayout";
 import AuthCard from "../components/ui/AuthCard";
 import FormField from "../components/ui/FormField";
 import PasswordField from "../components/ui/PasswordField";
@@ -90,8 +90,14 @@ export default function Login() {
             </Link>
           </div>
 
-          <Button type="submit">
-            Sign in <ArrowRight size={16} />
+          <Button type="submit" disabled={loading}>
+            {loading ? (
+              "Signing in..."
+            ) : (
+              <>
+                Sign in <ArrowRight size={16} />
+              </>
+            )}
           </Button>
         </form>
 

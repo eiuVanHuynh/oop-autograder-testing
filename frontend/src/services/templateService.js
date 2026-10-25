@@ -15,8 +15,10 @@ export const toTemplate = (row) => ({
   scope: row.scope,
   targetTestIds: row.target_json?.testIds ?? [],
   suiteId: row.target_json?.suiteId ?? null,
-  defaultEnv: row.env,
-  defaultTimeoutMs: row.timeout,
+  // Code backend hiện dùng cột env/timeout; backend-design.md ghi default_env/default_timeout_ms.
+  // BACKEND-TODO: thống nhất tên cột với nhóm DB rồi bỏ nhánh dự phòng.
+  defaultEnv: row.env ?? row.default_env,
+  defaultTimeoutMs: row.timeout ?? row.default_timeout_ms,
   // BACKEND-TODO: created_by chỉ là id. Cần backend join users để trả tên người tạo (api-endpoints.md mục 4: "người tạo").
   createdBy: row.created_by,
   updatedAt: dateOnly(row.updated_at || row.created_at),
@@ -27,12 +29,14 @@ export const toTemplate = (row) => ({
 export const toBody = (t) => {
   const body = {
     template_name: t.name,
-    description: t.description || undefined,
+    description: t.description ?? undefined,
     scope: t.scope,
     env: t.defaultEnv || undefined,
     timeout: t.defaultTimeoutMs || undefined,
   };
-  if (t.targetTestIds) body.target_json = { testIds: t.targetTestIds };
+  // Template trỏ tới suite thì giữ nguyên suiteId, nếu không sẽ gửi testIds rỗng và bị 400.
+  if (t.suiteId) body.target_json = { suiteId: t.suiteId };
+  else if (t.targetTestIds) body.target_json = { testIds: t.targetTestIds };
   return body;
 };
 
