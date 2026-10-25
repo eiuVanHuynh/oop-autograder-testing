@@ -1,4 +1,4 @@
-const asyncHandler = require('../utils/asyncHandler');
+const asyncHandler = require("../utils/asyncHandler");
 
 // Số liệu cho Dashboard.
 // Numbers for the Dashboard.

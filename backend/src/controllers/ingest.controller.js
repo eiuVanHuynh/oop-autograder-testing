@@ -1,4 +1,4 @@
-const asyncHandler = require('../utils/asyncHandler');
+const asyncHandler = require("../utils/asyncHandler");
 
 // Cửa sau cho máy: Playwright đẩy kết quả và log về.
 // Machine-only door: Playwright pushes results and logs back.

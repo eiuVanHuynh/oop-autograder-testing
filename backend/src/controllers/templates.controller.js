@@ -1,5 +1,5 @@
 const asyncHandler = require("../utils/asyncHandler");
-const { templatesService: templateService } = require("../config/container");
+const { templatesService } = require("../config/container");
 
 // Template – thứ người dùng chọn để chạy (bảng mới test_templates).
 // Templates – what the user picks to run (the new test_templates table).
@@ -15,35 +15,38 @@ const getTemplates = asyncHandler(async (req, res) => {
     q: req.query.q,
     scope: req.query.scope,
   };
-  const data = await templateService.getAllTemplates(filters);
-  return res.status(200).json({ success: true, data });
+  const data = await templatesService.getAllTemplates(filters);
+  // Bỏ success: true theo đúng backend-design.md mục 4[cite: 2]
+  return res.status(200).json({ data });
 });
 
 const getTemplateById = asyncHandler(async (req, res) => {
-  const data = await templateService.getTemplateById(req.params.id);
-  return res.status(200).json({ success: true, data });
+  const data = await templatesService.getTemplateById(req.params.id);
+  return res.status(200).json({ data });
 });
 
 const createTemplate = asyncHandler(async (req, res) => {
+  // requireAuth gắn req.user = { user_id, role }.
   const userId = req.user.user_id;
-  const data = await templateService.createTemplate(userId, req.body);
-  return res.status(201).json({ success: true, data });
+  const data = await templatesService.createTemplate(userId, req.body);
+  return res.status(201).json({ data });
 });
 
 const updateTemplate = asyncHandler(async (req, res) => {
-  const data = await templateService.updateTemplate(req.params.id, req.body);
-  return res.status(200).json({ success: true, data });
+  const data = await templatesService.updateTemplate(req.params.id, req.body);
+  return res.status(200).json({ data });
 });
 
 const deleteTemplate = asyncHandler(async (req, res) => {
-  await templateService.deleteTemplate(req.params.id);
+  await templatesService.deleteTemplate(req.params.id);
   return res.status(204).send();
 });
 
 const duplicateTemplate = asyncHandler(async (req, res) => {
+  // requireAuth gắn req.user = { user_id, role }.
   const userId = req.user.user_id;
-  const data = await templateService.duplicateTemplate(req.params.id, userId);
-  return res.status(201).json({ success: true, data });
+  const data = await templatesService.duplicateTemplate(req.params.id, userId);
+  return res.status(201).json({ data });
 });
 
 module.exports = {

@@ -1,4 +1,4 @@
-const asyncHandler = require('../utils/asyncHandler');
+const asyncHandler = require("../utils/asyncHandler");
 
 // Xuất báo cáo PDF/HTML và link chia sẻ.
 // PDF/HTML report export and share links.

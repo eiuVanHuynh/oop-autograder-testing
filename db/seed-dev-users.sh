@@ -43,6 +43,8 @@ run() {
 
 run db/schema/test_automation_db_schema.sql
 run db/migrations/007_seed_users.sql
+run db/migrations/008_templates_and_run_config.sql
+run db/migrations/009_seed_sample_template.sql
 
 echo
 psql "$DATABASE_URL" -c "SELECT user_id, email, user_role, user_status FROM users ORDER BY user_id"

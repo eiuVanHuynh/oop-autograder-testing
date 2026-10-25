@@ -1,4 +1,4 @@
-const { z } = require('zod');
+const { z } = require("zod");
 
 // Schema zod cho nhóm reports; middleware validate() dùng các schema này.
 // zod schemas for the reports group; the validate() middleware consumes them.
