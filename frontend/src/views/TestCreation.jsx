@@ -34,6 +34,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
 import { canRunTest } from "../models/permissions";
 import { listTemplates } from "../services/templateService";
+import { startRun, fetchRunLogs, cancelRun } from "../services/runService";
 import { getErrorMessage } from "../services/authService";
 import { ENVIRONMENTS } from "../models/options"; // BACKEND-TODO [2]: GET /meta/options
 
@@ -61,63 +62,9 @@ const RUN_ERRORS = {
   409: "Template này không có test case nào ở trạng thái ready.",
 };
 
-/* =====================================================================
- * PHẦN GIẢ LẬP – xóa cả khối này khi backend xong, thay bằng gọi API thật.
- * MOCK SECTION – delete this whole block when the backend is ready.
- * Chữ ký các hàm giữ đúng với dạng backend sẽ trả, nên phần component bên dưới
- * không cần sửa gì ngoài việc đổi thân hàm.
- * ===================================================================== */
-const MOCK_RUN_ID = 101; // BACKEND-TODO [9]: backend trả mã run thật trong 202
-const MOCK_LINES = [
-  { prog: 0, text: "[INFO] Initializing test container..." },
-  { prog: 0, text: "[INFO] Connecting to environment..." },
-  { prog: 25, text: "[INFO] Compiling codebase and loading test scripts..." },
-  { prog: 50, text: "[RUNNING] Executing test suites in sandbox mode..." },
-  {
-    prog: 75,
-    text: "[CHECK] Validating assertions against expected output...",
-  },
-  { prog: 100, text: "[SUCCESS] Test execution finished successfully!" },
-];
-const mockRun = { startedAt: 0, cancelled: false };
+// Các thao tác tạo run, đọc log và hủy run được gọi qua runService.
+// Progress chỉ được hiển thị nếu API trả về; backend hiện chưa có trường phần trăm.
 
-// BACKEND-TODO [3]: POST /runs { templateId, env, timeout } -> 202 { runId }.
-// Lỗi: 403 (Viewer), 404 (template không tồn tại), 409 (template không có test ready).
-async function startRun({ templateId, env, timeout }) {
-  void templateId;
-  void env;
-  void timeout;
-  mockRun.startedAt = Date.now();
-  mockRun.cancelled = false;
-  return { runId: MOCK_RUN_ID };
-}
-
-// BACKEND-TODO [4]: GET /runs/:id/logs?after=<số dòng đã nhận> -> { lines, status }.
-// status: 'running' | 'passed' | 'failed' | 'cancelled'.
-// Nếu muốn nhận log trực tiếp: GET /runs/:id/logs/stream (SSE). Trên Vercel kết nối dài
-// có thể bị cắt nên vẫn giữ polling làm phương án dự phòng.
-// BACKEND-TODO [6]: 'progress' hiện do mock tự tính. API không trả %.
-async function fetchRunLogs(runId, after) {
-  void runId;
-  if (mockRun.cancelled) return { lines: [], progress: 0, status: "cancelled" };
-  const shown = Math.min(
-    MOCK_LINES.length,
-    Math.floor((Date.now() - mockRun.startedAt) / POLL_MS) + 1,
-  );
-  const progress = MOCK_LINES[shown - 1].prog;
-  return {
-    lines: MOCK_LINES.slice(after, shown).map((l) => l.text),
-    progress,
-    status: shown >= MOCK_LINES.length ? "passed" : "running",
-  };
-}
-
-// BACKEND-TODO [5]: POST /runs/:id/cancel -> 200. Run đã xong rồi thì trả 409.
-async function cancelRun(runId) {
-  void runId;
-  mockRun.cancelled = true;
-}
-/* ======================= HẾT PHẦN GIẢ LẬP ======================= */
 
 export default function TestCreation() {
   const navigate = useNavigate();
@@ -194,7 +141,7 @@ export default function TestCreation() {
     }
   };
 
-  // Hỏi log mới theo chu kỳ. BACKEND-TODO [4]: giữ nguyên khung này, chỉ đổi fetchRunLogs.
+  // Hỏi log mới theo chu kỳ qua API GET /runs/:id/logs?after=.
   useEffect(() => {
     if (!isRunning || !runId) return;
     let after = 0;
@@ -206,15 +153,15 @@ export default function TestCreation() {
         if (stopped) return;
         if (res.lines.length) {
           setLogs((prev) => [...prev, ...res.lines]);
-          after += res.lines.length;
+          after = res.nextAfter ?? after + res.lines.length;
         }
-        setProgress(res.progress);
+        setProgress(res.progress ?? 0);
         if (res.status !== "running") {
           setIsRunning(false);
-          setTestStatus(res.status.toUpperCase());
-          if (res.status === "passed")
-            toast.success("Test execution completed!");
-          if (res.status === "failed") toast.error("Test execution failed.");
+          const finalStatus = res.status === "canceled" ? "CANCELLED" : res.status.toUpperCase();
+          setTestStatus(finalStatus);
+          if (finalStatus === "PASSED") toast.success("Test execution completed!");
+          if (finalStatus === "FAILED") toast.error("Test execution failed.");
         }
       } catch {
         // Mất mạng thoáng qua: bỏ qua, lần hỏi sau sẽ thử lại.

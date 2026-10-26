@@ -11,8 +11,8 @@ export const toUser = (row) => ({
   id: row.user_id,
   name: row.full_name,
   email: row.email,
-  role: capitalize(row.user_role), // 'admin' -> 'Admin' (khớp ALL_ROLES ở AppRoutes)
-  status: row.user_status === 'active' ? 'Active' : 'Locked',
+  role: capitalize(row.user_role ?? row.role), // 'admin' -> 'Admin' (khớp ALL_ROLES ở AppRoutes)
+  status: (row.user_status ?? row.status) === 'active' ? 'Active' : 'Locked',
 });
 
 export async function loginRequest({ email, password }) {

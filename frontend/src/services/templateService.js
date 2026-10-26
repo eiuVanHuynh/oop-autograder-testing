@@ -1,59 +1,77 @@
-import API from '../models/api';
+import API from "../models/api";
 
-// Nối với /api/templates (backend đã có đủ 6 route). Response bọc { success, data }.
-// Chữ ký các hàm giữ như bản localStorage cũ, nhưng GIỜ LÀ ASYNC -> nơi gọi phải await.
-//
-// Backend trả snake_case: template_id, template_name, description, scope, target_json, env, timeout,
-// created_by (chỉ là id), created_at, updated_at. Adapter dưới đây đổi sang dạng FE dùng.
+const unwrap = (response) => response?.data?.data ?? response?.data ?? response;
+const parseJson = (value) => {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
+};
+const dateOnly = (value) => (value ? String(value).slice(0, 10) : "");
 
-const dateOnly = (v) => (v ? String(v).slice(0, 10) : '');
-
-export const toTemplate = (row) => ({
-  id: row.template_id,
-  name: row.template_name,
-  description: row.description || '',
-  scope: row.scope,
-  targetTestIds: row.target_json?.testIds ?? [],
-  suiteId: row.target_json?.suiteId ?? null,
-  // Code backend hiện dùng cột env/timeout; backend-design.md ghi default_env/default_timeout_ms.
-  // BACKEND-TODO: thống nhất tên cột với nhóm DB rồi bỏ nhánh dự phòng.
-  defaultEnv: row.env ?? row.default_env,
-  defaultTimeoutMs: row.timeout ?? row.default_timeout_ms,
-  // BACKEND-TODO: created_by chỉ là id. Cần backend join users để trả tên người tạo (api-endpoints.md mục 4: "người tạo").
-  createdBy: row.created_by,
-  updatedAt: dateOnly(row.updated_at || row.created_at),
-  // BACKEND-TODO: readyCount (số test case 'ready') chưa có trong response — design mục 4 yêu cầu.
-});
-
-// Form FE -> body POST/PUT.
-export const toBody = (t) => {
-  const body = {
-    template_name: t.name,
-    description: t.description ?? undefined,
-    scope: t.scope,
-    env: t.defaultEnv || undefined,
-    timeout: t.defaultTimeoutMs || undefined,
+export const toTemplate = (source = {}) => {
+  const row = source || {};
+  const target = parseJson(row.target_json);
+  return {
+    ...row,
+    id: row.template_id ?? row.id,
+    name: row.template_name ?? row.name ?? "",
+    description: row.description ?? row.template_description ?? "",
+    scope: row.scope ?? row.test_scope ?? "",
+    targetTestIds: Array.isArray(target.testIds) ? target.testIds : [],
+    suiteId: target.suiteId ?? null,
+    defaultEnv: row.env ?? row.default_env ?? row.defaultEnv ?? "development",
+    defaultTimeoutMs:
+      row.timeout ?? row.default_timeout_ms ?? row.defaultTimeoutMs ?? 30000,
+    createdBy: row.created_by ?? row.createdBy ?? null,
+    updatedAt: dateOnly(row.updated_at ?? row.created_at ?? row.updatedAt),
+    readyCount: row.ready_count ?? row.readyCount,
   };
-  // Template trỏ tới suite thì giữ nguyên suiteId, nếu không sẽ gửi testIds rỗng và bị 400.
-  if (t.suiteId) body.target_json = { suiteId: t.suiteId };
-  else if (t.targetTestIds) body.target_json = { testIds: t.targetTestIds };
+};
+
+export const toBody = (template = {}) => {
+  const body = {
+    template_name: String(template.name ?? template.template_name ?? "").trim(),
+    description: template.description ?? undefined,
+    scope: template.scope || "UI",
+    env: template.defaultEnv || template.env || "development",
+    timeout: Number(template.defaultTimeoutMs ?? template.timeout ?? 30000),
+  };
+  const suiteId = template.suiteId ?? template.target_json?.suiteId;
+  const testIds =
+    template.targetTestIds ?? template.testIds ?? template.target_json?.testIds;
+  if (suiteId != null && suiteId !== "") body.target_json = { suiteId };
+  else if (Array.isArray(testIds) && testIds.length > 0)
+    body.target_json = { testIds };
+  else if (template.target_json) body.target_json = template.target_json;
   return body;
 };
 
-export const listTemplates = async (params = {}) =>
-  (await API.get('/templates', { params })).data.data.map(toTemplate);
+const rowsFrom = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
+};
 
-export const getTemplate = async (id) => toTemplate((await API.get(`/templates/${id}`)).data.data);
+export const listTemplates = async (params = {}) =>
+  rowsFrom(unwrap(await API.get("/templates", { params }))).map(toTemplate);
+
+export const getTemplate = async (id) =>
+  toTemplate(unwrap(await API.get(`/templates/${id}`)));
 
 export const createTemplate = async (data) =>
-  toTemplate((await API.post('/templates', toBody(data))).data.data);
+  toTemplate(unwrap(await API.post("/templates", toBody(data))));
 
 export const updateTemplate = async (id, data) =>
-  toTemplate((await API.put(`/templates/${id}`, toBody(data))).data.data);
+  toTemplate(unwrap(await API.put(`/templates/${id}`, toBody(data))));
 
 export const deleteTemplate = async (id) => {
   await API.delete(`/templates/${id}`);
 };
 
 export const duplicateTemplate = async (id) =>
-  toTemplate((await API.post(`/templates/${id}/duplicate`)).data.data);
+  toTemplate(unwrap(await API.post(`/templates/${id}/duplicate`)));
