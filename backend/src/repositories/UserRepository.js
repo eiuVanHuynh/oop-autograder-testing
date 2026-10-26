@@ -14,9 +14,10 @@ class UserRepository extends BaseRepository {
 
   // TODO
   async findByEmail(email) {
-    const res = await query("SELECT * FROM users WHERE email = $1 LIMIT 1", [
-      email,
-    ]);
+    const res = await query(
+      "SELECT * FROM users WHERE lower(email) = lower($1) LIMIT 1",
+      [email],
+    );
     return res.rows[0] || null;
   }
 

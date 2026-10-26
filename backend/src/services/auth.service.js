@@ -61,10 +61,7 @@ class AuthService {
     // Find user by email
     const user = await this.userRepository.findByEmail(email);
     if (!user) {
-      const error = new Error("Invalid email or password");
-      error.statusCode = 401;
-      error.code = "UNAUTHORIZED";
-      throw error;
+      throw new AppError(401, "INVALID_CREDENTIALS", "Invalid email or password");
     }
 
     // Kiểm tra nếu tài khoản đang bị khóa -> trả về 423 theo api-endpoints.md mục 0 & 1[cite: 1]
@@ -75,19 +72,13 @@ class AuthService {
     // Tài khoản Google chưa đặt mật khẩu: password_hash NULL. bcrypt.compare(null)
     // throw nên phải chặn ở đây, nếu không thành 500 thay vì 401.
     if (!user.password_hash) {
-      const error = new Error("Invalid email or password");
-      error.statusCode = 401;
-      error.code = "UNAUTHORIZED";
-      throw error;
+      throw new AppError(401, "INVALID_CREDENTIALS", "Invalid email or password");
     }
 
     // Compare password with bcrypt
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      const error = new Error("Invalid email or password");
-      error.statusCode = 401;
-      error.code = "UNAUTHORIZED";
-      throw error;
+      throw new AppError(401, "INVALID_CREDENTIALS", "Invalid email or password");
     }
 
     // Sign JWT token
@@ -149,7 +140,14 @@ class AuthService {
         { expiresIn: "15m" },
       );
       // Ghi chú: Tại đây tích hợp service gửi email thực tế chứa resetToken
-      console.log(`Reset password link for ${email}: token=${resetToken}`);
+      // Chưa có dịch vụ gửi email nên KHÔNG ghi token ra log mặc định (ai đọc log là đổi được mật khẩu).
+      // Chỉ in khi dev chủ động bật DEV_LOG_RESET_TOKEN=true và không phải production.
+      if (
+        process.env.NODE_ENV !== "production" &&
+        process.env.DEV_LOG_RESET_TOKEN === "true"
+      ) {
+        console.log(`[DEV] Reset password token for ${email}: ${resetToken}`);
+      }
     }
     return { message: "If the email exists, a reset link has been sent." };
   }

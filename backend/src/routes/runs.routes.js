@@ -38,14 +38,13 @@ router.post("/:id/cancel", requireAuth, canRun, runsController.cancelRun);
 // POST /api/runs/:id/rerun - Chạy lại test dựa trên config cũ (Admin, Tester)
 router.post("/:id/rerun", requireAuth, canRun, runsController.rerunRun);
 
-// shortcut: 3 route dưới đây tắt vì runs.service.js chưa có getRunLogs /
-// streamRunLogs / getEvidences — gắn vào là 500 ngay lần gọi đầu.
-// Bỏ // khi service có đủ 3 hàm đó.
+// GET /api/runs/:id/logs?after= - Polling log theo seq (Mọi user đăng nhập)
+router.get("/:id/logs", requireAuth, runsController.getRunLogs);
+
+// shortcut: 2 route dưới đây còn tắt vì runs.service.js chưa có streamRunLogs /
+// getEvidences — gắn vào là 500 ngay lần gọi đầu. Bỏ // khi service có đủ hàm.
 // GET /api/runs/:id/logs/stream - Xem log trực tiếp qua SSE (Mọi user)
 // router.get("/:id/logs/stream", requireAuth, runsController.streamRunLogs);
-
-// GET /api/runs/:id/logs - Xem log dự phòng theo phân đoạn after (Mọi user)
-// router.get("/:id/logs", requireAuth, runsController.getRunLogs);
 
 // GET /api/runs/:id/results/:resultId/evidences - Xem bằng chứng của bước (Mọi user)
 // router.get("/:id/results/:resultId/evidences", requireAuth, runsController.getEvidences);

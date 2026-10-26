@@ -1,162 +1,154 @@
+const AppError = require("../utils/AppError");
+const { buildGrep } = require("./target");
+
 // Chạy test, theo dõi log, lịch sử, hủy, chạy lại.
 // Running tests, log tailing, history, cancel, re-run.
 // Quy tắc nghiệp vụ nằm ở đây. Không require pg, không chạm req/res.
+// Nhận mọi phụ thuộc qua constructor (ráp ở config/container.js) để test thay bằng bản giả.
 
-const RunRepository = require("../repositories/RunRepository");
-const TemplateRepository = require("../repositories/TemplateRepository");
+const RUN_STATUSES = ["running", "passed", "failed", "interrupted"];
+
+const parseJson = (value) => {
+  if (value == null) return null;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
 
 class RunsService {
-  constructor(deps = {}) {
-    this.runRepository = deps.runRepository || new RunRepository();
-    this.templateRepository =
-      deps.templateRepository || new TemplateRepository();
-    this.targetResolver = deps.targetResolver;
-    this.testRunner = deps.testRunner;
+  constructor({
+    runRepository,
+    templateRepository,
+    logRepository,
+    targetResolver,
+    testRunner,
+  }) {
+    Object.entries({
+      runRepository,
+      templateRepository,
+      logRepository,
+      targetResolver,
+      testRunner,
+    }).forEach(([name, dep]) => {
+      if (!dep) throw new Error(`RunsService thiếu phụ thuộc: ${name}`);
+    });
+    this.runRepository = runRepository;
+    this.templateRepository = templateRepository;
+    this.logRepository = logRepository;
+    this.targetResolver = targetResolver;
+    this.testRunner = testRunner;
   }
 
   async getAllRuns(filters = {}) {
-    return await this.runRepository.findAllWithFilters(filters);
-  }
-
-  async getRuns(filters = {}) {
-    return await this.getAllRuns(filters);
+    if (filters.status && !RUN_STATUSES.includes(String(filters.status).toLowerCase())) {
+      throw new AppError(400, "VALIDATION_ERROR", `status phải là một trong: ${RUN_STATUSES.join(", ")}`);
+    }
+    return this.runRepository.findAllWithFilters(filters);
   }
 
   async getRunById(id) {
     const run = await this.runRepository.findById(id);
-    if (!run) {
-      const error = new Error("Run not found");
-      error.statusCode = 404;
-      throw error;
-    }
-    if (typeof run.config_json === "string") {
-      run.config_json = JSON.parse(run.config_json);
-    }
+    if (!run) throw new AppError(404, "NOT_FOUND", "Run not found");
+    run.config_json = parseJson(run.config_json);
     return run;
   }
 
   async createRun(userId, data) {
+    let template = null;
     let testCodes = [];
-    let templateId = data.templateId;
-    let configEnv = data.env || "development";
-    let configTimeout = data.timeout || 30000;
     let runName = data.run_name || `Run_${Date.now()}`;
 
-    if (templateId) {
-      const template = await this.templateRepository.findById(templateId);
-      if (!template) {
-        const error = new Error("Template not found");
-        error.statusCode = 404;
-        throw error;
-      }
-      configEnv = template.env || configEnv;
-      configTimeout = template.timeout || configTimeout;
-      runName = `Template_${template.template_name}_${Date.now()}`;
-
-      let targetJson =
-        typeof template.target_json === "string"
-          ? JSON.parse(template.target_json)
-          : template.target_json;
-
-      if (
-        this.targetResolver &&
-        typeof this.targetResolver.resolveToTestCodes === "function"
-      ) {
-        testCodes = await this.targetResolver.resolveToTestCodes(targetJson);
-      }
-    } else if (data.testIds && data.testIds.length > 0) {
-      if (
-        this.targetResolver &&
-        typeof this.targetResolver.resolveExplicitTestCodes === "function"
-      ) {
-        testCodes = await this.targetResolver.resolveExplicitTestCodes(
-          data.testIds,
-        );
-      } else {
-        testCodes = data.testIds;
-      }
+    if (data.templateId) {
+      template = await this.templateRepository.findById(data.templateId);
+      if (!template) throw new AppError(404, "NOT_FOUND", "Template not found");
+      runName = data.run_name || `Template_${template.template_name}_${Date.now()}`;
+      testCodes = await this.targetResolver.resolveToTestCodes(parseJson(template.target_json));
+    } else if (Array.isArray(data.testIds) && data.testIds.length > 0) {
+      testCodes = await this.targetResolver.resolveExplicitTestCodes(data.testIds);
     }
 
-    if (!testCodes || testCodes.length === 0) {
-      const error = new Error(
-        "No ready test cases found for this execution target",
-      );
-      error.statusCode = 409;
-      throw error;
+    if (testCodes.length === 0) {
+      throw new AppError(409, "NO_READY_TESTS", "No ready test cases found for this execution target");
     }
 
-    const grepExpression = testCodes.join("|");
+    // Giá trị người dùng chọn lúc bấm Run thắng mặc định của template.
+    const env = data.env || template?.env || "development";
+    const timeout = data.timeout || template?.timeout || 30000;
+    const grep = buildGrep(testCodes);
+
     const configJson = {
-      templateId: templateId || null,
+      templateId: data.templateId || null,
       testIds: data.testIds || null,
-      grep: grepExpression,
-      env: configEnv,
-      timeout: configTimeout,
+      grep,
+      env,
+      timeout,
     };
 
     const runId = await this.runRepository.createRun({
       run_name: runName,
-      status: "running",
       user_id: userId,
+      environment: env,
       config_json: JSON.stringify(configJson),
     });
 
     try {
-      if (this.testRunner && typeof this.testRunner.trigger === "function") {
-        await this.testRunner.trigger({
-          runId,
-          grep: grepExpression,
-          env: configEnv,
-          timeout: configTimeout,
-        });
-      }
+      const ciRunId = await this.testRunner.trigger({ runId, grep, env, timeout });
+      if (ciRunId) await this.runRepository.setCiRunId(runId, ciRunId);
     } catch (ciError) {
-      await this.runRepository.updateStatus(runId, "failed");
-      const error = new Error(
-        `Failed to trigger test runner: ${ciError.message}`,
-      );
-      error.statusCode = 500;
-      throw error;
+      await this.runRepository.markFinished(runId, "failed");
+      throw new AppError(500, "RUNNER_FAILED", `Failed to trigger test runner: ${ciError.message}`);
     }
 
-    return await this.getRunById(runId);
+    return this.getRunById(runId);
   }
 
-  async cancelRun(id, userId) {
+  async cancelRun(id) {
     const run = await this.getRunById(id);
-
-    if (["completed", "failed", "interrupted", "passed"].includes(run.status)) {
-      const error = new Error("Cannot cancel a run that has already finished");
-      error.statusCode = 409;
-      throw error;
+    if (run.status !== "running") {
+      throw new AppError(409, "RUN_FINISHED", "Cannot cancel a run that has already finished");
     }
 
-    if (this.testRunner && typeof this.testRunner.cancel === "function") {
-      await this.testRunner.cancel(run.ci_run_id || id);
+    // Hủy bên nơi chạy là best-effort: lỗi ở đó không được giữ run ở trạng thái 'running' mãi.
+    try {
+      await this.testRunner.cancel(run.ci_run_id);
+    } catch (err) {
+      console.warn(`[runs] cancel runner failed for run ${id}: ${err.message}`);
     }
 
-    await this.runRepository.updateStatus(id, "interrupted");
-    return await this.getRunById(id);
+    await this.runRepository.markFinished(id, "interrupted");
+    return this.getRunById(id);
   }
 
   async rerun(id, userId) {
     const oldRun = await this.getRunById(id);
     const config = oldRun.config_json;
-
     if (!config) {
-      const error = new Error("Run configuration metadata not found for rerun");
-      error.statusCode = 400;
-      throw error;
+      throw new AppError(400, "VALIDATION_ERROR", "Run configuration metadata not found for rerun");
     }
 
-    return await this.createRun(userId, {
-      templateId: config.templateId,
-      testIds: config.testIds,
+    return this.createRun(userId, {
+      templateId: config.templateId || undefined,
+      testIds: config.testIds || undefined,
       env: config.env,
       timeout: config.timeout,
       run_name: `Rerun_${oldRun.run_name || id}`,
     });
   }
+
+  // Polling log: trả các dòng có seq > after, kèm trạng thái run để giao diện biết khi nào dừng hỏi.
+  async getRunLogs(id, after = 0) {
+    const run = await this.getRunById(id);
+    const rows = await this.logRepository.findAfter(id, after);
+    const lines = rows.map((r) => ({ seq: Number(r.seq), level: r.level, message: r.message }));
+    return {
+      lines,
+      nextAfter: lines.length ? lines[lines.length - 1].seq : after,
+      status: run.status,
+    };
+  }
 }
 
-module.exports = new RunsService();
+module.exports = RunsService;

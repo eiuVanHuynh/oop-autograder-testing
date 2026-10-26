@@ -1,5 +1,5 @@
 const asyncHandler = require("../utils/asyncHandler");
-const runsService = require("../services/runs.service");
+const { runsService } = require("../config/container");
 
 // Chạy test, theo dõi log, lịch sử, hủy, chạy lại.
 // Running tests, log tailing, history, cancel, re-run.
@@ -34,7 +34,7 @@ const getRunById = asyncHandler(async (req, res) => {
 
 // 4. GET /runs/:id/logs?after= - Polling log với tham số after (Status code: 200 OK)
 const getRunLogs = asyncHandler(async (req, res) => {
-  const after = req.query.after;
+  const after = Number(req.query.after) || 0;
   const result = await runsService.getRunLogs(req.params.id, after);
   return res.status(200).json({ data: result });
 });

@@ -3,6 +3,12 @@ const TemplateRepository = require("../repositories/TemplateRepository");
 const AuthService = require("../services/auth.service");
 const AuthController = require("../controllers/auth.controller");
 const TemplatesService = require("../services/templates.service");
+const CatalogRepository = require("../repositories/CatalogRepository");
+const RunRepository = require("../repositories/RunRepository");
+const LogRepository = require("../repositories/LogRepository");
+const RunsService = require("../services/runs.service");
+const { createTargetResolver } = require("../services/target");
+const { createRunner } = require("../services/runner");
 
 // Factory ráp sẵn repository vào service, và service vào controller.
 // Factory that wires repositories into services, and services into controllers.
@@ -21,8 +27,20 @@ const authController = new AuthController(authService);
 
 const templatesService = new TemplatesService({ templateRepository });
 
+const catalogRepository = new CatalogRepository();
+const runRepository = new RunRepository();
+const logRepository = new LogRepository();
+const runsService = new RunsService({
+  runRepository,
+  templateRepository,
+  logRepository,
+  targetResolver: createTargetResolver({ catalogRepository }),
+  testRunner: createRunner({ logRepository, runRepository }),
+});
+
 module.exports = {
   authController,
   templatesService,
+  runsService,
   userRepository, // requireAuth cần để kiểm tra trạng thái khóa của tài khoản
 };

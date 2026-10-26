@@ -92,6 +92,8 @@ class TemplateRepository extends BaseRepository {
 
     if (fields.length === 0) return false;
 
+    fields.push("updated_at = NOW()");
+
     params.push(id);
     const sql = `UPDATE ${this.tableName} SET ${fields.join(", ")} WHERE ${this.primaryKey} = $${params.length}`;
     const res = await this.query(sql, params);
