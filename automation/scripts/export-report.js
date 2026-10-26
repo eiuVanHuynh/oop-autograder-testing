@@ -1,15 +1,20 @@
+
 /**
- * export-pdf-report.js
+ * export-report.js
  *
- * Export QA Test Execution Report to PDF.
+ * Export a PDF report for ONE selected template.
  *
- * Required packages:
+ * Usage: cách chạy, TPL-0941 là template_code, "Standard Login Test" là template_name
+ *   node export-report.js TPL-0941
+ *   node export-report.js "Standard Login Test"
+ *
+ * Required:
  *   npm install pdfkit
  *
- * Database client:
+ * Database:
  *   ../tests/utils/db-client
  *
- * Optional environment variable:
+ * Optional:
  *   REPORT_OUTPUT_DIR
  */
 
@@ -39,10 +44,14 @@ const COLORS = {
   timedOut: "#B45309",
   skipped: "#667085",
   interrupted: "#7C3AED",
+  pending: "#667085",
+  in_progress: "#B45309",
+  done: "#16803D",
+  reopened: "#C62828",
   unknown: "#667085",
 };
 
-const STATUS_LABELS = {
+const RESULT_LABELS = {
   passed: "PASSED",
   failed: "FAILED",
   timedOut: "TIMED OUT",
@@ -50,23 +59,33 @@ const STATUS_LABELS = {
   interrupted: "INTERRUPTED",
 };
 
+const EXECUTION_STATUS_LABELS = {
+  pending: "PENDING",
+  in_progress: "IN_PROGRESS",
+  done: "DONE",
+  reopened: "REOPENED",
+};
+
 const PAGE = {
   size: "A4",
-  margin: 48,
+  margin: 42,
 };
 
 const FONT_REGULAR = "ReportRegular";
 const FONT_BOLD = "ReportBold";
 
 const OUTPUT_DIR =
-  process.env.REPORT_OUTPUT_DIR || path.join(os.homedir(), "Downloads");
+  process.env.REPORT_OUTPUT_DIR ||
+  path.join(os.homedir(), "Downloads");
+
+const REPORT_TITLE = "QA TEST EXECUTION REPORT";
 
 // ============================================================
 // FONT CONFIGURATION
 // ============================================================
 
 function registerFonts(doc) {
-  const fontCandidates = [
+  const candidates = [
     {
       regular: "C:/Windows/Fonts/arial.ttf",
       bold: "C:/Windows/Fonts/arialbd.ttf",
@@ -81,15 +100,14 @@ function registerFonts(doc) {
     },
   ];
 
-  for (const fonts of fontCandidates) {
-    if (fs.existsSync(fonts.regular) && fs.existsSync(fonts.bold)) {
-      doc.registerFont(FONT_REGULAR, fonts.regular);
-      doc.registerFont(FONT_BOLD, fonts.bold);
+  for (const font of candidates) {
+    if (fs.existsSync(font.regular) && fs.existsSync(font.bold)) {
+      doc.registerFont(FONT_REGULAR, font.regular);
+      doc.registerFont(FONT_BOLD, font.bold);
       return;
     }
   }
 
-  // PDFKit built-in fallback.
   doc.registerFont(FONT_REGULAR, "Helvetica");
   doc.registerFont(FONT_BOLD, "Helvetica-Bold");
 }
@@ -137,12 +155,28 @@ function formatDuration(milliseconds) {
   return `${(ms / 1000).toFixed(2)} seconds`;
 }
 
-function getStatusColor(status) {
-  return COLORS[status] || COLORS.unknown;
+function formatExecutionType(value) {
+  const type = String(value || "").toLowerCase();
+
+  if (type === "automation") return "Automation";
+  if (type === "manual") return "Manual";
+
+  return safeText(value);
 }
 
-function getStatusLabel(status) {
-  return STATUS_LABELS[status] || String(status || "UNKNOWN").toUpperCase();
+function getResultLabel(status) {
+  return RESULT_LABELS[status] ||
+    String(status || "UNKNOWN").toUpperCase();
+}
+
+function getExecutionStatusLabel(status) {
+  return EXECUTION_STATUS_LABELS[status] ||
+    String(status || "UNKNOWN").toUpperCase();
+}
+
+function getStatusColor(status) {
+  return COLORS[String(status || "").toLowerCase()] ||
+    COLORS.unknown;
 }
 
 function getPassRate(results) {
@@ -155,41 +189,54 @@ function getPassRate(results) {
   return `${((passed / results.length) * 100).toFixed(1)}%`;
 }
 
-function getOutputPath(runId) {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+function getCounts(results) {
+  return {
+    total: results.length,
+    passed: results.filter(
+      (item) => item.result_status === "passed",
+    ).length,
+    failed: results.filter(
+      (item) => item.result_status === "failed",
+    ).length,
+    timedOut: results.filter(
+      (item) => item.result_status === "timedOut",
+    ).length,
+    skipped: results.filter(
+      (item) => item.result_status === "skipped",
+    ).length,
+    interrupted: results.filter(
+      (item) => item.result_status === "interrupted",
+    ).length,
+  };
+}
+
+function getOutputPath(templateCode) {
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-");
 
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
-  return path.join(OUTPUT_DIR, `Test_Report_Run_${runId}_${timestamp}.pdf`);
+  const safeCode = String(templateCode || "template")
+    .replace(/[^a-zA-Z0-9_-]/g, "_");
+
+  return path.join(
+    OUTPUT_DIR,
+    `Test_Report_${safeCode}_${timestamp}.pdf`,
+  );
 }
 
-/**
- * Resolve evidence locations.
- *
- * Supports:
- * - Absolute HTTP/HTTPS URLs
- * - Absolute local file paths
- * - Relative paths resolved from the project directory
- *
- * The PDF contains a clickable link, not an embedded screenshot.
- */
 function resolveEvidence(filePath) {
   if (!filePath) return null;
 
   const original = String(filePath).trim();
 
   if (/^https?:\/\//i.test(original)) {
-    return {
-      label: original,
-      url: original,
-    };
+    return { label: original, url: original };
   }
 
   if (/^file:\/\//i.test(original)) {
-    return {
-      label: original,
-      url: original,
-    };
+    return { label: original, url: original };
   }
 
   const absolutePath = path.isAbsolute(original)
@@ -197,10 +244,7 @@ function resolveEvidence(filePath) {
     : path.resolve(process.cwd(), original);
 
   if (!fs.existsSync(absolutePath)) {
-    return {
-      label: original,
-      url: null,
-    };
+    return { label: original, url: null };
   }
 
   return {
@@ -213,32 +257,55 @@ function resolveEvidence(filePath) {
 // DATABASE QUERIES
 // ============================================================
 
-async function getLatestRun() {
+async function getTemplate(identifier) {
+  if (!identifier) {
+    throw new Error(
+      "Please provide a template_code or template_name.\n" +
+      'Example: node export-report.js TPL-0941',
+    );
+  }
+
   const rows = await query(
     `
     SELECT
-      run.run_id,
-      run.started_at,
-      run.finished_at,
-      run.browser,
-      run.environment,
-      run.git_commit,
-      run.branch_name,
-      run.ci_run_id,
-      run.tester_id,
-      users.full_name AS tester_name
-    FROM test_runs AS run
-    LEFT JOIN users
-      ON users.user_id = run.tester_id
-    ORDER BY run.run_id DESC
+      template_id,
+      template_code,
+      template_name,
+      template_description,
+      template_version,
+      test_scope,
+      created_at,
+      updated_at
+    FROM templates
+    WHERE template_code = ?
+       OR template_name = ?
     LIMIT 1
     `,
+    [identifier, identifier],
   );
 
-  return asArray(rows)[0] || null;
+  const template = asArray(rows)[0];
+
+  if (!template) {
+    throw new Error(
+      `Template "${identifier}" was not found in templates.`,
+    );
+  }
+
+  return template;
 }
 
-async function getRunResults(runId) {
+/**
+ * Select the latest recorded execution for each test case
+ * linked to the selected template.
+ *
+ * The report scope is controlled by template_test_cases.
+ * It does not include unrelated test cases.
+ *
+ * Selecting the latest result per test case allows one template
+ * report to include both manual and automation executions.
+ */
+async function getTemplateResults(templateId) {
   return asArray(
     await query(
       `
@@ -252,6 +319,7 @@ async function getRunResults(runId) {
         tr.error_message,
         tr.retry_count,
 
+        run.execution_type,
         run.started_at AS test_date,
         run.finished_at,
         run.browser,
@@ -264,6 +332,7 @@ async function getRunResults(runId) {
 
         tc.tc_code,
         tc.title AS test_name,
+        tc.execution_status,
         tc.preconditions,
         tc.expected_result,
         tc.priority,
@@ -276,13 +345,10 @@ async function getRunResults(runId) {
 
         suite.suite_name
 
-      FROM test_results AS tr
-
-      INNER JOIN test_runs AS run
-        ON run.run_id = tr.run_id
+      FROM template_test_cases AS ttc
 
       INNER JOIN test_cases AS tc
-        ON tc.test_id = tr.test_id
+        ON tc.test_id = ttc.test_id
 
       INNER JOIN test_specs AS ts
         ON ts.spec_id = tc.spec_id
@@ -290,14 +356,25 @@ async function getRunResults(runId) {
       INNER JOIN test_suites AS suite
         ON suite.suite_id = ts.suite_id
 
+      LEFT JOIN test_results AS tr
+        ON tr.test_id = tc.test_id
+       AND tr.execution_id = (
+          SELECT MAX(tr2.execution_id)
+          FROM test_results AS tr2
+          WHERE tr2.test_id = tc.test_id
+       )
+
+      LEFT JOIN test_runs AS run
+        ON run.run_id = tr.run_id
+
       LEFT JOIN users
         ON users.user_id = run.tester_id
 
-      WHERE tr.run_id = ?
+      WHERE ttc.template_id = ?
 
-      ORDER BY tr.execution_id ASC
+      ORDER BY tc.tc_code ASC
       `,
-      [runId],
+      [templateId],
     ),
   );
 }
@@ -376,44 +453,44 @@ async function getEvidence(executionIds) {
 // PDF LAYOUT HELPERS
 // ============================================================
 
-function addPageHeader(doc, title = "QA TEST EXECUTION REPORT") {
+function addPageHeader(doc) {
   const left = PAGE.margin;
-  const right = doc.page.width - PAGE.margin;
+  const width = doc.page.width - PAGE.margin * 2;
 
   doc
     .font(FONT_BOLD)
     .fontSize(9)
     .fillColor(COLORS.primary)
-    .text(title, left, 24, {
-      width: right - left,
+    .text(REPORT_TITLE, left, 22, {
+      width,
       lineBreak: false,
     });
 
   doc
-    .moveTo(left, 39)
-    .lineTo(right, 39)
+    .moveTo(left, 38)
+    .lineTo(left + width, 38)
     .strokeColor(COLORS.border)
     .lineWidth(0.7)
     .stroke();
 
-  doc.y = 52;
+  doc.y = 51;
 }
 
-function addNewPage(doc, title) {
+function addNewPage(doc) {
   doc.addPage();
-  addPageHeader(doc, title);
+  addPageHeader(doc);
 }
 
-function ensureSpace(doc, requiredHeight, title) {
-  const bottomLimit = doc.page.height - PAGE.margin - 24;
+function ensureSpace(doc, requiredHeight) {
+  const bottomLimit = doc.page.height - PAGE.margin - 25;
 
   if (doc.y + requiredHeight > bottomLimit) {
-    addNewPage(doc, title);
+    addNewPage(doc);
   }
 }
 
 function drawSectionTitle(doc, title) {
-  ensureSpace(doc, 34, "QA TEST EXECUTION REPORT");
+  ensureSpace(doc, 32);
 
   doc
     .font(FONT_BOLD)
@@ -427,24 +504,23 @@ function drawSectionTitle(doc, title) {
 }
 
 function drawField(doc, label, value, options = {}) {
-  const title = options.pageTitle || "QA TEST EXECUTION REPORT";
   const left = PAGE.margin;
   const width = doc.page.width - PAGE.margin * 2;
-  const fontSize = options.fontSize || 9.5;
+  const fontSize = options.fontSize || 9;
   const labelWidth = options.labelWidth || 118;
   const content = safeText(value);
 
   doc.font(FONT_REGULAR).fontSize(fontSize);
 
   const valueHeight = doc.heightOfString(content, {
-    width: width - labelWidth - 10,
+    width: width - labelWidth - 8,
     font: FONT_REGULAR,
     fontSize,
   });
 
-  const height = Math.max(16, valueHeight + 5);
+  const height = Math.max(15, valueHeight + 4);
 
-  ensureSpace(doc, height + 3, title);
+  ensureSpace(doc, height + 4);
 
   const startY = doc.y;
 
@@ -467,33 +543,64 @@ function drawField(doc, label, value, options = {}) {
   doc.y = startY + height + 3;
 }
 
-function drawStatusBanner(doc, status) {
-  const title = "QA TEST EXECUTION REPORT";
-  ensureSpace(doc, 40, title);
+function drawStatusBanner(doc, resultStatus, executionStatus) {
+  ensureSpace(doc, 48);
 
-  const color = getStatusColor(status);
   const left = PAGE.margin;
   const width = doc.page.width - PAGE.margin * 2;
   const y = doc.y;
 
-  doc.roundedRect(left, y, width, 29, 5).fillColor(color).fill();
+  const resultColor = getStatusColor(resultStatus);
+
+  doc
+    .roundedRect(left, y, width, 30, 5)
+    .fillColor(resultColor)
+    .fill();
 
   doc
     .font(FONT_BOLD)
     .fontSize(10)
     .fillColor(COLORS.white)
-    .text(`TEST STATUS: ${getStatusLabel(status)}`, left + 10, y + 9, {
-      width: width - 20,
-    });
+    .text(
+      `TEST RESULT: ${getResultLabel(resultStatus)}`,
+      left + 10,
+      y + 9,
+      { width: width - 20 },
+    );
 
-  doc.y = y + 39;
+  doc.y = y + 37;
+
+  const executionColor = getStatusColor(executionStatus);
+
+  doc
+    .roundedRect(left, doc.y, width, 25, 5)
+    .fillColor(COLORS.light)
+    .fill();
+
+  doc
+    .font(FONT_BOLD)
+    .fontSize(9)
+    .fillColor(executionColor)
+    .text(
+      `EXECUTION STATUS: ${getExecutionStatusLabel(
+        executionStatus,
+      )}`,
+      left + 10,
+      doc.y + 7,
+      { width: width - 20 },
+    );
+
+  doc.y += 34;
 }
 
 function drawTableCell(doc, text, x, y, width, height, options = {}) {
-  const padding = 5;
+  const padding = 4;
 
   if (options.fill) {
-    doc.rect(x, y, width, height).fillColor(options.fill).fill();
+    doc
+      .rect(x, y, width, height)
+      .fillColor(options.fill)
+      .fill();
   }
 
   doc
@@ -504,7 +611,7 @@ function drawTableCell(doc, text, x, y, width, height, options = {}) {
 
   doc
     .font(options.bold ? FONT_BOLD : FONT_REGULAR)
-    .fontSize(options.fontSize || 8)
+    .fontSize(options.fontSize || 7.5)
     .fillColor(options.color || COLORS.text)
     .text(safeText(text, ""), x + padding, y + padding, {
       width: width - padding * 2,
@@ -513,158 +620,294 @@ function drawTableCell(doc, text, x, y, width, height, options = {}) {
     });
 }
 
-function drawSummaryTable(doc, results) {
-  drawSectionTitle(doc, "Test Case Summary");
-
-  const columns = [
-    { title: "Test Case", width: 145 },
-    { title: "Test Name", width: 190 },
-    { title: "Status", width: 95 },
-    { title: "Duration", width: 75 },
-  ];
-
-  const totalWidth = columns.reduce((sum, col) => sum + col.width, 0);
+function drawTable(doc, columns, rows, options = {}) {
+  const left = PAGE.margin;
   const availableWidth = doc.page.width - PAGE.margin * 2;
+  const totalWidth = columns.reduce(
+    (sum, column) => sum + column.width,
+    0,
+  );
   const scale = availableWidth / totalWidth;
-  const headerHeight = 25;
-  const rowHeight = 29;
+  const headerHeight = options.headerHeight || 25;
+  const rowHeight = options.rowHeight || 29;
 
-  let x = PAGE.margin;
+  ensureSpace(doc, headerHeight + rowHeight);
+
   let y = doc.y;
 
-  for (const column of columns) {
-    const width = column.width * scale;
+  function drawHeader() {
+    let x = left;
 
-    drawTableCell(doc, column.title, x, y, width, headerHeight, {
-      fill: COLORS.primary,
-      bold: true,
-      color: COLORS.white,
-    });
+    for (const column of columns) {
+      const width = column.width * scale;
 
-    x += width;
-  }
+      drawTableCell(
+        doc,
+        column.title,
+        x,
+        y,
+        width,
+        headerHeight,
+        {
+          fill: COLORS.primary,
+          bold: true,
+          color: COLORS.white,
+          fontSize: 7.5,
+        },
+      );
 
-  y += headerHeight;
-
-  for (const result of results) {
-    if (y + rowHeight > doc.page.height - PAGE.margin - 24) {
-      addNewPage(doc, "QA TEST EXECUTION REPORT");
-      y = doc.y;
+      x += width;
     }
 
-    const values = [
-      result.tc_code,
-      result.test_name,
-      getStatusLabel(result.result_status),
-      formatDuration(result.execution_time_ms),
-    ];
+    y += headerHeight;
+  }
 
-    x = PAGE.margin;
+  drawHeader();
 
-    values.forEach((value, index) => {
-      const width = columns[index].width * scale;
-      const statusCell = index === 2;
+  rows.forEach((row, rowIndex) => {
+    const bottomLimit = doc.page.height - PAGE.margin - 25;
 
-      drawTableCell(doc, value, x, y, width, rowHeight, {
-        fill: y % 2 === 0 ? COLORS.light : COLORS.white,
-        color: statusCell ? getStatusColor(result.result_status) : COLORS.text,
-        bold: statusCell,
-      });
+    if (y + rowHeight > bottomLimit) {
+      addNewPage(doc);
+      y = doc.y;
+      drawHeader();
+    }
+
+    let x = left;
+
+    columns.forEach((column, columnIndex) => {
+      const width = column.width * scale;
+      const cell = row[columnIndex] || {};
+
+      const value =
+        typeof cell === "object" && cell !== null && "text" in cell
+          ? cell.text
+          : cell;
+
+      const color =
+        typeof cell === "object" && cell !== null && cell.color
+          ? cell.color
+          : COLORS.text;
+
+      drawTableCell(
+        doc,
+        value,
+        x,
+        y,
+        width,
+        rowHeight,
+        {
+          fill: rowIndex % 2 === 0 ? COLORS.light : COLORS.white,
+          color,
+          bold:
+            typeof cell === "object" &&
+            cell !== null &&
+            cell.bold === true,
+          fontSize: 7.2,
+        },
+      );
 
       x += width;
     });
 
     y += rowHeight;
-  }
+  });
 
-  doc.y = y + 18;
-}
-
-function addPageNumbers(doc) {
-  const range = doc.bufferedPageRange();
-
-  for (let index = range.start; index < range.start + range.count; index++) {
-    doc.switchToPage(index);
-
-    const pageNumber = index + 1;
-    const pageCount = range.count;
-    const y = doc.page.height - 29;
-
-    doc
-      .moveTo(PAGE.margin, y - 7)
-      .lineTo(doc.page.width - PAGE.margin, y - 7)
-      .strokeColor(COLORS.border)
-      .lineWidth(0.5)
-      .stroke();
-
-    doc
-      .font(FONT_REGULAR)
-      .fontSize(8)
-      .fillColor(COLORS.muted)
-      .text(
-        `QA Test Execution Report  |  Page ${pageNumber} of ${pageCount}`,
-        PAGE.margin,
-        y,
-        {
-          width: doc.page.width - PAGE.margin * 2,
-          align: "center",
-          lineBreak: false,
-        },
-      );
-  }
+  doc.y = y + 14;
 }
 
 // ============================================================
-// SUMMARY PAGE
+// EXECUTION STATISTICS
 // ============================================================
 
-function drawOverview(doc, run, results) {
+function drawExecutionTypeStatistics(doc, results) {
+  drawSectionTitle(doc, "Results by Execution Type");
+
+  const types = ["manual", "automation"];
+
+  const rows = types.map((type) => {
+    const typeResults = results.filter(
+      (result) => result.execution_type === type,
+    );
+
+    const counts = getCounts(typeResults);
+
+    return [
+      formatExecutionType(type),
+      counts.total,
+      counts.passed,
+      counts.failed,
+      getPassRate(typeResults),
+    ];
+  });
+
+  const totalCounts = getCounts(results);
+
+  rows.push([
+    "Total",
+    totalCounts.total,
+    totalCounts.passed,
+    totalCounts.failed,
+    getPassRate(results),
+  ]);
+
+  drawTable(
+    doc,
+    [
+      { title: "Execution Type", width: 150 },
+      { title: "Total", width: 70 },
+      { title: "Passed", width: 70 },
+      { title: "Failed", width: 70 },
+      { title: "Pass Rate", width: 80 },
+    ],
+    rows,
+    { rowHeight: 25 },
+  );
+
+  drawField(
+    doc,
+    "Timed Out",
+    totalCounts.timedOut,
+  );
+
+  drawField(doc, "Skipped", totalCounts.skipped);
+
+  drawField(
+    doc,
+    "Interrupted",
+    totalCounts.interrupted,
+  );
+}
+
+// ============================================================
+// TEST CASE SUMMARY
+// ============================================================
+
+function drawSummaryTable(doc, results) {
+  drawSectionTitle(doc, "Test Case Summary");
+
+  const columns = [
+    { title: "Test Case", width: 75 },
+    { title: "Test Name", width: 145 },
+    { title: "Execution Type", width: 85 },
+    { title: "Execution Status", width: 95 },
+    { title: "Result", width: 70 },
+    { title: "Duration", width: 75 },
+  ];
+
+  const rows = results.map((result) => [
+    safeText(result.tc_code),
+    safeText(result.test_name),
+    formatExecutionType(result.execution_type),
+    {
+      text: getExecutionStatusLabel(result.execution_status),
+      color: getStatusColor(result.execution_status),
+      bold: true,
+    },
+    {
+      text: result.result_status
+        ? getResultLabel(result.result_status)
+        : "NOT RUN",
+      color: getStatusColor(result.result_status),
+      bold: true,
+    },
+    result.execution_id
+      ? formatDuration(result.execution_time_ms)
+      : "Not run",
+  ]);
+
+  drawTable(doc, columns, rows, {
+    headerHeight: 29,
+    rowHeight: 32,
+  });
+}
+
+// ============================================================
+// OVERVIEW PAGE
+// ============================================================
+
+function drawOverview(doc, template, results) {
   addPageHeader(doc);
 
   doc
     .font(FONT_BOLD)
-    .fontSize(22)
+    .fontSize(21)
     .fillColor(COLORS.primary)
     .text("Test Execution Report", PAGE.margin, doc.y, {
       width: doc.page.width - PAGE.margin * 2,
     });
 
-  doc.moveDown(0.4);
+  doc.moveDown(0.3);
 
   doc
     .font(FONT_REGULAR)
     .fontSize(10)
     .fillColor(COLORS.muted)
-    .text(`Run ID: ${run.run_id}`);
+    .text(
+      `${safeText(template.template_name)}  |  ` +
+      `${safeText(template.template_code)}`,
+    );
 
-  doc.moveDown(1);
+  doc.moveDown(0.8);
 
   drawSectionTitle(doc, "Execution Overview");
 
-  drawField(doc, "Test Run ID", run.run_id);
-  drawField(doc, "Test Date", formatDate(run.started_at));
-  drawField(doc, "Tester Name", run.tester_name);
-  drawField(doc, "Browser", run.browser);
-  drawField(doc, "Environment", run.environment);
-  drawField(doc, "Branch", run.branch_name);
-  drawField(doc, "Git Commit", run.git_commit);
-  drawField(doc, "CI Run ID", run.ci_run_id);
-  drawField(doc, "Finished At", formatDate(run.finished_at));
+  drawField(doc, "Template Code", template.template_code);
+  drawField(doc, "Template Name", template.template_name);
+  drawField(doc, "Template Version", template.template_version);
+  drawField(doc, "Report Generated", formatDate(new Date()));
 
-  const counts = {
-    total: results.length,
-    passed: results.filter((r) => r.result_status === "passed").length,
-    failed: results.filter((r) => r.result_status === "failed").length,
-    timedOut: results.filter((r) => r.result_status === "timedOut").length,
-    skipped: results.filter((r) => r.result_status === "skipped").length,
-    interrupted: results.filter((r) => r.result_status === "interrupted")
-      .length,
-  };
+  const executedResults = results.filter(
+    (result) => result.execution_id,
+  );
+
+  const dates = executedResults
+    .map((result) => result.test_date)
+    .filter(Boolean)
+    .sort((a, b) => new Date(a) - new Date(b));
+
+  const testers = [
+    ...new Set(
+      executedResults
+        .map((result) => result.tester_name)
+        .filter(Boolean),
+    ),
+  ];
+
+  const environments = [
+    ...new Set(
+      executedResults
+        .map((result) => result.environment)
+        .filter(Boolean),
+    ),
+  ];
+
+  drawField(
+    doc,
+    "Execution Date",
+    dates.length
+      ? `${formatDate(dates[0])} - ${formatDate(dates[dates.length - 1])}`
+      : "No execution recorded",
+  );
+
+  drawField(
+    doc,
+    "Tester Name",
+    testers.length ? testers.join(", ") : "Not recorded",
+  );
+
+  drawField(
+    doc,
+    "Environment",
+    environments.length ? environments.join(", ") : "Not recorded",
+  );
+
+  const counts = getCounts(executedResults);
 
   drawSectionTitle(doc, "Execution Statistics");
 
   const statistics = [
-    ["Total Tests", counts.total, COLORS.primary],
+    ["Total Tests", results.length, COLORS.primary],
     ["Passed", counts.passed, COLORS.passed],
     ["Failed", counts.failed, COLORS.failed],
     ["Timed Out", counts.timedOut, COLORS.timedOut],
@@ -673,8 +916,10 @@ function drawOverview(doc, run, results) {
   ];
 
   const gap = 8;
-  const cardWidth = (doc.page.width - PAGE.margin * 2 - gap * 2) / 3;
+  const cardWidth =
+    (doc.page.width - PAGE.margin * 2 - gap * 2) / 3;
   const cardHeight = 48;
+
   let x = PAGE.margin;
   let y = doc.y;
 
@@ -710,13 +955,22 @@ function drawOverview(doc, run, results) {
 
   doc.y = y + cardHeight + gap + 8;
 
-  drawField(doc, "Pass Rate", getPassRate(results));
+  drawField(
+    doc,
+    "Pass Rate",
+    getPassRate(executedResults),
+  );
 
   if (results.length === 0) {
-    drawField(doc, "Note", "No test results were found for this run.");
+    drawField(
+      doc,
+      "Note",
+      "No test cases are linked to this template.",
+    );
     return;
   }
 
+  drawExecutionTypeStatistics(doc, executedResults);
   drawSummaryTable(doc, results);
 }
 
@@ -724,15 +978,22 @@ function drawOverview(doc, run, results) {
 // TEST CASE DETAIL
 // ============================================================
 
-function drawTestDetails(doc, result, steps, testData, evidences) {
-  addNewPage(doc, "QA TEST EXECUTION REPORT");
+function drawTestDetails(
+  doc,
+  result,
+  steps,
+  testData,
+  evidences,
+) {
+  addNewPage(doc);
 
   doc
     .font(FONT_BOLD)
     .fontSize(16)
     .fillColor(COLORS.primary)
     .text(
-      `${safeText(result.tc_code, "TEST")} — ${safeText(result.test_name)}`,
+      `${safeText(result.tc_code, "TEST")} | ` +
+      `${safeText(result.test_name)}`,
       PAGE.margin,
       doc.y,
       {
@@ -742,7 +1003,11 @@ function drawTestDetails(doc, result, steps, testData, evidences) {
 
   doc.moveDown(0.5);
 
-  drawStatusBanner(doc, result.result_status);
+  drawStatusBanner(
+    doc,
+    result.result_status,
+    result.execution_status,
+  );
 
   drawSectionTitle(doc, "Test Case Information");
 
@@ -753,8 +1018,22 @@ function drawTestDetails(doc, result, steps, testData, evidences) {
   drawField(doc, "Screen", result.screen_name);
   drawField(doc, "Test Type", result.test_type);
   drawField(doc, "Priority", result.priority);
-  drawField(doc, "Test Date", formatDate(result.test_date));
+  drawField(
+    doc,
+    "Execution Status",
+    getExecutionStatusLabel(result.execution_status),
+  );
+  drawField(
+    doc,
+    "Test Date",
+    formatDate(result.test_date),
+  );
   drawField(doc, "Tester Name", result.tester_name);
+  drawField(
+    doc,
+    "Execution Type",
+    formatExecutionType(result.execution_type),
+  );
   drawField(doc, "Browser", result.browser);
   drawField(doc, "Environment", result.environment);
 
@@ -770,17 +1049,24 @@ function drawTestDetails(doc, result, steps, testData, evidences) {
   if (testSteps.length === 0) {
     drawField(doc, "Steps", "No test steps recorded.");
   } else {
-    testSteps.forEach((step) => {
-      drawField(doc, `Step ${step.step_order}`, step.step_action);
+    const stepRows = testSteps.map((step) => [
+      step.step_order,
+      step.step_action,
+      step.step_target || "Not specified",
+      step.expected_result || "Not specified",
+    ]);
 
-      if (step.step_target) {
-        drawField(doc, "Target", step.step_target);
-      }
-
-      if (step.expected_result) {
-        drawField(doc, "Step Expected Result", step.expected_result);
-      }
-    });
+    drawTable(
+      doc,
+      [
+        { title: "Step", width: 35 },
+        { title: "Action", width: 150 },
+        { title: "Target", width: 110 },
+        { title: "Expected Result", width: 150 },
+      ],
+      stepRows,
+      { headerHeight: 27, rowHeight: 38 },
+    );
   }
 
   drawSectionTitle(doc, "Input / Test Data");
@@ -792,11 +1078,20 @@ function drawTestDetails(doc, result, steps, testData, evidences) {
   if (dataRows.length === 0) {
     drawField(doc, "Test Data", "No test data recorded.");
   } else {
-    dataRows.forEach((item) => {
-      drawField(doc, item.field_name, item.data_value);
-
-      drawField(doc, "Input Validity", item.is_valid ? "Valid" : "Invalid");
-    });
+    drawTable(
+      doc,
+      [
+        { title: "Field Name", width: 120 },
+        { title: "Input Value", width: 230 },
+        { title: "Validity", width: 95 },
+      ],
+      dataRows.map((item) => [
+        item.field_name,
+        item.data_value,
+        item.is_valid ? "Valid" : "Invalid",
+      ]),
+      { headerHeight: 25, rowHeight: 30 },
+    );
   }
 
   drawSectionTitle(doc, "Expected Result");
@@ -817,17 +1112,58 @@ function drawTestDetails(doc, result, steps, testData, evidences) {
 
   drawSectionTitle(doc, "Execution Information");
 
-  drawField(doc, "Execution Time", formatDuration(result.execution_time_ms));
+  drawField(
+    doc,
+    "Execution Time",
+    result.execution_id
+      ? formatDuration(result.execution_time_ms)
+      : "Not executed",
+  );
 
-  drawField(doc, "Retry Count", result.retry_count);
-  drawField(doc, "Execution ID", result.execution_id);
-  drawField(doc, "Test Run ID", result.run_id);
+  drawField(
+    doc,
+    "Retry Count",
+    result.execution_id ? result.retry_count : "Not recorded",
+  );
+
+  drawField(
+    doc,
+    "Execution ID",
+    result.execution_id || "Not executed",
+  );
+
+  drawField(
+    doc,
+    "Test Run ID",
+    result.run_id || "Not executed",
+  );
+
+  drawField(
+    doc,
+    "Git Commit",
+    result.git_commit,
+  );
+
+  drawField(
+    doc,
+    "Branch",
+    result.branch_name,
+  );
+
+  drawField(
+    doc,
+    "CI Run ID",
+    result.ci_run_id,
+  );
 
   drawSectionTitle(doc, "Evidence");
 
-  const resultEvidence = evidences.filter(
-    (item) => Number(item.result_id) === Number(result.execution_id),
-  );
+  const resultEvidence = result.execution_id
+    ? evidences.filter(
+        (item) =>
+          Number(item.result_id) === Number(result.execution_id),
+      )
+    : [];
 
   if (resultEvidence.length === 0) {
     drawField(doc, "Evidence", "No evidence recorded.");
@@ -838,19 +1174,17 @@ function drawTestDetails(doc, result, steps, testData, evidences) {
       drawField(
         doc,
         `Evidence ${index + 1}`,
-        `${item.evidence_type} — ${evidence.label}`,
+        `${item.evidence_type} | ${evidence.label}`,
       );
 
       if (evidence.url) {
-        const linkLabel = "Open evidence";
-
-        ensureSpace(doc, 24, "QA TEST EXECUTION REPORT");
+        ensureSpace(doc, 24);
 
         doc
           .font(FONT_BOLD)
           .fontSize(9)
           .fillColor("#1769AA")
-          .text(linkLabel, PAGE.margin + 118, doc.y, {
+          .text("Open evidence", PAGE.margin + 118, doc.y, {
             link: evidence.url,
             underline: true,
           });
@@ -868,28 +1202,75 @@ function drawTestDetails(doc, result, steps, testData, evidences) {
 }
 
 // ============================================================
+// PAGE NUMBERS
+// ============================================================
+
+function addPageNumbers(doc) {
+  const range = doc.bufferedPageRange();
+
+  for (
+    let index = range.start;
+    index < range.start + range.count;
+    index++
+  ) {
+    doc.switchToPage(index);
+
+    const pageNumber = index + 1;
+    const pageCount = range.count;
+    const y = doc.page.height - 27;
+
+    doc
+      .moveTo(PAGE.margin, y - 7)
+      .lineTo(doc.page.width - PAGE.margin, y - 7)
+      .strokeColor(COLORS.border)
+      .lineWidth(0.5)
+      .stroke();
+
+    doc
+      .font(FONT_REGULAR)
+      .fontSize(8)
+      .fillColor(COLORS.muted)
+      .text(
+        `QA Test Execution Report | Page ${pageNumber} of ${pageCount}`,
+        PAGE.margin,
+        y,
+        {
+          width: doc.page.width - PAGE.margin * 2,
+          align: "center",
+          lineBreak: false,
+        },
+      );
+  }
+}
+
+// ============================================================
 // MAIN EXPORT FUNCTION
 // ============================================================
 
-async function exportPdfReport() {
-  let outputPath;
-
+async function exportPdfReport(identifier) {
   try {
-    console.log("Loading latest test run...");
+    console.log("Loading selected template...");
 
-    const run = await getLatestRun();
+    const template = await getTemplate(identifier);
 
-    if (!run) {
-      throw new Error("No test run found in test_runs. Execute tests first.");
-    }
+    console.log(
+      `Exporting report for ${template.template_name} ` +
+      `(${template.template_code})...`,
+    );
 
-    console.log(`Exporting report for run ${run.run_id}...`);
+    const results = await getTemplateResults(template.template_id);
 
-    const results = await getRunResults(run.run_id);
+    const testIds = [
+      ...new Set(results.map((item) => Number(item.test_id))),
+    ];
 
-    const testIds = [...new Set(results.map((item) => Number(item.test_id)))];
-
-    const executionIds = results.map((item) => Number(item.execution_id));
+    const executionIds = [
+      ...new Set(
+        results
+          .map((item) => Number(item.execution_id))
+          .filter(Boolean),
+      ),
+    ];
 
     const [steps, testData, evidences] = await Promise.all([
       getSteps(testIds),
@@ -897,7 +1278,7 @@ async function exportPdfReport() {
       getEvidence(executionIds),
     ]);
 
-    outputPath = getOutputPath(run.run_id);
+    const outputPath = getOutputPath(template.template_code);
 
     const doc = new PDFDocument({
       size: PAGE.size,
@@ -909,9 +1290,9 @@ async function exportPdfReport() {
       },
       bufferPages: true,
       info: {
-        Title: `QA Test Execution Report - Run ${run.run_id}`,
+        Title: `Test Execution Report - ${template.template_name}`,
         Author: "QA Test Automation System",
-        Subject: "Test Execution Results",
+        Subject: `Execution results for ${template.template_code}`,
       },
     });
 
@@ -920,15 +1301,20 @@ async function exportPdfReport() {
     const writeStream = fs.createWriteStream(outputPath);
     doc.pipe(writeStream);
 
-    // Overview page.
-    drawOverview(doc, run, results);
+    // Page 1: Overview, statistics, and test case summary.
+    drawOverview(doc, template, results);
 
-    // Detail page for every test execution.
+    // Detail pages: only test cases linked to the selected template.
     for (const result of results) {
-      drawTestDetails(doc, result, steps, testData, evidences);
+      drawTestDetails(
+        doc,
+        result,
+        steps,
+        testData,
+        evidences,
+      );
     }
 
-    // Add page numbers after all content has been generated.
     addPageNumbers(doc);
 
     await new Promise((resolve, reject) => {
@@ -958,7 +1344,9 @@ async function exportPdfReport() {
 // ============================================================
 
 if (require.main === module) {
-  exportPdfReport().catch(() => {
+  const identifier = process.argv.slice(2).join(" ").trim();
+
+  exportPdfReport(identifier).catch(() => {
     process.exitCode = 1;
   });
 }

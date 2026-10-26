@@ -6,7 +6,7 @@
 // Takes its repositories through the constructor so tests can pass fakes.
 //
 // Cần làm / To do:
-- Chạy một câu SELECT 1 qua repository/db, đừng chỉ trả 200 cứng.
+// - Chạy một câu SELECT 1 qua repository/db, đừng chỉ trả 200 cứng.
 class SystemService {
   constructor(deps = {}) {
     // TODO: nhận repository cần dùng từ config/container.js
