@@ -1,51 +1,50 @@
-#!/usr/bin/env bash
-# Dung database local tu so khong: nap schema roi nap tai khoan DEV de dang nhap.
-# Chay lai duoc nhieu lan (schema dung IF NOT EXISTS, seed dung WHERE NOT EXISTS).
-# KHONG dung tren production.
-#
-#   ./db/seed-dev-users.sh
-#   DATABASE_URL='postgresql://user:pass@localhost:5432/test_automation_db' ./db/seed-dev-users.sh
-#
-# Huong dan day du: db/SETUP-LOCAL.md
-# Tai khoan va mat khau: dau file db/migrations/007_seed_users.sql
-set -euo pipefail
+-- CHỈ DÙNG CHO MÁY DEV. Không chạy trên DB thật / production.
+-- Tạo 2 tài khoản + 1 suite có 4 test case để thử API. Chạy lại nhiều lần vẫn an toàn.
+--   admin@dev.local  / Admin@123   (role admin)
+--   viewer@dev.local / Viewer@123  (role viewer)
+-- Mật khẩu băm bằng pgcrypto (bcrypt, tiền tố $2a$10$), bcryptjs của backend so khớp được.
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ENV_FILE="$ROOT/backend/.env"
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-die() { echo "LOI: $1" >&2; exit 1; }
+INSERT INTO users (full_name, email, password_hash, auth_provider, user_role)
+VALUES
+  ('Dev Admin',  'admin@dev.local',  crypt('Admin@123',  gen_salt('bf', 10)), 'LOCAL', 'admin'),
+  ('Dev Viewer', 'viewer@dev.local', crypt('Viewer@123', gen_salt('bf', 10)), 'LOCAL', 'viewer')
+ON CONFLICT ((lower(email))) DO NOTHING;
 
-command -v psql >/dev/null \
-  || die "chua co lenh psql. Arch: sudo pacman -S postgresql | Ubuntu/WSL: sudo apt install postgresql-client | macOS: brew install libpq"
+DO $$
+DECLARE
+  v_suite INTEGER;
+  v_spec  INTEGER;
+BEGIN
+  SELECT suite_id INTO v_suite FROM test_suites WHERE suite_name = 'DEV Smoke Suite';
+  IF v_suite IS NULL THEN
+    INSERT INTO test_suites (suite_name, suite_description)
+    VALUES ('DEV Smoke Suite', 'Dữ liệu mẫu để thử API chạy test')
+    RETURNING suite_id INTO v_suite;
+  END IF;
 
-# Uu tien bien moi truong; khong co thi doc tu backend/.env.
-# Lay DONG DAU TIEN va bo dau nhay bao quanh neu co ("..." hoac '...').
-if [[ -z "${DATABASE_URL:-}" ]]; then
-  [[ -f "$ENV_FILE" ]] || die "khong thay $ENV_FILE. Tao file do voi dong DATABASE_URL=..., hoac chay: DATABASE_URL='postgresql://...' $0"
-  DATABASE_URL="$(sed -n 's/^DATABASE_URL=//p' "$ENV_FILE" | head -1)"
-  DATABASE_URL="${DATABASE_URL%$'\r'}"          # file soan tren Windows
-  DATABASE_URL="${DATABASE_URL%\"}"; DATABASE_URL="${DATABASE_URL#\"}"
-  DATABASE_URL="${DATABASE_URL%\'}"; DATABASE_URL="${DATABASE_URL#\'}"
-fi
-[[ -n "$DATABASE_URL" ]] || die "DATABASE_URL rong. Khai trong $ENV_FILE hoac dat bien moi truong."
+  INSERT INTO test_specs (spec_code, suite_id, screen_name)
+  VALUES ('SPEC-DEV-01', v_suite, 'Login')
+  ON CONFLICT (spec_code) DO NOTHING;
 
-# Kiem tra ket noi truoc, de bao loi ro thay vi de psql nem ra giua chung.
-psql "$DATABASE_URL" -tAc 'SELECT 1' >/dev/null 2>&1 \
-  || die "khong ket noi duoc toi database.
-  - Postgres da chay chua?   sudo systemctl start postgresql
-  - Da tao database va user chua? Xem db/SETUP-LOCAL.md muc 1
-  - DATABASE_URL co dung khong? (dang postgresql://user:pass@host:5432/ten_db)"
+  SELECT spec_id INTO v_spec FROM test_specs WHERE spec_code = 'SPEC-DEV-01';
 
-run() {
-  echo "-> $1"
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$ROOT/$1"
-}
+  -- 3 test 'ready' + 1 test 'draft' (draft không bao giờ được đưa vào lần chạy).
+  INSERT INTO test_cases (spec_id, tc_code, title, expected_result, priority, test_type, test_status)
+  VALUES
+    (v_spec, 'TC-DEV-01', 'Login hợp lệ',      'Vào được dashboard', 'high',   'functional', 'ready'),
+    (v_spec, 'TC-DEV-02', 'Sai mật khẩu',      'Hiện thông báo lỗi', 'high',   'validation', 'ready'),
+    (v_spec, 'TC-DEV-03', 'Email để trống',    'Báo bắt buộc nhập',  'medium', 'validation', 'ready'),
+    (v_spec, 'TC-DEV-04', 'Test chưa hoàn tất','(đang soạn)',        'low',    'ui',         'draft')
+  ON CONFLICT (tc_code) DO NOTHING;
+END $$;
 
-run db/schema/test_automation_db_schema.sql
-run db/migrations/007_seed_users.sql
-run db/migrations/008_templates_and_run_config.sql
-run db/migrations/009_seed_sample_template.sql
-
-echo
-psql "$DATABASE_URL" -c "SELECT user_id, email, user_role, user_status FROM users ORDER BY user_id"
-echo "Xong. Mat khau cua cac tai khoan tren: xem db/migrations/007_seed_users.sql"
+-- Kiểm tra nhanh: SuiteId dùng cho template theo suite
+SELECT s.suite_id, s.suite_name,
+       COUNT(*) FILTER (WHERE c.test_status = 'ready') AS ready_cases
+  FROM test_suites s
+  JOIN test_specs sp ON sp.suite_id = s.suite_id
+  JOIN test_cases c  ON c.spec_id = sp.spec_id
+ WHERE s.suite_name = 'DEV Smoke Suite'
+ GROUP BY s.suite_id, s.suite_name;
