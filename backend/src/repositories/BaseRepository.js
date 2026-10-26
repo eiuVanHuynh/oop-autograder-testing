@@ -16,7 +16,28 @@ class BaseRepository {
     this.primaryKey = primaryKey;
   }
 
-  // TODO: findById / findAll / paginate / insert / update / remove
+  // Mọi repo con gọi this.query() thay vì require db trực tiếp.
+  query(sql, params) {
+    return query(sql, params);
+  }
+
+  async findById(id) {
+    const res = await this.query(
+      `SELECT * FROM ${this.tableName} WHERE ${this.primaryKey} = $1 LIMIT 1`,
+      [id],
+    );
+    return res.rows[0] || null;
+  }
+
+  async delete(id) {
+    const res = await this.query(
+      `DELETE FROM ${this.tableName} WHERE ${this.primaryKey} = $1`,
+      [id],
+    );
+    return res.rowCount > 0;
+  }
+
+  // shortcut: chưa có findAll/paginate/insert/update dùng chung — thêm khi có repo thứ hai cần.
 }
 
 module.exports = BaseRepository;

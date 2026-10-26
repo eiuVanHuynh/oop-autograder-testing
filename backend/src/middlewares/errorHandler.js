@@ -1,4 +1,4 @@
-const AppError = require("../utils/AppError");
+const AppError = require('../utils/AppError');
 
 // Chốt cuối: đổi mọi lỗi thành { error: { code, message, details? } }.
 // Final stop: turns every error into { error: { code, message, details? } }.
@@ -7,47 +7,29 @@ const AppError = require("../utils/AppError");
 //
 // Cần làm / To do:
 // - AppError → dùng status/code/details của nó. Còn lại → 500 INTERNAL_ERROR.
-// - Vẫn console.error toàn bộ lỗi để xem trên log Vercel.
+// - Log stack chỉ cho lỗi lạ và 5xx; AppError 4xx là phản hồi bình thường, không log.
 // eslint-disable-next-line no-unused-vars
 module.exports = (err, req, res, next) => {
-  // Luôn log toàn bộ lỗi để theo dõi trên console/Vercel logs
-  console.error(err);
-
-  let statusCode = 500;
-  let code = "INTERNAL_ERROR";
-  let message = "Internal Server Error";
-  let details;
-
-  // Kiểm tra nếu là lỗi do ứng dụng chủ động định nghĩa (AppError)
-  if (err instanceof AppError || (err.statusCode && err.message)) {
-    statusCode = err.statusCode || err.status || 500;
-    code =
-      err.code ||
-      (statusCode === 400
-        ? "BAD_REQUEST"
-        : statusCode === 401
-          ? "UNAUTHORIZED"
-          : statusCode === 403
-            ? "FORBIDDEN"
-            : statusCode === 404
-              ? "NOT_FOUND"
-              : statusCode === 409
-                ? "CONFLICT"
-                : "ERROR");
-    message = err.message || message;
-    details = err.details;
+  // Chỉ log stack cho lỗi KHÔNG lường trước. AppError 4xx là phản hồi bình thường
+  // (sai mật khẩu, thiếu quyền, body sai) — log stack cho chúng chỉ làm ngập log Vercel.
+  if (!(err instanceof AppError) || err.status >= 500) {
+    console.error(err);
   }
 
-  const errorObj = {
-    code,
-    message,
-  };
-
-  if (details !== undefined) {
-    errorObj.details = details;
+  if (err instanceof AppError) {
+    return res.status(err.status).json({
+      error: { code: err.code, message: err.message, details: err.details },
+    });
   }
 
-  return res.status(statusCode).json({
-    error: errorObj,
-  });
+  // Service hiện throw Error kèm statusCode thay vì AppError — vẫn tôn trọng status đó.
+  if (err.statusCode) {
+    return res
+      .status(err.statusCode)
+      .json({ error: { code: err.code || 'ERROR', message: err.message } });
+  }
+
+  return res
+    .status(500)
+    .json({ error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } });
 };

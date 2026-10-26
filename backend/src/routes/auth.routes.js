@@ -1,19 +1,8 @@
 const router = require("express").Router();
-const AuthController = require("../controllers/auth.controller");
-const AuthService = require("../services/auth.service");
-const UserRepository = require("../repositories/UserRepository");
+const { authController } = require("../config/container");
 
-// Khởi tạo trực tiếp instance để route có thể gọi hàm login
-const authService = new AuthService(UserRepository);
-const authController = new AuthController(authService);
-
-const {
-  validateRegister,
-  validateLogin,
-  validateForgotPassword,
-  validateResetPassword,
-} = require("../validators/auth.schema");
-const requireAuth = require("../middlewares/requireAuth");
+const { loginSchema } = require("../validators/auth.schema");
+const validate = require("../middlewares/validate");
 
 // Đăng nhập, đăng ký, quên mật khẩu, Google OAuth.
 // Login, register, forgot password, Google OAuth.
@@ -23,8 +12,10 @@ const requireAuth = require("../middlewares/requireAuth");
 // Cần làm / To do:
 // - Mỗi dòng theo đúng thứ tự: requireAuth → requireRole → validate → controller.
 // - Route chỉ khai báo URL, không có logic.
+// - Còn thiếu: register / me / logout / forgot-password / reset-password / google.
+//   Schema của register/forgot/reset đã có sẵn trong validators/auth.schema.js.
+//   Hiện tài khoản được tạo trực tiếp trong DB (db/migrations/007_seed_users.sql).
 
-// TODO: khai báo các route của nhóm auth
-router.post("/login", validateLogin, authController.login);
+router.post("/login", validate(loginSchema), authController.login);
 
 module.exports = router;

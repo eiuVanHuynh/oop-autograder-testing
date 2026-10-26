@@ -16,35 +16,37 @@ class RunRepository extends BaseRepository {
     let sql = `SELECT * FROM ${this.tableName} WHERE 1=1`;
     const params = [];
 
+    // ILIKE để giữ nguyên hành vi không phân biệt hoa thường của collation MySQL _ci
     if (filters.q) {
-      sql += " AND run_name LIKE ?";
       params.push(`%${filters.q}%`);
+      sql += ` AND run_name ILIKE $${params.length}`;
     }
 
     if (filters.from) {
-      sql += " AND created_at >= ?";
       params.push(filters.from);
+      sql += ` AND created_at >= $${params.length}`;
     }
 
     if (filters.to) {
-      sql += " AND created_at <= ?";
       params.push(filters.to);
+      sql += ` AND created_at <= $${params.length}`;
     }
 
     sql += " ORDER BY created_at DESC";
 
     // Hỗ trợ phân trang nếu có limit/page hoặc offset
     if (filters.limit) {
-      sql += " LIMIT ?";
       params.push(Number(filters.limit));
+      sql += ` LIMIT $${params.length}`;
 
       if (filters.offset) {
-        sql += " OFFSET ?";
         params.push(Number(filters.offset));
+        sql += ` OFFSET $${params.length}`;
       }
     }
 
-    return await this.query(sql, params);
+    const res = await this.query(sql, params);
+    return res.rows;
   }
 
   // Tạo mới một lượt chạy test
@@ -53,22 +55,19 @@ class RunRepository extends BaseRepository {
     const sql = `
       INSERT INTO ${this.tableName} 
       (run_name, user_id, config_json, created_at) 
-      VALUES (?, ?, ?, NOW())
+      VALUES ($1, $2, $3, NOW())
+      RETURNING ${this.primaryKey}
     `;
-    const result = await this.query(sql, [
-      run_name || "Unnamed Run",
-      user_id,
-      typeof config_json === "string"
-        ? config_json
-        : JSON.stringify(config_json),
-    ]);
-    return result.insertId;
+    // config_json là JSONB (backend-design.md mục 6): pg tự tuần tự hóa object.
+    // shortcut: nếu nhóm DB làm cột này thành TEXT thì phải bọc lại JSON.stringify.
+    const res = await this.query(sql, [run_name || "Unnamed Run", user_id, config_json]);
+    return res.rows[0][this.primaryKey];
   }
 
   // Cập nhật trạng thái hoặc thông tin thời gian kết thúc (để suy ra trạng thái completed/failed/interrupted)
   async updateStatus(id, status, extraFields = {}) {
-    let fields = ["status = ?"];
     const params = [status];
+    const fields = [`status = $${params.length}`];
 
     if (
       status === "completed" ||
@@ -80,14 +79,14 @@ class RunRepository extends BaseRepository {
     }
 
     for (const [key, value] of Object.entries(extraFields)) {
-      fields.push(`${key} = ?`);
       params.push(value);
+      fields.push(`${key} = $${params.length}`);
     }
 
     params.push(id);
-    const sql = `UPDATE ${this.tableName} SET ${fields.join(", ")} WHERE ${this.primaryKey} = ?`;
-    const result = await this.query(sql, params);
-    return result.affectedRows > 0;
+    const sql = `UPDATE ${this.tableName} SET ${fields.join(", ")} WHERE ${this.primaryKey} = $${params.length}`;
+    const res = await this.query(sql, params);
+    return res.rowCount > 0;
   }
 }
 

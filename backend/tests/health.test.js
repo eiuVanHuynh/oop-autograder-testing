@@ -1,3 +1,8 @@
+// Phải đặt TRƯỚC require('../src/app'): config/env.js throw nếu thiếu biến bắt buộc,
+// và test không nên phụ thuộc file .env của máy đang chạy.
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://u:p@localhost:5432/test';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
+
 const test = require('node:test');
 const assert = require('node:assert');
 const request = require('supertest');

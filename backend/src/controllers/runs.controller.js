@@ -7,7 +7,7 @@ const runsService = require("../services/runs.service");
 
 // 1. POST /runs - Bấm "Run Test" (Status code: 202 Accepted)
 const createRun = asyncHandler(async (req, res) => {
-  const userId = req.user ? req.user.id : 1;
+  const userId = req.user.user_id;
   const result = await runsService.createRun(userId, req.body);
   return res.status(202).json({ data: result });
 });
@@ -50,14 +50,14 @@ const streamRunLogs = asyncHandler(async (req, res) => {
 
 // 6. POST /runs/:id/cancel - Hủy lần chạy test đang chạy (Status code: 200 OK)
 const cancelRun = asyncHandler(async (req, res) => {
-  const result = await runsService.cancelRun(req.params.id);
+  const result = await runsService.cancelRun(req.params.id, req.user.user_id);
   return res.status(200).json({ data: result });
 });
 
 // 7. POST /runs/:id/rerun - Chạy lại test bằng cấu hình cũ (Status code: 202 Accepted)
 const rerunRun = asyncHandler(async (req, res) => {
-  const userId = req.user ? req.user.id : 1;
-  const result = await runsService.rerunRun(req.params.id, userId);
+  const userId = req.user.user_id;
+  const result = await runsService.rerun(req.params.id, userId);
   return res.status(202).json({ data: result });
 });
 

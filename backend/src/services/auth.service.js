@@ -1,6 +1,7 @@
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = require("../config/env");
+const AppError = require("../utils/AppError");
 
 // Đăng nhập, đăng ký, quên mật khẩu, Google OAuth.
 // Login, register, forgot password, Google OAuth.
@@ -8,10 +9,14 @@ const { JWT_SECRET } = require("../config/env");
 // Business rules live here. Never require pg, never touch req/res.
 // Nhận repository qua constructor để test thay được bằng bản giả.
 // Takes its repositories through the constructor so tests can pass fakes.
+//
+// Cần làm / To do:
+// - Băm mật khẩu bằng bcrypt, ký JWT. Tài khoản mới LUÔN là viewer.
+// - Token đặt lại mật khẩu KHÔNG lưu DB: JWT 15 phút ký kèm một phần password_hash hiện tại.
+// - forgot-password luôn trả 200 kể cả email không tồn tại, tránh dò email.
 class AuthService {
-  constructor(deps = {}) {
-    // Hỗ trợ cả truyền trực tiếp repository hoặc truyền dạng object { userRepository }
-    this.userRepository = deps.findByEmail ? deps : deps.userRepository || deps;
+  constructor({ userRepository }) {
+    this.userRepository = userRepository;
   }
 
   // 1. Đăng ký tài khoản mới (Tài khoản mới luôn là viewer)[cite: 1]
@@ -32,13 +37,13 @@ class AuthService {
       email,
       password_hash: passwordHash,
       user_role: "viewer",
-      status: "active",
+      user_status: "active",
     });
 
     const token = jwt.sign(
       {
-        id: newUser.id || newUser.user_id,
-        role: newUser.user_role || newUser.role,
+        user_id: newUser.user_id,
+        role: newUser.user_role,
       },
       JWT_SECRET,
       { expiresIn: "1d" },
@@ -63,22 +68,21 @@ class AuthService {
     }
 
     // Kiểm tra nếu tài khoản đang bị khóa -> trả về 423 theo api-endpoints.md mục 0 & 1[cite: 1]
-    if (
-      user.status === "locked" ||
-      user.is_locked ||
-      user.status === "suspended"
-    ) {
-      const error = new Error("User account is locked");
-      error.statusCode = 423;
-      error.code = "ACCOUNT_LOCKED";
+    if (user.user_status !== "active") {
+      throw new AppError(423, "ACCOUNT_LOCKED", "Tài khoản đang bị khóa");
+    }
+
+    // Tài khoản Google chưa đặt mật khẩu: password_hash NULL. bcrypt.compare(null)
+    // throw nên phải chặn ở đây, nếu không thành 500 thay vì 401.
+    if (!user.password_hash) {
+      const error = new Error("Invalid email or password");
+      error.statusCode = 401;
+      error.code = "UNAUTHORIZED";
       throw error;
     }
 
     // Compare password with bcrypt
-    const isMatch = await bcrypt.compare(
-      password,
-      user.password_hash || user.password,
-    );
+    const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       const error = new Error("Invalid email or password");
       error.statusCode = 401;
@@ -88,7 +92,7 @@ class AuthService {
 
     // Sign JWT token
     const token = jwt.sign(
-      { id: user.id || user.user_id, role: user.role || user.user_role },
+      { user_id: user.user_id, role: user.user_role },
       JWT_SECRET,
       { expiresIn: "1d" },
     );
@@ -115,14 +119,32 @@ class AuthService {
     return userWithoutPassword;
   }
 
+  // ######################################################################
+  // ##                                                                  ##
+  // ##  CẢNH BÁO: forgotPassword CHƯA HOÀN THIỆN — KHÔNG BẬT ROUTE NÀY  ##
+  // ##                                                                  ##
+  // ##  Đang console.log token reset ra log server, không gửi email.    ##
+  // ##  Ai đọc được log là đổi được mật khẩu của bất kỳ ai.             ##
+  // ##                                                                  ##
+  // ##  Trước khi gắn POST /auth/forgot-password:                       ##
+  // ##    1. Nối service gửi email thật, bỏ dòng console.log.           ##
+  // ##    2. Thêm rate-limit (api-endpoints.md mục 1: 429).             ##
+  // ##                                                                  ##
+  // ##  resetPassword bên dưới cũng chưa dùng được chừng nào bước 1     ##
+  // ##  chưa xong — xem thêm UserRepository.updatePassword.             ##
+  // ##                                                                  ##
+  // ##  Ai hoàn thiện thì xoá khung này.                                ##
+  // ##                                                                  ##
+  // ######################################################################
+
   // 4. Quên mật khẩu (Luôn trả 200 kể cả email không tồn tại để tránh dò email)[cite: 1]
   async forgotPassword(email) {
     const user = await this.userRepository.findByEmail(email);
-    if (user) {
+    if (user && user.password_hash) {
       // Token đặt lại mật khẩu KHÔNG lưu DB: JWT 15 phút ký kèm một phần password_hash hiện tại[cite: 2]
       const hashSnippet = user.password_hash.substring(0, 10);
       const resetToken = jwt.sign(
-        { id: user.id || user.user_id, snippet: hashSnippet },
+        { user_id: user.user_id, snippet: hashSnippet },
         JWT_SECRET,
         { expiresIn: "15m" },
       );
@@ -136,7 +158,7 @@ class AuthService {
   async resetPassword({ token, newPassword }) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
-      const user = await this.userRepository.findById(decoded.id);
+      const user = await this.userRepository.findById(decoded.user_id);
 
       if (!user) {
         const error = new Error("Link is invalid or expired");
@@ -155,10 +177,7 @@ class AuthService {
       }
 
       const newPasswordHash = await bcrypt.hash(newPassword, 10);
-      await this.userRepository.updatePassword(
-        user.id || user.user_id,
-        newPasswordHash,
-      );
+      await this.userRepository.updatePassword(user.user_id, newPasswordHash);
 
       return { message: "Password has been successfully reset." };
     } catch (err) {

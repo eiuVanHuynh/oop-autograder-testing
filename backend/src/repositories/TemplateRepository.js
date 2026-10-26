@@ -18,24 +18,25 @@ class TemplateRepository extends BaseRepository {
     const params = [];
 
     if (filters.q) {
-      sql += " AND template_name LIKE ?";
       params.push(`%${filters.q}%`);
+      sql += ` AND template_name ILIKE $${params.length}`;
     }
 
     if (filters.scope) {
-      sql += " AND scope = ?";
       params.push(filters.scope);
+      sql += ` AND scope = $${params.length}`;
     }
 
     sql += " ORDER BY created_at DESC";
-    return await this.query(sql, params);
+    const res = await this.query(sql, params);
+    return res.rows;
   }
 
   // Tìm template theo tên chính xác (phục vụ kiểm tra trùng lặp để trả 409)
   async findByName(templateName) {
-    const sql = `SELECT * FROM ${this.tableName} WHERE template_name = ?`;
-    const rows = await this.query(sql, [templateName]);
-    return rows[0] || null;
+    const sql = `SELECT * FROM ${this.tableName} WHERE template_name = $1`;
+    const res = await this.query(sql, [templateName]);
+    return res.rows[0] || null;
   }
 
   // Tạo mới template
@@ -52,18 +53,21 @@ class TemplateRepository extends BaseRepository {
     const sql = `
       INSERT INTO ${this.tableName} 
       (template_name, description, scope, target_json, env, timeout, created_by) 
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING ${this.primaryKey}
     `;
-    const result = await this.query(sql, [
+    // target_json là JSONB (backend-design.md mục 6): pg tự tuần tự hóa object.
+    // shortcut: nếu nhóm DB làm cột này thành TEXT thì phải bọc lại JSON.stringify.
+    const res = await this.query(sql, [
       template_name,
       description || null,
       scope || "UI",
-      JSON.stringify(target_json),
+      target_json,
       env || "development",
       timeout || 30000,
       created_by,
     ]);
-    return result.insertId;
+    return res.rows[0][this.primaryKey];
   }
 
   // Cập nhật template
@@ -81,19 +85,17 @@ class TemplateRepository extends BaseRepository {
     ];
     for (const field of allowedFields) {
       if (data[field] !== undefined) {
-        fields.push(`${field} = ?`);
-        params.push(
-          field === "target_json" ? JSON.stringify(data[field]) : data[field],
-        );
+        params.push(data[field]);
+        fields.push(`${field} = $${params.length}`);
       }
     }
 
     if (fields.length === 0) return false;
 
     params.push(id);
-    const sql = `UPDATE ${this.tableName} SET ${fields.join(", ")} WHERE ${this.primaryKey} = ?`;
-    const result = await this.query(sql, params);
-    return result.affectedRows > 0;
+    const sql = `UPDATE ${this.tableName} SET ${fields.join(", ")} WHERE ${this.primaryKey} = $${params.length}`;
+    const res = await this.query(sql, params);
+    return res.rowCount > 0;
   }
 }
 

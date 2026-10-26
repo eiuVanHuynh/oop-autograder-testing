@@ -1,12 +1,11 @@
 const asyncHandler = require("../utils/asyncHandler");
-
 // Đăng nhập, đăng ký, quên mật khẩu, Google OAuth.
 // Login, register, forgot password, Google OAuth.
 // Controller mỏng: đọc req → gọi service → res.json({ data }). Không có quy tắc nghiệp vụ.
 // Thin controller: read req → call the service → res.json({ data }). No business rules here.
 //
 // Cần làm / To do:
-// - register / login / me / logout / forgot-password / reset-password / google + callback.
+// // - register / login / me / logout / forgot-password / reset-password / google + callback.
 // - login trả { token, user }; sai mật khẩu 401, tài khoản khóa 423, thử nhiều lần 429.
 // - Trả đúng status code ghi trong api-endpoints.md mục 1.
 
@@ -39,7 +38,7 @@ class AuthController {
   // 3. GET /auth/me - Lấy thông tin user hiện tại qua token (Status code: 200, 401)
   me = asyncHandler(async (req, res) => {
     // req.user được gán từ requireAuth middleware
-    const userId = req.user.id;
+    const userId = req.user.user_id;
     const result = await this.authService.getCurrentUser(userId);
     return res.status(200).json({
       data: result,

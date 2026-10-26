@@ -1,57 +1,34 @@
-const jwt = require("jsonwebtoken");
+const jwt = require('jsonwebtoken');
+const { JWT_SECRET } = require('../config/env');
+const { userRepository } = require('../config/container');
+const AppError = require('../utils/AppError');
+const asyncHandler = require('../utils/asyncHandler');
 
-// Cửa 1 của chuỗi: xác thực JWT rồi gắn req.user = { id, role }.
-// Gate 1 of the chain: verify the JWT, then attach req.user = { id, role }.
-//
-// Cần làm / To do:
-// - Đọc header `Authorization: Bearer <token>`; thiếu hoặc sai → 401.
-// - Token hợp lệ nhưng tài khoản đang bị khóa → 423 (xem api-endpoints.md mục 0).
-// - Chỉ gắn id và role vào req.user, đừng gắn cả bản ghi user.
-module.exports = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({
-      error: {
-        code: "UNAUTHORIZED",
-        message: "Missing or malformed authorization token",
-      },
-    });
+// Cửa 1 của chuỗi: xác thực JWT rồi gắn req.user = { user_id, role }.
+// Gate 1 of the chain: verify the JWT, then attach req.user = { user_id, role }.
+module.exports = asyncHandler(async (req, res, next) => {
+  const [scheme, token] = (req.headers.authorization || '').split(' ');
+  if (scheme !== 'Bearer' || !token) {
+    throw new AppError(401, 'UNAUTHORIZED', 'Thiếu header Authorization: Bearer <token>');
   }
 
-  const token = authHeader.split(" ")[1];
-
+  let payload;
   try {
-    const secret = process.env.JWT_SECRET || "your_jwt_secret_key";
-    const decoded = jwt.verify(token, secret);
-
-    // Kiểm tra nếu tài khoản đang bị khóa (status/isLocked)
-    if (
-      decoded.isLocked ||
-      decoded.status === "locked" ||
-      decoded.status === "suspended"
-    ) {
-      return res.status(423).json({
-        error: {
-          code: "ACCOUNT_LOCKED",
-          message: "User account is locked",
-        },
-      });
-    }
-
-    // Chỉ gắn id và role vào req.user theo đúng yêu cầu
-    req.user = {
-      id: decoded.id || decoded.user_id,
-      role: decoded.role || decoded.user_role,
-    };
-
-    next();
-  } catch (error) {
-    return res.status(401).json({
-      error: {
-        code: "INVALID_TOKEN",
-        message: "Token is invalid or expired",
-      },
-    });
+    payload = jwt.verify(token, JWT_SECRET);
+  } catch {
+    throw new AppError(401, 'UNAUTHORIZED', 'Token không hợp lệ hoặc đã hết hạn');
   }
-};
+
+  // Phải đọc DB: token cấp trước khi admin khóa tài khoản vẫn còn hợp lệ về mặt chữ ký.
+  const user = await userRepository.findById(payload.user_id);
+  if (!user) {
+    throw new AppError(401, 'UNAUTHORIZED', 'Tài khoản không còn tồn tại');
+  }
+  if (user.user_status !== 'active') {
+    throw new AppError(423, 'ACCOUNT_LOCKED', 'Tài khoản đang bị khóa');
+  }
+
+  // Chỉ gắn id và role, đừng gắn cả bản ghi user.
+  req.user = { user_id: user.user_id, role: user.user_role };
+  next();
+});
