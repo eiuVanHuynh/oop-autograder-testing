@@ -144,6 +144,10 @@ blob-report/
 # Test artifacts
 *.zip
 
+# File tải về khi chạy spec export (TC-30) – giữ thư mục, bỏ nội dung
+automation/downloads/*
+!automation/downloads/.gitkeep
+
 # private workspace
 tmp/*
 

@@ -1,23 +1,48 @@
-const { Pool } = require('pg');
+const { Pool } = require("pg");
+require("dotenv").config();
 
 // Singleton: cả tiến trình dùng chung một pool. Vercel serverless tái dùng lại
-// Singleton: one pool for the whole process. Vercel serverless reuses a warm
-// container nên tạo pool mới mỗi request sẽ cạn kết nối của Supabase.
-// container, so a new pool per request would exhaust Supabase's connections.
+// container nên tạo pool mới mỗi request sẽ cạn kết nối của PostgreSQL.
+// container, so a new pool per request would exhaust PostgreSQL's connections.
 //
-// Cần làm / To do:
-// - Khởi tạo Pool từ DATABASE_URL, bật ssl khi chạy trên Vercel.
-// - query(): bọc pool.query, log thời gian chạy khi ở chế độ dev.
-// - Chỉ repositories/ được require file này. Service không chạm vào đây.
+// Chỉ repositories/ được require file này. Service không chạm vào đây.
+// Only repositories/ may require this file. Services never touch it.
 let pool;
 
 const getPool = () => {
-  // TODO: tạo pool một lần rồi trả lại
+  if (!pool) {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      // Nhỏ (1-5) để tránh vượt giới hạn kết nối của DB cloud,
+      // theo đúng ghi chú ở automation/tests/utils/db-client.js
+      max: Number(process.env.DB_POOL_SIZE || 5),
+      // Supabase bắt buộc SSL; Postgres local thường không bật. Cùng quy ước DB_SSL.
+      ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: true } : undefined,
+    });
+  }
   return pool;
 };
 
+// Trả về NGUYÊN result của pg: đọc thì dùng .rows, ghi thì dùng .rowCount.
+// Returns pg's result object as-is: read via .rows, write via .rowCount.
 const query = async (text, params) => {
-  // TODO: return (await getPool().query(text, params)).rows
+  const start = Date.now();
+  try {
+    const res = await getPool().query(text, params);
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("⚡ [Postgres Query]", {
+        text,
+        duration: `${Date.now() - start}ms`,
+        rowCount: res.rowCount,
+      });
+    }
+
+    return res;
+  } catch (error) {
+    console.error("❌ [DB Error]", { text, error: error.message });
+    throw error;
+  }
 };
 
 module.exports = { getPool, query };

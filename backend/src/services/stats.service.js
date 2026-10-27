@@ -6,7 +6,7 @@
 // Takes its repositories through the constructor so tests can pass fakes.
 //
 // Cần làm / To do:
-- Tính tổng số run, tỷ lệ đạt, số đang chạy, lần lỗi gần nhất.
+// - Tính tổng số run, tỷ lệ đạt, số đang chạy, lần lỗi gần nhất.
 // - Trạng thái run phải tính ra, không đọc cột run_status (không có cột đó).
 class StatsService {
   constructor(deps = {}) {
