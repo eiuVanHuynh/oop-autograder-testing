@@ -5,13 +5,24 @@
 // Giá trị `value` là chuỗi gửi lên backend (cột env); chỉ 'development' là chắc chắn
 // (mặc định trong templates.schema.js). 3 giá trị còn lại cần xác nhận với backend.
 export const ENVIRONMENTS = [
-  { value: 'development', label: 'Development' },
-  { value: 'testing', label: 'Testing Sandbox' },
-  { value: 'staging', label: 'Staging Lab' },
-  { value: 'production', label: 'Production Cert' },
+  { value: "development", label: "Development" },
+  { value: "testing", label: "Testing Sandbox" },
+  { value: "staging", label: "Staging Lab" },
+  { value: "production", label: "Production Cert" },
 ];
 
-export const SCOPES = ['UI', 'API', 'DB'];
+export const SCOPES = [
+  "API",
+  "UX/UI",
+  "Database",
+  "Frontend",
+  "Backend",
+  "Integration",
+  "E2E",
+  "Performance",
+  "Security",
+  "Accessibility",
+];
 
 export const envLabel = (value) =>
   ENVIRONMENTS.find((e) => e.value === value)?.label ?? value;

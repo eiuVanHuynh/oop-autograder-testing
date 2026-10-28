@@ -1,20 +1,7 @@
 // Trang Quản lý Template (/templates) – theo docs/frontend/design/08-template-management.png
 // và docs/backend/api-endpoints.md mục 4.
-// Template Management page.
-//
-// Giữ từ thiết kế: tiêu đề + nút Create, ô tìm kiếm, lọc Scope, nút làm mới, bảng
-// (tên + mô tả + ID, scope, người tạo, ngày cập nhật, hành động xem/sửa/xóa).
-// Bỏ vì API không có dữ liệu: 4 thẻ thống kê, sắp xếp, phân trang, banner Role/Policy,
-// thẻ "CLI & Headless Sync", tag, phiên bản, avatar vai trò của người tạo.
-//
-// BACKEND-TODO – tổng hợp:
-//  [1] "Created by" chỉ có id người tạo -> backend join bảng users để trả tên.
-//  [2] Ô "Test codes" nhập tay (TC-01, TC-02) -> đổi thành bộ chọn từ GET /cases, GET /suites (mục 9).
-//  [3] Danh sách môi trường lấy từ GET /meta/options (xem models/options.js).
-//  [4] GET /templates chưa trả số test case 'ready' (readyCount) để chặn sớm template rỗng.
-//  [5] GET /templates chưa có phân trang/sắp xếp; hiện lấy hết, 1 trang.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Plus,
   Pencil,
@@ -25,6 +12,7 @@ import {
   Search,
   RefreshCw,
   Copy,
+  ChevronDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
@@ -58,7 +46,7 @@ const toForm = (t, readOnly = false) => ({
   name: t.name,
   description: t.description,
   scope: t.scope,
-  testCodes: t.targetTestIds.join(", "),
+  testCodes: t.targetTestIds ? t.targetTestIds.join(", ") : "",
   suiteId: t.suiteId,
   defaultEnv: t.defaultEnv || "development",
   timeoutSec: String((t.defaultTimeoutMs || 30000) / 1000),
@@ -66,6 +54,122 @@ const toForm = (t, readOnly = false) => ({
 });
 
 const tplCode = (id) => `TPL-${String(id).padStart(4, "0")}`;
+
+// ==========================================
+// COMPONENT CUSTOM DROPDOWN CÓ Ô SEARCH
+// ==========================================
+function SearchableScopeSelect({
+  value,
+  onChange,
+  options = SCOPES,
+  placeholder = "All Scopes",
+  disabled = false,
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const dropdownRef = useRef(null);
+
+  // Lọc danh sách từ mảng options
+  const filteredOptions = (options || []).filter((s) =>
+    String(s).toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  // Đóng dropdown khi click ngoài vùng
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative w-full" ref={dropdownRef}>
+      {/* Nút bấm giả lập Select Box */}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          if (!isOpen) setSearchQuery("");
+          setIsOpen(!isOpen);
+        }}
+        className={`${inputCls} flex items-center justify-between text-left bg-white cursor-pointer select-none`}
+      >
+        <span
+          className={
+            value ? "text-gray-900 font-medium truncate" : "text-gray-400"
+          }
+        >
+          {value || placeholder}
+        </span>
+        <ChevronDown size={16} className="text-gray-400 shrink-0 ml-1" />
+      </button>
+
+      {/* Menu xổ xuống chứa Ô Search + Danh Sách */}
+      {isOpen && !disabled && (
+        <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-2 space-y-2">
+          {/* Ô Input Tìm Kiếm */}
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <Search
+              size={14}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+            />
+            <input
+              type="text"
+              autoFocus
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search scope..."
+              className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-900"
+            />
+          </div>
+
+          {/* Danh sách các Option */}
+          <div className="max-h-48 overflow-y-auto space-y-0.5">
+            {placeholder === "All Scopes" && (
+              <div
+                onClick={() => {
+                  onChange("");
+                  setIsOpen(false);
+                  setSearchQuery("");
+                }}
+                className="px-3 py-2 text-xs text-gray-500 hover:bg-gray-100 rounded-lg cursor-pointer"
+              >
+                -- All Scopes --
+              </div>
+            )}
+
+            {filteredOptions.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-gray-400 text-center">
+                No scopes found
+              </div>
+            ) : (
+              filteredOptions.map((s) => (
+                <div
+                  key={s}
+                  onClick={() => {
+                    onChange(s);
+                    setIsOpen(false);
+                    setSearchQuery("");
+                  }}
+                  className={`px-3 py-2 text-xs rounded-lg cursor-pointer transition ${
+                    value === s
+                      ? "bg-brand-50 text-brand-600 font-semibold"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {s}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Templates() {
   const { user } = useAuth();
@@ -180,12 +284,12 @@ export default function Templates() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
             Template Management
           </h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-gray-500 mt-1">
             {canEdit
               ? "Create, organize, and reuse test configurations."
               : "You have read-only access to templates."}
@@ -215,18 +319,16 @@ export default function Templates() {
             className={`${inputCls} pl-9`}
           />
         </div>
-        <select
-          value={scope}
-          onChange={(e) => setScope(e.target.value)}
-          className={`${inputCls} w-auto`}
-        >
-          <option value="">All Scopes</option>
-          {SCOPES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+
+        {/* Tích hợp Searchable Scope Select ở Filter Bar */}
+        <div className="w-48">
+          <SearchableScopeSelect
+            value={scope}
+            onChange={setScope}
+            placeholder="All Scopes"
+          />
+        </div>
+
         <button
           type="button"
           onClick={refresh}
@@ -271,7 +373,12 @@ export default function Templates() {
               {templates.map((t) => (
                 <tr key={t.id} className="hover:bg-gray-50">
                   <td className="px-5 py-3">
-                    <p className="font-medium text-gray-900">{t.name}</p>
+                    <button
+                      onClick={() => setForm(toForm(t, !canEdit))}
+                      className="font-medium text-gray-900 hover:text-brand-600 text-left block"
+                    >
+                      {t.name}
+                    </button>
                     <p className="text-xs text-gray-500 truncate max-w-md">
                       {t.description || "No description"}
                     </p>
@@ -284,20 +391,12 @@ export default function Templates() {
                       {t.scope}
                     </span>
                   </td>
-                  {/* BACKEND-TODO [1]: hiện tên người tạo khi backend trả. */}
                   <td className="px-5 py-3 text-gray-600">
                     User #{t.createdBy}
                   </td>
                   <td className="px-5 py-3 text-gray-600">{t.updatedAt}</td>
                   <td className="px-5 py-3 text-right whitespace-nowrap">
-                    <button
-                      onClick={() => setForm(toForm(t, true))}
-                      className="p-2 text-gray-500 hover:text-brand-600"
-                      title="View"
-                    >
-                      <Eye size={16} />
-                    </button>
-                    {canEdit && (
+                    {canEdit ? (
                       <>
                         <button
                           onClick={() => handleDuplicate(t)}
@@ -321,6 +420,14 @@ export default function Templates() {
                           <Trash2 size={16} />
                         </button>
                       </>
+                    ) : (
+                      <button
+                        onClick={() => setForm(toForm(t, true))}
+                        className="p-2 text-gray-500 hover:text-brand-600"
+                        title="View"
+                      >
+                        <Eye size={16} />
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -384,7 +491,6 @@ export default function Templates() {
                   </p>
                 ) : (
                   <>
-                    {/* BACKEND-TODO [2]: đổi thành bộ chọn test / suite. */}
                     <input
                       className={inputCls}
                       placeholder="TC-01, TC-02"
@@ -403,21 +509,18 @@ export default function Templates() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className={labelCls}>Scope</label>
-                  <select
-                    className={inputCls}
+                  {/* Tích hợp Searchable Scope Select ở Modal */}
+                  <SearchableScopeSelect
                     value={form.scope}
-                    onChange={(e) =>
-                      setForm({ ...form, scope: e.target.value })
+                    disabled={readOnly || saving}
+                    onChange={(val) =>
+                      setForm({ ...form, scope: val || "API" })
                     }
-                  >
-                    {SCOPES.map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </select>
+                    placeholder="Select scope"
+                  />
                 </div>
                 <div>
                   <label className={labelCls}>Environment</label>
-                  {/* BACKEND-TODO [3]: danh sách môi trường từ GET /meta/options. */}
                   <select
                     className={inputCls}
                     value={form.defaultEnv}

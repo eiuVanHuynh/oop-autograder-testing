@@ -26,7 +26,7 @@ export const MENU = [
       },
       {
         path: "/tests/new",
-        label: "Create Test",
+        label: "Test Case",
         icon: PlusCircle,
         roles: ["Admin", "Tester"],
       },
@@ -103,9 +103,6 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
             <p className="m-0 text-sm font-semibold leading-5 text-slate-900">
               OOP Grader
             </p>
-            <p className="m-0 text-[11px] leading-4 text-slate-500">
-              CI/CD Test Runner
-            </p>
           </div>
           <button
             type="button"
@@ -146,7 +143,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
                             className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                               active
                                 ? "bg-white/20 text-white"
-                                : "bg-purple-100 text-violet-600"
+                                : "bg-brand-100 text-violet-600"
                             }`}
                           >
                             {item.badge}

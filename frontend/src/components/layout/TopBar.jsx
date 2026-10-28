@@ -7,7 +7,7 @@ import { MENU, isActive } from "./Sidebar";
 
 // Badge vai trò theo Design.md (Admin tím, Tester xanh dương, Dev xanh ngọc, Viewer xám).
 const ROLE_BADGE = {
-  Admin: "bg-purple-100 text-violet-600",
+  Admin: "bg-brand-100 text-violet-600",
   Tester: "bg-blue-100 text-blue-600",
   Dev: "bg-teal-100 text-teal-700",
   Viewer: "bg-slate-100 text-slate-500",

@@ -20,7 +20,7 @@
 //  [8] Trạng thái "đang chuẩn bị máy chạy" (20-60s đầu, backend-design.md mục 5)
 //  [9] Nút "View Full Report" -> /runs/:id thật (hiện: mã run giả)
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Play,
@@ -29,6 +29,8 @@ import {
   CheckCircle2,
   Server,
   Terminal,
+  Search,
+  ChevronDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
@@ -45,7 +47,6 @@ const inputCls =
   "w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500";
 
 // Trạng thái hiển thị của khung log. Backend dùng: running / passed / failed / cancelled.
-// Display statuses. Backend uses: running / passed / failed / cancelled.
 const STATUS_STYLES = {
   IDLE: "bg-gray-100 text-gray-500",
   RUNNING: "bg-yellow-100 text-yellow-700 animate-pulse",
@@ -61,6 +62,7 @@ const RUN_ERRORS = {
   409: "Template này không có test case nào ở trạng thái ready.",
 };
 
+<<<<<<< Updated upstream
 /* =====================================================================
  * PHẦN GIẢ LẬP – xóa cả khối này khi backend xong, thay bằng gọi API thật.
  * MOCK SECTION – delete this whole block when the backend is ready.
@@ -118,6 +120,116 @@ async function cancelRun(runId) {
   mockRun.cancelled = true;
 }
 /* ======================= HẾT PHẦN GIẢ LẬP ======================= */
+=======
+// Component custom dropdown chọn template có tích hợp ô search
+function SearchableTemplateSelect({
+  value,
+  onChange,
+  templates = [],
+  disabled = false,
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const dropdownRef = useRef(null);
+
+  const selectedTpl = templates.find((t) => String(t.id) === String(value));
+
+  const filteredTemplates = (templates || []).filter((t) =>
+    String(t.name || "")
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase()),
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative w-full" ref={dropdownRef}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          if (!isOpen) setSearchQuery("");
+          setIsOpen(!isOpen);
+        }}
+        className={`${inputCls} flex items-center justify-between text-left bg-gray-50 cursor-pointer select-none`}
+      >
+        <span
+          className={
+            selectedTpl ? "text-gray-900 font-medium truncate" : "text-gray-400"
+          }
+        >
+          {selectedTpl ? selectedTpl.name : "-- Choose a Test Template --"}
+        </span>
+        <ChevronDown size={16} className="text-gray-400 shrink-0 ml-1" />
+      </button>
+
+      {isOpen && !disabled && (
+        <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-2 space-y-2">
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <Search
+              size={14}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+            />
+            <input
+              type="text"
+              autoFocus
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search templates..."
+              className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-900"
+            />
+          </div>
+
+          <div className="max-h-48 overflow-y-auto space-y-0.5">
+            <div
+              onClick={() => {
+                onChange("");
+                setIsOpen(false);
+                setSearchQuery("");
+              }}
+              className="px-3 py-2 text-xs text-gray-500 hover:bg-gray-100 rounded-lg cursor-pointer"
+            >
+              -- Choose a Test Template --
+            </div>
+
+            {filteredTemplates.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-gray-400 text-center">
+                No templates found
+              </div>
+            ) : (
+              filteredTemplates.map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => {
+                    onChange(String(t.id));
+                    setIsOpen(false);
+                    setSearchQuery("");
+                  }}
+                  className={`px-3 py-2 text-xs rounded-lg cursor-pointer transition ${
+                    String(value) === String(t.id)
+                      ? "bg-brand-50 text-brand-600 font-semibold"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {t.name}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+>>>>>>> Stashed changes
 
 export default function TestCreation() {
   const navigate = useNavigate();
@@ -149,8 +261,7 @@ export default function TestCreation() {
 
   const selected = templates.find((t) => String(t.id) === templateId);
 
-  const handleTemplateChange = (e) => {
-    const id = e.target.value;
+  const handleTemplateChange = (id) => {
     setTemplateId(id);
     const tpl = templates.find((t) => String(t.id) === id);
     if (!tpl) return;
@@ -211,10 +322,19 @@ export default function TestCreation() {
         setProgress(res.progress);
         if (res.status !== "running") {
           setIsRunning(false);
+<<<<<<< Updated upstream
           setTestStatus(res.status.toUpperCase());
           if (res.status === "passed")
             toast.success("Test execution completed!");
           if (res.status === "failed") toast.error("Test execution failed.");
+=======
+          const finalStatus =
+            res.status === "canceled" ? "CANCELLED" : res.status.toUpperCase();
+          setTestStatus(finalStatus);
+          if (finalStatus === "PASSED")
+            toast.success("Test execution completed!");
+          if (finalStatus === "FAILED") toast.error("Test execution failed.");
+>>>>>>> Stashed changes
         }
       } catch {
         // Mất mạng thoáng qua: bỏ qua, lần hỏi sau sẽ thử lại.
@@ -271,19 +391,13 @@ export default function TestCreation() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Select Assignment Template *
             </label>
-            <select
+            {/* Sử dụng component SearchableTemplateSelect thay cho thẻ select cũ */}
+            <SearchableTemplateSelect
               value={templateId}
-              onChange={handleTemplateChange}
+              templates={templates}
               disabled={isRunning}
-              className={inputCls}
-            >
-              <option value="">-- Choose a Test Template --</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+              onChange={handleTemplateChange}
+            />
           </div>
 
           {/* Thông tin template: chỉ đọc, không cho sửa ở trang này */}
@@ -299,8 +413,6 @@ export default function TestCreation() {
                   </span>
                 )}
               </div>
-              {/* BACKEND-TODO [1]: trường mô tả của backend là "description"
-                  (dữ liệu giả đang dùng "requirements"). */}
               <p className="text-gray-600">
                 {selected.description ?? selected.requirements}
               </p>
@@ -372,6 +484,23 @@ export default function TestCreation() {
                   </button>
                 ))}
               </div>
+              <div className="space-y-1">
+                <input
+                  type="range"
+                  min="5"
+                  max="300"
+                  step="5"
+                  disabled={isRunning}
+                  value={timeout}
+                  onChange={(e) => setTimeoutSec(e.target.value)}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-600 disabled:opacity-50"
+                />
+                <div className="flex justify-between text-[11px] text-gray-400 font-mono">
+                  <span>5s</span>
+                  <span>150s</span>
+                  <span>300s</span>
+                </div>
+              </div>
             </div>
 
             <button
@@ -411,7 +540,6 @@ export default function TestCreation() {
                 <Square size={14} /> Cancel Test
               </button>
             )}
-            {/* BACKEND-TODO [9]: runId là mã run thật do POST /runs trả về. */}
             {(testStatus === "PASSED" || testStatus === "FAILED") && (
               <button
                 type="button"
@@ -424,7 +552,6 @@ export default function TestCreation() {
           </div>
         </div>
 
-        {/* Progress. BACKEND-TODO [6]: API không trả %; tính từ số test đã xong hoặc bỏ thanh này. */}
         <div>
           <div className="flex justify-between text-xs text-gray-500 mb-1">
             <span>Progress</span>
@@ -438,7 +565,6 @@ export default function TestCreation() {
           </div>
         </div>
 
-        {/* Terminal */}
         <div className="bg-gray-900 rounded-xl p-4 font-mono text-xs h-64 overflow-y-auto space-y-2">
           {logs.length === 0 ? (
             <p className="text-gray-500 italic">

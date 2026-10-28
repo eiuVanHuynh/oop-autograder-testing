@@ -42,21 +42,13 @@ export default function History() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900">
             Execution History & Reports
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             Review past test runs, statuses, and performance analytics.
           </p>
         </div>
-        {canRunTest(user?.role) && (
-          <button
-            onClick={() => navigate("/tests/new")}
-            className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-purple-500/20 transition flex items-center gap-2"
-          >
-            <span>+ New Test Run</span>
-          </button>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -64,7 +56,7 @@ export default function History() {
         <div className="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-5 border-b border-gray-100 flex items-center justify-between">
             <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
-              <HistoryIcon size={18} className="text-purple-600" /> Past Test
+              <HistoryIcon size={18} className="text-brand-600" /> Past Test
               Runs
             </h3>
             <span className="text-xs text-gray-400 font-medium">
@@ -81,7 +73,7 @@ export default function History() {
                   onClick={() => setSelectedRun(run)}
                   className={`p-4 transition cursor-pointer flex items-center justify-between ${
                     isSelected
-                      ? "bg-purple-50/60 border-l-4 border-purple-600"
+                      ? "bg-brand-50/60 border-l-4 border-brand-600"
                       : "hover:bg-gray-50"
                   }`}
                 >
@@ -129,7 +121,7 @@ export default function History() {
                         e.stopPropagation();
                         navigate(`/runs/${run.id}`);
                       }}
-                      className="px-3 py-1.5 bg-white border border-gray-200 hover:border-purple-600 text-gray-700 hover:text-purple-600 rounded-lg text-xs font-medium shadow-sm transition flex items-center gap-1"
+                      className="px-3 py-1.5 bg-white border border-gray-200 hover:border-brand-600 text-gray-700 hover:text-brand-600 rounded-lg text-xs font-medium shadow-sm transition flex items-center gap-1"
                     >
                       <Eye size={14} /> Report
                     </button>
@@ -146,7 +138,7 @@ export default function History() {
             <div className="space-y-6">
               <div className="flex items-center justify-between pb-4 border-b border-gray-100">
                 <div>
-                  <span className="text-xs text-purple-600 font-mono font-semibold">
+                  <span className="text-xs text-brand-600 font-mono font-semibold">
                     QUICK REPORT PREVIEW
                   </span>
                   <h3 className="text-lg font-bold text-gray-900 mt-0.5">
@@ -202,7 +194,7 @@ export default function History() {
               {/* Nút hành động chuyển đến trang chi tiết Report đầy đủ */}
               <button
                 onClick={() => navigate(`/runs/${selectedRun.id}`)}
-                className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 transition"
+                className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-brand-500/25 flex items-center justify-center gap-2 transition"
               >
                 <span>View Full Report & Diff Viewer</span>{" "}
                 <ArrowRight size={16} />
