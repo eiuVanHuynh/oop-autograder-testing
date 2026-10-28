@@ -62,7 +62,6 @@ const RUN_ERRORS = {
   409: "Template này không có test case nào ở trạng thái ready.",
 };
 
-<<<<<<< Updated upstream
 /* =====================================================================
  * PHẦN GIẢ LẬP – xóa cả khối này khi backend xong, thay bằng gọi API thật.
  * MOCK SECTION – delete this whole block when the backend is ready.
@@ -119,8 +118,7 @@ async function cancelRun(runId) {
   void runId;
   mockRun.cancelled = true;
 }
-/* ======================= HẾT PHẦN GIẢ LẬP ======================= */
-=======
+
 // Component custom dropdown chọn template có tích hợp ô search
 function SearchableTemplateSelect({
   value,
@@ -229,7 +227,6 @@ function SearchableTemplateSelect({
     </div>
   );
 }
->>>>>>> Stashed changes
 
 export default function TestCreation() {
   const navigate = useNavigate();
@@ -322,19 +319,16 @@ export default function TestCreation() {
         setProgress(res.progress);
         if (res.status !== "running") {
           setIsRunning(false);
-<<<<<<< Updated upstream
           setTestStatus(res.status.toUpperCase());
           if (res.status === "passed")
             toast.success("Test execution completed!");
           if (res.status === "failed") toast.error("Test execution failed.");
-=======
           const finalStatus =
             res.status === "canceled" ? "CANCELLED" : res.status.toUpperCase();
           setTestStatus(finalStatus);
           if (finalStatus === "PASSED")
             toast.success("Test execution completed!");
           if (finalStatus === "FAILED") toast.error("Test execution failed.");
->>>>>>> Stashed changes
         }
       } catch {
         // Mất mạng thoáng qua: bỏ qua, lần hỏi sau sẽ thử lại.
