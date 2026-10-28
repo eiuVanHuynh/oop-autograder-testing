@@ -1,4 +1,5 @@
 const asyncHandler = require("../utils/asyncHandler");
+const { catalogService } = require("../config/container");
 
 // Suite / spec / case – nơi khai báo test, nguồn để chọn target.
 // Suites / specs / cases – where tests are declared, the source for picking targets.
@@ -10,5 +11,29 @@ const asyncHandler = require("../utils/asyncHandler");
 // - Trả đúng status code ghi trong api-endpoints.md mục 9.
 
 // TODO: các hàm xử lý, bọc trong asyncHandler
+const getCases = asyncHandler(async (req, res) => {
+  const cases = await catalogService.getCases(req.query);
+  res.status(200).json({ data: cases });
+});
+const createCase = asyncHandler(async (req, res) => {
+  const testCase = await catalogService.createCase(req.body);
+  res.status(201).json({ data: testCase });
+});
+const getCaseDetails = asyncHandler(async (req, res) => {
+  const testCase = await catalogService.getCaseDetails(req.params.id);
+  res.status(200).json({ data: testCase });
+});
+const replaceCaseSteps = asyncHandler(async (req, res) => {
+  const result = await catalogService.replaceCaseSteps(
+    req.params.id,
+    req.body.steps
+  );
 
-module.exports = {};
+  res.status(200).json({ data: result });
+});
+module.exports = {
+  getCases,
+  getCaseDetails,
+  replaceCaseSteps,
+  createCase,
+};

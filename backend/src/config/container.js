@@ -7,6 +7,7 @@ const CatalogRepository = require("../repositories/CatalogRepository");
 const RunRepository = require("../repositories/RunRepository");
 const LogRepository = require("../repositories/LogRepository");
 const RunsService = require("../services/runs.service");
+const CatalogService = require("../services/catalog.service");
 const { createTargetResolver } = require("../services/target");
 const { createRunner } = require("../services/runner");
 
@@ -28,6 +29,7 @@ const authController = new AuthController(authService);
 const templatesService = new TemplatesService({ templateRepository });
 
 const catalogRepository = new CatalogRepository();
+const catalogService = new CatalogService({ catalogRepository });
 const runRepository = new RunRepository();
 const logRepository = new LogRepository();
 const runsService = new RunsService({
@@ -42,5 +44,6 @@ module.exports = {
   authController,
   templatesService,
   runsService,
+  catalogService,
   userRepository, // requireAuth cần để kiểm tra trạng thái khóa của tài khoản
 };

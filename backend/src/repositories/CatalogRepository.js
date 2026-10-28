@@ -1,5 +1,5 @@
 const BaseRepository = require('./BaseRepository');
-
+const { getPool } = require('../config/db');
 // Đọc test_suites / test_specs / test_cases – nơi khai báo test.
 // Reads test_suites / test_specs / test_cases – where tests are declared.
 //
@@ -38,6 +38,169 @@ class CatalogRepository extends BaseRepository {
     );
     return res.rows.map((r) => r.code);
   }
+  async findCases(filters = {}) {
+    const conditions = [];
+    const values = [];
+
+    const addFilter = (column, value) => {
+      if (value !== undefined && value !== '') {
+        values.push(value);
+        conditions.push(`${column} = $${values.length}`);
+      }
+    };
+
+    addFilter('sp.suite_id', filters.suite);
+    addFilter('c.test_type', filters.type);
+    addFilter('c.priority', filters.priority);
+    if (filters.status !== undefined && filters.status !== '') {
+      values.push(filters.status.toUpperCase());
+      conditions.push(`UPPER(c.test_status) = $${values.length}`);
+    }
+
+    const whereClause = conditions.length
+      ? `WHERE ${conditions.join(' AND ')}`
+      : '';
+
+    const result = await this.query(
+      `SELECT c.*
+       FROM test_cases c
+       JOIN test_specs sp ON sp.spec_id = c.spec_id
+       ${whereClause}
+       ORDER BY c.test_id ASC`,
+      values
+    );
+
+    return result.rows;
+  }
+
+  async createCase(data) {
+    const result = await this.query(
+      `INSERT INTO test_cases (
+       spec_id,
+       tc_code,
+       title,
+       expected_result,
+       priority,
+       test_type,
+       test_status
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING *`,
+      [
+        data.spec_id,
+        data.tc_code,
+        data.title,
+        data.expected_result ?? "",
+        data.priority,
+        data.test_type,
+        data.test_status ?? "draft",
+      ]
+    );
+
+    return result.rows[0];
+  }
+
+  async findCaseDetails(id) {
+    const caseResult = await this.query(
+      `SELECT *
+       FROM test_cases
+       WHERE test_id = $1
+       LIMIT 1`,
+      [id],
+    );
+
+    const testCase = caseResult.rows[0];
+
+    if (!testCase) {
+      return null;
+    }
+
+    const [stepsResult, dataResult] = await Promise.all([
+      this.query(
+        `SELECT * FROM test_steps
+         WHERE test_id = $1
+         ORDER BY step_order ASC`,
+        [id],
+      ),
+      this.query(
+        `SELECT * FROM test_data
+         WHERE test_id = $1
+         ORDER BY data_id ASC`,
+        [id],
+      ),
+    ]);
+
+    return {
+      ...testCase,
+      steps: stepsResult.rows,
+      test_data: dataResult.rows,
+    };
+  }
+
+  async replaceCaseSteps(id, steps) {
+    const client = await getPool().connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Kiểm tra test case có tồn tại và khóa dòng trong transaction.
+      const caseResult = await client.query(
+        `SELECT test_id
+         FROM test_cases
+         WHERE test_id = $1
+         FOR UPDATE`,
+        [id],
+      );
+
+      if (caseResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
+      // Xóa toàn bộ steps hiện tại của test case.
+      await client.query(
+        'DELETE FROM test_steps WHERE test_id = $1',
+        [id],
+      );
+
+      // Thêm lại theo thứ tự của mảng gửi lên, bắt đầu từ 0.
+      const insertedSteps = [];
+
+      for (let index = 0; index < steps.length; index++) {
+        const step = steps[index];
+
+        const result = await client.query(
+          `INSERT INTO test_steps
+             (test_id, step_order, step_action, step_target, expected_result)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING *`,
+          [
+            id,
+            index,
+            step.step_action,
+            step.step_target ?? null,
+            step.expected_result ?? null,
+          ],
+        );
+
+        insertedSteps.push(result.rows[0]);
+      }
+
+      await client.query('COMMIT');
+      return insertedSteps;
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // Giữ nguyên lỗi ban đầu nếu rollback cũng thất bại.
+      }
+
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
 }
 
 module.exports = CatalogRepository;
