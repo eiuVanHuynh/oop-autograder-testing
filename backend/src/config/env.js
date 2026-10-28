@@ -32,4 +32,10 @@ module.exports = {
   GITHUB_REPO: process.env.GITHUB_REPO, // dạng owner/repo
   GITHUB_WORKFLOW: process.env.GITHUB_WORKFLOW || "run-tests.yml",
   GITHUB_REF: process.env.GITHUB_REF || "main",
+
+  // RUNNER=playwright: chạy thật bằng Playwright ngay trong backend (local).
+  BASE_URL: process.env.BASE_URL, // web đích, vd https://web-nhom-kia
+  PW_USERNAME: process.env.PW_USERNAME,
+  PW_PASSWORD: process.env.PW_PASSWORD,
+  PLAYWRIGHT_CHROMIUM_PATH: process.env.PLAYWRIGHT_CHROMIUM_PATH,
 };
