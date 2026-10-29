@@ -25,6 +25,7 @@ import {
   deleteTemplate,
   duplicateTemplate,
 } from "../services/templateService";
+import { listCases, listSuites } from "../services/catalogService";
 import { getErrorMessage } from "../services/authService";
 import CreateButton from "../components/ui/CreateButton";
 const EMPTY = {
@@ -173,6 +174,18 @@ function SearchableScopeSelect({
 
 export default function Templates() {
   const { user } = useAuth();
+  const [readyCases, setReadyCases] = useState([]);
+  const [suites, setSuites] = useState([]);
+  useEffect(() => {
+    Promise.all([listCases({ status: "ready" }), listSuites()])
+      .then(([c, s]) => {
+        setReadyCases(c);
+        setSuites(s);
+      })
+      .catch((e) =>
+        toast.error(getErrorMessage(e, "Cannot load test catalog.")),
+      );
+  }, []);
   const canEdit = canManageTemplates(user?.role);
 
   const [templates, setTemplates] = useState([]);
@@ -481,24 +494,58 @@ export default function Templates() {
 
               <div>
                 <label className={labelCls}>Tests to run *</label>
-                {form.suiteId ? (
-                  <p className="text-sm text-gray-600 bg-gray-50 rounded-xl px-3 py-2">
-                    Suite #{form.suiteId}
-                  </p>
-                ) : (
-                  <>
-                    <input
-                      className={inputCls}
-                      placeholder="TC-01, TC-02"
-                      value={form.testCodes}
-                      onChange={(e) =>
-                        setForm({ ...form, testCodes: e.target.value })
-                      }
-                    />
-                    <p className="text-xs text-gray-400 mt-1">
-                      Separate test codes with commas.
-                    </p>
-                  </>
+                <select
+                  className={inputCls}
+                  value={form.suiteId ?? ""}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      suiteId: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                >
+                  <option value="">— Pick individual tests —</option>
+                  {suites.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.readyCount} ready)
+                    </option>
+                  ))}
+                </select>
+
+                {!form.suiteId && (
+                  <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-gray-200 p-2 space-y-1">
+                    {readyCases.length === 0 && (
+                      <p className="text-xs text-gray-400">
+                        No ready test cases yet.
+                      </p>
+                    )}
+                    {readyCases.map((c) => {
+                      const picked = form.testCodes
+                        .split(",")
+                        .map((x) => x.trim())
+                        .filter(Boolean);
+                      const on = picked.includes(c.code);
+                      return (
+                        <label
+                          key={c.id}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            onChange={() => {
+                              const next = on
+                                ? picked.filter((x) => x !== c.code)
+                                : [...picked, c.code];
+                              setForm({ ...form, testCodes: next.join(", ") });
+                            }}
+                          />
+                          <span className="font-mono text-xs">{c.code}</span>{" "}
+                          {c.title}
+                        </label>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
 
