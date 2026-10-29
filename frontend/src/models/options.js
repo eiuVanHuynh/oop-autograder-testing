@@ -26,3 +26,15 @@ export const SCOPES = [
 
 export const envLabel = (value) =>
   ENVIRONMENTS.find((e) => e.value === value)?.label ?? value;
+
+export const CASE_TYPES = [
+  "functional",
+  "ui",
+  "validation",
+  "security",
+  "performance",
+  "usability",
+  "audit",
+];
+export const CASE_PRIORITIES = ["low", "medium", "high", "critical"];
+export const CASE_STATUSES = ["draft", "ready", "deprecated"];
