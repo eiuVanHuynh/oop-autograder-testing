@@ -11,6 +11,7 @@ import TestCreation from "../views/TestCreation";
 import TestReport from "../views/TestReport";
 import UserManagement from "../views/UserManagement";
 import Forbidden from "../views/Forbidden";
+import TestCases from "../views/TestCases";
 
 const ALL_ROLES = ["Admin", "Tester", "Dev", "Viewer"]; // Check tên với back-end
 
@@ -52,6 +53,7 @@ export default function AppRoutes() {
       >
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="templates" element={<Templates />} />
+        <Route path="testcases" element={<TestCases />} />
         <Route path="history" element={<History />} />
         <Route path="runs/:id" element={<TestReport />} />
 

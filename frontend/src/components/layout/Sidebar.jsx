@@ -21,6 +21,12 @@ export const MENU = [
         roles: ["Admin", "Tester", "Dev", "Viewer"],
       },
       {
+        path: "/testcases",
+        label: "Test Cases",
+        icon: ListChecks,
+        roles: ["Admin", "Tester", "Dev", "Viewer"],
+      },
+      {
         path: "/tests/new",
         label: "Test Case",
         icon: PlusCircle,
