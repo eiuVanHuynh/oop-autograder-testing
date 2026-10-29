@@ -6,6 +6,7 @@ import {
   Users,
   PlusCircle,
   FileText,
+  ListChecks,
 } from "lucide-react";
 import { useAuth } from "../../controllers/AuthContext";
 
