@@ -1,5 +1,5 @@
-const BaseRepository = require('./BaseRepository');
-const { getPool } = require('../config/db');
+const BaseRepository = require("./BaseRepository");
+const { getPool } = require("../config/db");
 // Đọc test_suites / test_specs / test_cases – nơi khai báo test.
 // Reads test_suites / test_specs / test_cases – where tests are declared.
 //
@@ -11,7 +11,7 @@ const CODE_EXPR = "COALESCE(NULLIF(c.automation_ref, ''), c.tc_code)";
 
 class CatalogRepository extends BaseRepository {
   constructor() {
-    super('test_suites', 'suite_id');
+    super("test_suites", "suite_id");
   }
 
   // Mã test 'ready' của một suite, dùng để sinh --grep.
@@ -43,31 +43,31 @@ class CatalogRepository extends BaseRepository {
     const values = [];
 
     const addFilter = (column, value) => {
-      if (value !== undefined && value !== '') {
+      if (value !== undefined && value !== "") {
         values.push(value);
         conditions.push(`${column} = $${values.length}`);
       }
     };
 
-    addFilter('sp.suite_id', filters.suite);
-    addFilter('c.test_type', filters.type);
-    addFilter('c.priority', filters.priority);
-    if (filters.status !== undefined && filters.status !== '') {
+    addFilter("sp.suite_id", filters.suite);
+    addFilter("c.test_type", filters.type);
+    addFilter("c.priority", filters.priority);
+    if (filters.status !== undefined && filters.status !== "") {
       values.push(filters.status.toUpperCase());
       conditions.push(`UPPER(c.test_status) = $${values.length}`);
     }
 
     const whereClause = conditions.length
-      ? `WHERE ${conditions.join(' AND ')}`
-      : '';
+      ? `WHERE ${conditions.join(" AND ")}`
+      : "";
 
     const result = await this.query(
-      `SELECT c.*
+      `SELECT c.*, sp.suite_id, sp.spec_code
        FROM test_cases c
        JOIN test_specs sp ON sp.spec_id = c.spec_id
        ${whereClause}
        ORDER BY c.test_id ASC`,
-      values
+      values,
     );
 
     return result.rows;
@@ -75,26 +75,20 @@ class CatalogRepository extends BaseRepository {
 
   async createCase(data) {
     const result = await this.query(
-      `INSERT INTO test_cases (
-       spec_id,
-       tc_code,
-       title,
-       expected_result,
-       priority,
-       test_type,
-       test_status
-     )
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING *`,
+      `INSERT INTO test_cases
+         (spec_id, tc_code, title, preconditions, expected_result, priority, test_type, test_status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       RETURNING *`,
       [
         data.spec_id,
         data.tc_code,
         data.title,
-        data.expected_result ?? "",
+        data.preconditions ?? null,
+        data.expected_result,
         data.priority,
         data.test_type,
         data.test_status ?? "draft",
-      ]
+      ],
     );
 
     return result.rows[0];
@@ -137,11 +131,45 @@ class CatalogRepository extends BaseRepository {
     };
   }
 
+  async findSuites() {
+    const r = await this.query(
+      `SELECT s.suite_id, s.suite_name,
+              COUNT(c.test_id) AS case_count,
+              COUNT(c.test_id) FILTER (WHERE c.test_status = 'ready') AS ready_count
+         FROM test_suites s
+         LEFT JOIN test_specs sp ON sp.suite_id = s.suite_id
+         LEFT JOIN test_cases c  ON c.spec_id = sp.spec_id
+        GROUP BY s.suite_id, s.suite_name
+        ORDER BY s.suite_id`,
+    );
+    return r.rows;
+  }
+
+  async findSpecsBySuite(suiteId) {
+    const r = await this.query(
+      `SELECT spec_id, spec_code, suite_id, screen_name
+         FROM test_specs WHERE suite_id = $1 ORDER BY spec_code`,
+      [suiteId],
+    );
+    return r.rows;
+  }
+
+  // Đếm test 'ready' mà một target_json của template sẽ chạy (dùng cho readyCount).
+  async countReadyForTarget(target = {}) {
+    const codes =
+      target.suiteId != null
+        ? await this.findReadyCaseCodes(target.suiteId)
+        : await this.findReadyCodesByTcCodes(
+            (target.testIds || []).map(String),
+          );
+    return codes.length;
+  }
+
   async replaceCaseSteps(id, steps) {
     const client = await getPool().connect();
 
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
       // Kiểm tra test case có tồn tại và khóa dòng trong transaction.
       const caseResult = await client.query(
@@ -153,15 +181,12 @@ class CatalogRepository extends BaseRepository {
       );
 
       if (caseResult.rowCount === 0) {
-        await client.query('ROLLBACK');
+        await client.query("ROLLBACK");
         return null;
       }
 
       // Xóa toàn bộ steps hiện tại của test case.
-      await client.query(
-        'DELETE FROM test_steps WHERE test_id = $1',
-        [id],
-      );
+      await client.query("DELETE FROM test_steps WHERE test_id = $1", [id]);
 
       // Thêm lại theo thứ tự của mảng gửi lên, bắt đầu từ 0.
       const insertedSteps = [];
@@ -186,11 +211,11 @@ class CatalogRepository extends BaseRepository {
         insertedSteps.push(result.rows[0]);
       }
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
       return insertedSteps;
     } catch (error) {
       try {
-        await client.query('ROLLBACK');
+        await client.query("ROLLBACK");
       } catch {
         // Giữ nguyên lỗi ban đầu nếu rollback cũng thất bại.
       }
@@ -200,7 +225,6 @@ class CatalogRepository extends BaseRepository {
       client.release();
     }
   }
-
 }
 
 module.exports = CatalogRepository;

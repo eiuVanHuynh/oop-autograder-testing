@@ -1,13 +1,13 @@
-const router = require('express').Router();
+const router = require("express").Router();
 const catalogController = require("../controllers/catalog.controller");
 const requireAuth = require("../middlewares/requireAuth");
 const requireRole = require("../middlewares/requireRole");
 const validate = require("../middlewares/validate");
 const {
-    caseQuerySchema,
-    caseIdParamsSchema,
-    replaceCaseStepsSchema,
-    createCaseSchema,
+  caseQuerySchema,
+  caseIdParamsSchema,
+  replaceCaseStepsSchema,
+  createCaseSchema,
 } = require("../validators/catalog.schema");
 // Suite / spec / case – nơi khai báo test, nguồn để chọn target.
 // Suites / specs / cases – where tests are declared, the source for picking targets.
@@ -21,24 +21,31 @@ const {
 // TODO: khai báo các route của nhóm catalog
 router.get("/cases/:id", requireAuth, catalogController.getCaseDetails);
 router.put(
-    "/cases/:id/steps",
-    requireAuth,
-    requireRole("admin", "tester"),
-    validate(caseIdParamsSchema, "params"),
-    validate(replaceCaseStepsSchema),
-    catalogController.replaceCaseSteps
+  "/cases/:id/steps",
+  requireAuth,
+  requireRole("admin", "tester"),
+  validate(caseIdParamsSchema, "params"),
+  validate(replaceCaseStepsSchema),
+  catalogController.replaceCaseSteps,
 );
 router.get(
-    "/cases",
-    requireAuth,
-    validate(caseQuerySchema, "query"),
-    catalogController.getCases
+  "/cases",
+  requireAuth,
+  validate(caseQuerySchema, "query"),
+  catalogController.getCases,
 );
 router.post(
   "/cases",
   requireAuth,
   requireRole("admin", "tester"),
   validate(createCaseSchema),
-  catalogController.createCase
+  catalogController.createCase,
+);
+router.get("/suites", requireAuth, catalogController.getSuites);
+router.get(
+  "/suites/:id/specs",
+  requireAuth,
+  validate(caseIdParamsSchema, "params"),
+  catalogController.getSpecs,
 );
 module.exports = router;

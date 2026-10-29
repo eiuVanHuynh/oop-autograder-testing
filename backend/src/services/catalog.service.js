@@ -1,5 +1,5 @@
-const { toApi } = require('../utils/mappers');
-const AppError = require('../utils/AppError');
+const { toApi } = require("../utils/mappers");
+const AppError = require("../utils/AppError");
 // Suite / spec / case – nơi khai báo test, nguồn để chọn target.
 // Suites / specs / cases – where tests are declared, the source for picking targets.
 // Quy tắc nghiệp vụ nằm ở đây. Không require pg, không chạm req/res.
@@ -19,7 +19,7 @@ class CatalogService {
     const testCase = await this.catalogRepository.findCaseDetails(id);
 
     if (!testCase) {
-      const error = new Error('Test case not found');
+      const error = new Error("Test case not found");
       error.statusCode = 404;
       throw error;
     }
@@ -30,7 +30,7 @@ class CatalogService {
       ...caseData,
       steps: testCase.steps.map((step) => toApi(step)),
       testData: (test_data ?? testData ?? testCase.test_data ?? []).map(
-        (item) => toApi(item)
+        (item) => toApi(item),
       ),
     };
   }
@@ -38,11 +38,7 @@ class CatalogService {
     const result = await this.catalogRepository.replaceCaseSteps(id, steps);
 
     if (result === null) {
-      throw new AppError(
-        404,
-        'NOT_FOUND',
-        'Test case not found'
-      );
+      throw new AppError(404, "NOT_FOUND", "Test case not found");
     }
 
     return {
@@ -54,11 +50,32 @@ class CatalogService {
     const cases = await this.catalogRepository.findCases(filters);
     return cases.map((testCase) => toApi(testCase));
   }
-  async createCase(data) {
-    const testCase = await this.catalogRepository.createCase(data);
-    return toApi(testCase);
+  async getSuites() {
+    return (await this.catalogRepository.findSuites()).map((r) => toApi(r));
   }
-  // TODO
+  async getSpecs(suiteId) {
+    return (await this.catalogRepository.findSpecsBySuite(suiteId)).map((r) =>
+      toApi(r),
+    );
+  }
+  async createCase(data) {
+    try {
+      const testCase = await this.catalogRepository.createCase(data);
+      return toApi(testCase);
+    } catch (err) {
+      if (err.code === "23505")
+        // UNIQUE: tc_code (hoặc automation_ref)
+        throw new AppError(
+          409,
+          "CONFLICT",
+          `tc_code "${data.tc_code}" đã tồn tại`,
+        );
+      if (err.code === "23503")
+        // FK: spec_id không có thật
+        throw new AppError(400, "VALIDATION_ERROR", "spec_id không tồn tại");
+      throw err;
+    }
+  }
 }
 
 module.exports = CatalogService;

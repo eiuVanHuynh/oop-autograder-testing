@@ -26,9 +26,11 @@ const templateRepository = new TemplateRepository();
 const authService = new AuthService({ userRepository });
 const authController = new AuthController(authService);
 
-const templatesService = new TemplatesService({ templateRepository });
-
 const catalogRepository = new CatalogRepository();
+const templatesService = new TemplatesService({
+  templateRepository,
+  caseRepository: catalogRepository,
+});
 const catalogService = new CatalogService({ catalogRepository });
 const runRepository = new RunRepository();
 const logRepository = new LogRepository();

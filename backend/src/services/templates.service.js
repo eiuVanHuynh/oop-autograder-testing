@@ -23,7 +23,9 @@ class TemplatesService {
       if (typeof t.target_json === "string") {
         t.target_json = JSON.parse(t.target_json);
       }
-      // Có thể tính thêm readyCasesCount nếu cần hỗ trợ giao diện chặn sớm template rỗng
+      t.ready_count = await this.caseRepository.countReadyForTarget(
+        t.target_json,
+      );
     }
 
     return templates;
@@ -40,7 +42,9 @@ class TemplatesService {
     if (typeof template.target_json === "string") {
       template.target_json = JSON.parse(template.target_json);
     }
-
+    t.ready_count = await this.caseRepository.countReadyForTarget(
+      t.target_json,
+    );
     return template;
   }
 

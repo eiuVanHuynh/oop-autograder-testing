@@ -23,10 +23,16 @@ const getCaseDetails = asyncHandler(async (req, res) => {
   const testCase = await catalogService.getCaseDetails(req.params.id);
   res.status(200).json({ data: testCase });
 });
+const getSuites = asyncHandler(async (req, res) => {
+  res.status(200).json({ data: await catalogService.getSuites() });
+});
+const getSpecs = asyncHandler(async (req, res) => {
+  res.status(200).json({ data: await catalogService.getSpecs(req.params.id) });
+});
 const replaceCaseSteps = asyncHandler(async (req, res) => {
   const result = await catalogService.replaceCaseSteps(
     req.params.id,
-    req.body.steps
+    req.body.steps,
   );
 
   res.status(200).json({ data: result });
@@ -36,4 +42,6 @@ module.exports = {
   getCaseDetails,
   replaceCaseSteps,
   createCase,
+  getSuites,
+  getSpecs,
 };
