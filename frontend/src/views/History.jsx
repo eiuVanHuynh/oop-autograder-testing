@@ -12,7 +12,6 @@ import {
   ArrowRight,
   Eye,
   Calendar,
-  Server,
 } from "lucide-react";
 
 export default function History() {
@@ -38,7 +37,7 @@ export default function History() {
         : "bg-red-100 text-red-700";
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-10xl mx-auto space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -64,14 +63,16 @@ export default function History() {
             </span>
           </div>
 
-          <div className="divide-y divide-gray-100">
+          {/* Khung bọc danh sách có giới hạn chiều cao và bật thanh cuộn tự động */}
+          <div className="max-h-[500px] overflow-auto divide-y divide-gray-100">
+            {/* ⚠️ Đã sửa lại từ runs.map thành testRuns.map cho đúng tên state */}
             {testRuns.map((run) => {
               const isSelected = selectedRun?.id === run.id;
               return (
                 <div
                   key={run.id}
                   onClick={() => setSelectedRun(run)}
-                  className={`p-4 transition cursor-pointer flex items-center justify-between ${
+                  className={`p-4 transition cursor-pointer flex items-center justify-between shrink-0 ${
                     isSelected
                       ? "bg-brand-50/60 border-l-4 border-brand-600"
                       : "hover:bg-gray-50"
@@ -117,11 +118,12 @@ export default function History() {
                   {/* Nút bấm xem Report chi tiết */}
                   <div className="flex items-center gap-2">
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         navigate(`/runs/${run.id}`);
                       }}
-                      className="px-3 py-1.5 bg-white border border-gray-200 hover:border-brand-600 text-gray-700 hover:text-brand-600 rounded-lg text-xs font-medium shadow-sm transition flex items-center gap-1"
+                      className="px-3 py-1.5 bg-white border border-gray-200 hover:border-brand-600 text-gray-700 hover:text-brand-600 rounded-lg text-xs font-medium shadow-sm transition flex items-center gap-1 cursor-pointer"
                     >
                       <Eye size={14} /> Report
                     </button>
@@ -194,7 +196,7 @@ export default function History() {
               {/* Nút hành động chuyển đến trang chi tiết Report đầy đủ */}
               <button
                 onClick={() => navigate(`/runs/${selectedRun.id}`)}
-                className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-brand-500/25 flex items-center justify-center gap-2 transition"
+                className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-brand-500/25 flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <span>View Full Report & Diff Viewer</span>{" "}
                 <ArrowRight size={16} />

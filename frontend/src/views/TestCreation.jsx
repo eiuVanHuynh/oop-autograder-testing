@@ -31,6 +31,7 @@ import {
   Terminal,
   Search,
   ChevronDown,
+  Clock,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
@@ -361,7 +362,7 @@ export default function TestCreation() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-10xl mx-auto space-y-6">
       {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Create New Test</h1>
@@ -423,11 +424,11 @@ export default function TestCreation() {
         <div className="lg:col-span-5 space-y-6">
           <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Server size={20} className="text-brand-600" /> Sandbox Execution
-              Configuration
+              <Clock size={20} className="text-brand-600" /> Execution Time
+              Setup
             </h3>
-
-            {/* Môi trường */}
+            {/* Để đây khi nào cần thì lấy lại - Đợi Vân xác nhận */}
+            {/* Môi trường
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Isolated Container Environment
@@ -449,7 +450,7 @@ export default function TestCreation() {
                   </button>
                 ))}
               </div>
-            </div>
+            </div> */}
 
             {/* Timeout */}
             <div>

@@ -289,33 +289,39 @@ export default function TestReport() {
       {activeTab === "diff" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Expected Output */}
-          <div className="bg-gray-900 rounded-2xl shadow-sm border border-gray-800 p-5 flex flex-col">
+          <div className="bg-gray-900 rounded-2xl shadow-lg border border-gray-700 p-5 flex flex-col">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-brand-400">
+              {/* Tiêu đề in đậm, màu trắng sáng */}
+              <span className="text-xs font-bold uppercase tracking-wider text-white">
                 Expected Output
               </span>
-              <span className="px-2 py-0.5 bg-brand-500/20 text-brand-300 rounded text-xs font-mono">
+              <span className="px-2.5 py-0.5 bg-brand-500/30 text-brand-200 rounded-md text-xs font-mono font-semibold border border-brand-400/40 shadow-sm">
                 JSON Schema
               </span>
             </div>
-            <pre className="flex-1 bg-black/40 rounded-xl p-4 font-mono text-xs text-gray-200 overflow-x-auto border border-gray-800 leading-relaxed">
-              {reportData.expectedOutput}
-            </pre>
+            <div className="max-h-[350px] overflow-auto rounded-xl border border-gray-700 bg-black/60 shadow-inner">
+              <pre className="p-4 font-mono text-xs text-gray-100 leading-relaxed whitespace-pre-wrap">
+                {reportData.expectedOutput}
+              </pre>
+            </div>
           </div>
 
           {/* Actual Output */}
-          <div className="bg-gray-900 rounded-2xl shadow-sm border border-gray-800 p-5 flex flex-col">
+          <div className="bg-gray-900 rounded-2xl shadow-lg border border-gray-700 p-5 flex flex-col">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
+              {/* Tiêu đề in đậm, màu trắng sáng */}
+              <span className="text-xs font-bold uppercase tracking-wider text-white">
                 Actual Output
               </span>
-              <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded text-xs font-mono">
+              <span className="px-2.5 py-0.5 bg-brand-500/30 text-brand-200 rounded-md text-xs font-mono font-semibold border border-brand-400/40 shadow-sm">
                 Matched (0 Diff)
               </span>
             </div>
-            <pre className="flex-1 bg-black/40 rounded-xl p-4 font-mono text-xs text-gray-200 overflow-x-auto border border-gray-800 leading-relaxed">
-              {reportData.actualOutput}
-            </pre>
+            <div className="max-h-[350px] overflow-auto rounded-xl border border-gray-700 bg-black/60 shadow-inner">
+              <pre className="p-4 font-mono text-xs text-gray-100 leading-relaxed whitespace-pre-wrap">
+                {reportData.actualOutput}
+              </pre>
+            </div>
           </div>
         </div>
       )}

@@ -3,18 +3,26 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "./layout/Sidebar";
 import TopBar from "./layout/TopBar";
 
-// Khung chung sau khi đăng nhập. Sửa menu thì vào Sidebar.jsx, sửa thanh trên thì vào TopBar.jsx.
-// Shared frame for signed-in pages. Edit the menu in Sidebar.jsx, the top bar in TopBar.jsx.
-// menuOpen chỉ ảnh hưởng màn hình nhỏ (< lg), nơi sidebar là drawer.
 export default function MainLayout() {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900">
-      <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar onMenuClick={() => setMenuOpen(true)} />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+    <div className="flex h-screen flex-col bg-slate-50 text-slate-900 overflow-hidden">
+      {/* TopBar nằm cố định trên cùng */}
+      <TopBar
+        collapsed={sidebarCollapsed}
+        onMenuClick={() => setSidebarCollapsed((prev) => !prev)}
+        onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+      />
+
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed((prev) => !prev)}
+        />
+
+        {/* Chỉ phần nội dung này mới có thanh cuộn riêng khi dài */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

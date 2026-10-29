@@ -53,7 +53,7 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-10xl mx-auto space-y-6">
       {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
@@ -72,9 +72,10 @@ export default function UserManagement() {
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="max-h-[450px] overflow-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
           <table className="w-full text-left border-collapse text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
+              {" "}
               <tr className="bg-gray-50 text-gray-500 text-xs font-semibold uppercase tracking-wider border-b border-gray-100">
                 <th className="py-3.5 px-6">Name & Email</th>
                 <th className="py-3.5 px-6">Role Assignment</th>

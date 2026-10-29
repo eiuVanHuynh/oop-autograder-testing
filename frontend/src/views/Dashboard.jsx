@@ -21,7 +21,7 @@ import {
 import { useAuth } from "../controllers/AuthContext";
 import { canRunTest } from "../models/permissions";
 import { getRuns, computeStats, dailyPassFail } from "../services/runService";
-
+import CreateButton from "../components/ui/CreateButton";
 const STATUS_STYLE = {
   PASSED: "bg-emerald-100 text-emerald-700",
   FAILED: "bg-red-100 text-red-700",
@@ -194,7 +194,7 @@ export default function Dashboard() {
     return <p className="text-sm text-gray-500">Loading dashboard...</p>;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-10xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
@@ -205,12 +205,7 @@ export default function Dashboard() {
           </p>
         </div>
         {canRunTest(user?.role) && (
-          <button
-            onClick={() => navigate("/tests/new")}
-            className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-brand-500/20 flex items-center gap-2 shrink-0"
-          >
-            <Plus size={16} /> Create Test Run
-          </button>
+          <CreateButton onClick={() => navigate("/tests/new")} />
         )}
       </div>
 
@@ -266,9 +261,9 @@ export default function Dashboard() {
             View all
           </button>
         </div>
-        <div className="overflow-x-auto">
+        <div className="max-h-[400px] overflow-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+            <thead className="bg-gray-50 text-xs text-gray-500 uppercase sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="text-left px-5 py-3">ID</th>
                 <th className="text-left px-5 py-3">Name</th>

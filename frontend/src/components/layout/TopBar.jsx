@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bell, ChevronDown, LogOut, Menu, Search, User } from "lucide-react";
+import {
+  Bell,
+  ChevronDown,
+  LogOut,
+  Menu,
+  Search,
+  User,
+  Terminal,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ChevronRight,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../controllers/AuthContext";
 import { MENU, isActive } from "./Sidebar";
@@ -19,9 +30,11 @@ const pageTitle = (pathname) =>
     ?.label ?? "";
 
 // Thanh trên cùng. Logout nằm ở menu avatar tại đây, không còn ở sidebar (yêu cầu v3).
-// Top bar. Logout lives in the avatar menu here, no longer in the sidebar (v3 requirement).
-// onMenuClick: mở drawer của Sidebar trên màn hình nhỏ.
-export default function TopBar({ onMenuClick = () => {} }) {
+export default function TopBar({
+  onMenuClick = () => {},
+  onToggleSidebar = () => {},
+  collapsed = false,
+}) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -42,36 +55,49 @@ export default function TopBar({ onMenuClick = () => {} }) {
     navigate("/login", { replace: true });
   };
 
-  // Chưa có API tìm kiếm toàn cục nên chỉ báo cho người dùng biết.
   const handleSearch = (e) => {
     e.preventDefault();
     if (keyword.trim()) toast("Global search is not available yet");
   };
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 sm:px-6">
-      {/* Nút mở menu: chỉ hiện khi sidebar đang là drawer */}
-      <button
-        type="button"
-        onClick={onMenuClick}
-        aria-label="Open menu"
-        className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
-      >
-        <Menu size={20} />
-      </button>
+    <header className="sticky top-0 z-20 flex h-16 w-full shrink-0 items-center gap-4 border-b border-slate-200 bg-white px-4 sm:px-6">
+      <div className="flex items-center gap-3">
+        {/* 1. Click vào icon Terminal: Thu gọn / mở rộng Sidebar */}
+        <button
+          type="button"
+          onClick={onToggleSidebar}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white transition-transform duration-300 hover:bg-brand-700 cursor-pointer ${
+            !collapsed ? "rotate-90" : "rotate-0"
+          }`}
+          title={collapsed ? "Mở sidebar" : "Thu gọn sidebar"}
+        >
+          <Terminal size={18} />
+        </button>
 
+        {/* 2. Click vào chữ OOP Grader: Quay về trang Dashboard */}
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard")}
+          className="hidden sm:flex items-center gap-1.5 bg-transparent border-none p-0 cursor-pointer hover:opacity-80 transition"
+          title="Về trang Dashboard"
+        >
+          <span className="text-xl font-extrabold tracking-tight text-slate-900">
+            <span className="text-brand-600">OOP</span> Grader
+          </span>
+        </button>
+      </div>
+      <div className="h-6 w-px bg-slate-200 hidden sm:block" />
       {/* Breadcrumb */}
-      <p className="m-0 hidden shrink-0 text-sm text-slate-500 sm:block">
-        OOP Grader <span className="mx-1 text-slate-300">/</span>
-        <span className="font-medium text-slate-900">
+      <p className="m-0 hidden shrink-0 text-sm text-slate-500 md:block">
+        <span className="text-base font-bold text-slate-900">
           {pageTitle(pathname)}
         </span>
       </p>
-
       {/* Ô tìm kiếm */}
       <form
         onSubmit={handleSearch}
-        className="relative ml-4 hidden w-full max-w-md md:block"
+        className="relative ml-2 hidden w-full max-w-sm lg:block"
       >
         <Search
           size={16}
@@ -80,14 +106,12 @@ export default function TopBar({ onMenuClick = () => {} }) {
         <input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          placeholder="Search submissions, student ID..."
+          placeholder="Search templates, tests, submissions..."
           className="h-10 w-full rounded-lg bg-brand-50 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600"
         />
       </form>
-
       <div className="flex-1" />
-
-      {/* Chỉ trang trí, chưa có API: xóa hai khối dưới đây nếu không cần */}
+      {/* Cluster Status & Notifications */}
       <span className="hidden items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 font-mono text-[11px] text-slate-600 xl:inline-flex">
         <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
         Cluster v2.4 Online
@@ -100,7 +124,6 @@ export default function TopBar({ onMenuClick = () => {} }) {
       >
         <Bell size={18} />
       </button>
-
       {/* Menu avatar */}
       <div className="relative">
         <button
@@ -118,7 +141,6 @@ export default function TopBar({ onMenuClick = () => {} }) {
 
         {menuOpen && (
           <>
-            {/* Lớp trong suốt phủ màn hình: bấm ra ngoài thì đóng menu */}
             <div
               className="fixed inset-0 z-30"
               onClick={() => setMenuOpen(false)}

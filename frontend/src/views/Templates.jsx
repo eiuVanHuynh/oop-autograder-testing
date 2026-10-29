@@ -1,6 +1,6 @@
 // Trang Quản lý Template (/templates) – theo docs/frontend/design/08-template-management.png
 // và docs/backend/api-endpoints.md mục 4.
-
+/// EHEHEHHEHE
 import { useState, useEffect, useRef } from "react";
 import {
   Plus,
@@ -26,7 +26,7 @@ import {
   duplicateTemplate,
 } from "../services/templateService";
 import { getErrorMessage } from "../services/authService";
-
+import CreateButton from "../components/ui/CreateButton";
 const EMPTY = {
   name: "",
   description: "",
@@ -282,12 +282,12 @@ export default function Templates() {
   const readOnly = !!form?.readOnly;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-10xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            Template Management
+            TestCase Template Management
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             {canEdit
@@ -295,14 +295,7 @@ export default function Templates() {
               : "You have read-only access to templates."}
           </p>
         </div>
-        {canEdit && (
-          <button
-            onClick={() => setForm({ ...EMPTY })}
-            className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-brand-500/20 flex items-center gap-2 shrink-0"
-          >
-            <Plus size={16} /> Create Template
-          </button>
-        )}
+        {canEdit && <CreateButton onClick={() => setForm({ ...EMPTY })} />}
       </div>
 
       {/* Filter bar */}
@@ -347,93 +340,96 @@ export default function Templates() {
             <p className="text-sm">No templates found.</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
-              <tr>
-                <th className="text-left px-5 py-3">
-                  Template name & description
-                </th>
-                <th className="text-left px-5 py-3">Test scope</th>
-                <th className="text-left px-5 py-3">Created by</th>
-                <th className="text-left px-5 py-3">Last updated</th>
-                <th className="px-5 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading && templates.length === 0 && (
+          <div className="max-h-[450px] overflow-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead className="bg-gray-50 text-xs text-gray-500 uppercase sticky top-0 z-10 shadow-sm">
+                {" "}
                 <tr>
-                  <td
-                    colSpan={5}
-                    className="px-5 py-8 text-center text-gray-400"
-                  >
-                    Loading...
-                  </td>
+                  <th className="text-left px-5 py-3">
+                    Template name & description
+                  </th>
+                  <th className="text-left px-5 py-3">Test scope</th>
+                  <th className="text-left px-5 py-3">Created by</th>
+                  <th className="text-left px-5 py-3">Last updated</th>
+                  <th className="px-5 py-3" />
                 </tr>
-              )}
-              {templates.map((t) => (
-                <tr key={t.id} className="hover:bg-gray-50">
-                  <td className="px-5 py-3">
-                    <button
-                      onClick={() => setForm(toForm(t, !canEdit))}
-                      className="font-medium text-gray-900 hover:text-brand-600 text-left block"
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading && templates.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-5 py-8 text-center text-gray-400"
                     >
-                      {t.name}
-                    </button>
-                    <p className="text-xs text-gray-500 truncate max-w-md">
-                      {t.description || "No description"}
-                    </p>
-                    <p className="text-xs text-gray-400 font-mono">
-                      ID: {tplCode(t.id)}
-                    </p>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className="px-2 py-0.5 bg-brand-50 text-brand-600 rounded text-xs font-medium">
-                      {t.scope}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-gray-600">
-                    User #{t.createdBy}
-                  </td>
-                  <td className="px-5 py-3 text-gray-600">{t.updatedAt}</td>
-                  <td className="px-5 py-3 text-right whitespace-nowrap">
-                    {canEdit ? (
-                      <>
-                        <button
-                          onClick={() => handleDuplicate(t)}
-                          className="p-2 text-gray-500 hover:text-brand-600"
-                          title="Duplicate"
-                        >
-                          <Copy size={16} />
-                        </button>
-                        <button
-                          onClick={() => setForm(toForm(t))}
-                          className="p-2 text-gray-500 hover:text-brand-600"
-                          title="Edit"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button
-                          onClick={() => setToDelete(t)}
-                          className="p-2 text-gray-500 hover:text-red-600"
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </>
-                    ) : (
+                      Loading...
+                    </td>
+                  </tr>
+                )}
+                {templates.map((t) => (
+                  <tr key={t.id} className="hover:bg-gray-50">
+                    <td className="px-5 py-3">
                       <button
-                        onClick={() => setForm(toForm(t, true))}
-                        className="p-2 text-gray-500 hover:text-brand-600"
-                        title="View"
+                        onClick={() => setForm(toForm(t, !canEdit))}
+                        className="font-medium text-gray-900 hover:text-brand-600 text-left block"
                       >
-                        <Eye size={16} />
+                        {t.name}
                       </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      <p className="text-xs text-gray-500 truncate max-w-md">
+                        {t.description || "No description"}
+                      </p>
+                      <p className="text-xs text-gray-400 font-mono">
+                        ID: {tplCode(t.id)}
+                      </p>
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="px-2 py-0.5 bg-brand-50 text-brand-600 rounded text-xs font-medium">
+                        {t.scope}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-gray-600">
+                      User #{t.createdBy}
+                    </td>
+                    <td className="px-5 py-3 text-gray-600">{t.updatedAt}</td>
+                    <td className="px-5 py-3 text-right whitespace-nowrap">
+                      {canEdit ? (
+                        <>
+                          <button
+                            onClick={() => handleDuplicate(t)}
+                            className="p-2 text-gray-500 hover:text-brand-600"
+                            title="Duplicate"
+                          >
+                            <Copy size={16} />
+                          </button>
+                          <button
+                            onClick={() => setForm(toForm(t))}
+                            className="p-2 text-gray-500 hover:text-brand-600"
+                            title="Edit"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                            onClick={() => setToDelete(t)}
+                            className="p-2 text-gray-500 hover:text-red-600"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => setForm(toForm(t, true))}
+                          className="p-2 text-gray-500 hover:text-brand-600"
+                          title="View"
+                        >
+                          <Eye size={16} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
