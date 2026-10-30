@@ -10,9 +10,10 @@ import {
   X,
   FileText,
   Search,
-  RefreshCw,
   Copy,
   ChevronDown,
+  Power,
+  PowerOff,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
@@ -28,6 +29,9 @@ import {
 import { listCases, listSuites } from "../services/catalogService";
 import { getErrorMessage } from "../services/authService";
 import CreateButton from "../components/ui/CreateButton";
+import FilterBar from "../components/ui/FilterBar";
+import FilterMenu from "../components/ui/FilterMenu";
+import RowMenu from "../components/ui/RowMenu";
 const EMPTY = {
   name: "",
   description: "",
@@ -51,6 +55,7 @@ const toForm = (t, readOnly = false) => ({
   suiteId: t.suiteId,
   defaultEnv: t.defaultEnv || "development",
   timeoutSec: String((t.defaultTimeoutMs || 30000) / 1000),
+  status: t.status,
   readOnly,
 });
 
@@ -191,7 +196,9 @@ export default function Templates() {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
-  const [scope, setScope] = useState("");
+  // Mảng rỗng = không lọc nhóm đó.
+  const [filters, setFilters] = useState({ scope: [], status: [] });
+  const { scope: scopes, status: statuses } = filters;
   const [reloadKey, setReloadKey] = useState(0);
   const [form, setForm] = useState(null); // null = đóng
   const [saving, setSaving] = useState(false);
@@ -203,11 +210,20 @@ export default function Templates() {
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
+        // BACKEND-TODO: GET /templates chỉ nhận 1 scope và chưa nhận status,
+        // nên chọn nhiều giá trị thì lọc ở client.
         const list = await listTemplates({
           q: q.trim() || undefined,
-          scope: scope || undefined,
+          scope: scopes.length === 1 ? scopes[0] : undefined,
         });
-        if (!cancelled) setTemplates(list);
+        if (!cancelled)
+          setTemplates(
+            list.filter(
+              (t) =>
+                (scopes.length === 0 || scopes.includes(t.scope)) &&
+                (statuses.length === 0 || statuses.includes(t.status)),
+            ),
+          );
       } catch (err) {
         if (!cancelled)
           toast.error(getErrorMessage(err, "Cannot load templates."));
@@ -219,7 +235,7 @@ export default function Templates() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [q, scope, reloadKey]);
+  }, [q, scopes, statuses, reloadKey]);
 
   const refresh = () => setReloadKey((k) => k + 1);
 
@@ -245,6 +261,7 @@ export default function Templates() {
       targetTestIds: testIds,
       defaultEnv: form.defaultEnv,
       defaultTimeoutMs: Math.round(timeoutSec * 1000), // form dùng giây, backend dùng mili-giây
+      status: form.status,
     };
 
     setSaving(true);
@@ -281,6 +298,19 @@ export default function Templates() {
     }
   };
 
+  // Tắt tạm một template: không xoá, chỉ để nó không còn chọn được khi Run (issue #41 mục 2).
+  const handleToggleStatus = async (t) => {
+    if (!canEdit) return toast.error("You do not have permission.");
+    const next = t.status === "inactive" ? "active" : "inactive";
+    try {
+      await updateTemplate(t.id, { ...t, status: next }); // PUT /templates/:id
+      toast.success(next === "inactive" ? "Template deactivated." : "Template activated.");
+      refresh();
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Cannot change the template status."));
+    }
+  };
+
   const handleDuplicate = async (t) => {
     if (!canEdit) return toast.error("You do not have permission.");
     try {
@@ -311,39 +341,35 @@ export default function Templates() {
         {canEdit && <CreateButton onClick={() => setForm({ ...EMPTY })} />}
       </div>
 
-      {/* Filter bar */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search templates by name..."
-            className={`${inputCls} pl-9`}
-          />
-        </div>
-
-        {/* Tích hợp Searchable Scope Select ở Filter Bar */}
-        <div className="w-48">
-          <SearchableScopeSelect
-            value={scope}
-            onChange={setScope}
-            placeholder="All Scopes"
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={refresh}
-          title="Refresh"
-          className="p-2.5 text-gray-500 hover:text-brand-600 border border-gray-200 rounded-xl"
-        >
-          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-        </button>
-      </div>
+      <FilterBar
+        value={q}
+        onChange={setQ}
+        placeholder="Search templates by name..."
+        onRefresh={refresh}
+        loading={loading}
+      >
+        <FilterMenu
+          groups={[
+            {
+              key: "scope",
+              label: "Test scope",
+              allLabel: "All scopes",
+              options: SCOPES,
+            },
+            {
+              key: "status",
+              label: "Status",
+              allLabel: "All status",
+              options: [
+                { value: "active", label: "Active" },
+                { value: "inactive", label: "Inactive" },
+              ],
+            },
+          ]}
+          value={filters}
+          onChange={setFilters}
+        />
+      </FilterBar>
 
       {/* Table */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -379,7 +405,10 @@ export default function Templates() {
                   </tr>
                 )}
                 {templates.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50">
+                  <tr
+                    key={t.id}
+                    className={`hover:bg-gray-50 ${t.status === "inactive" ? "opacity-60" : ""}`}
+                  >
                     <td className="px-5 py-3">
                       <button
                         onClick={() => setForm(toForm(t, !canEdit))}
@@ -392,6 +421,11 @@ export default function Templates() {
                       </p>
                       <p className="text-xs text-gray-400 font-mono">
                         ID: {tplCode(t.id)}
+                        {t.status === "inactive" && (
+                          <span className="ml-2 px-2 py-0.5 bg-gray-200 text-gray-600 rounded font-sans">
+                            Inactive
+                          </span>
+                        )}
                       </p>
                     </td>
                     <td className="px-5 py-3">
@@ -420,13 +454,24 @@ export default function Templates() {
                           >
                             <Pencil size={16} />
                           </button>
-                          <button
-                            onClick={() => setToDelete(t)}
-                            className="p-2 text-gray-500 hover:text-red-600"
-                            title="Delete"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          <RowMenu
+                            items={[
+                              {
+                                label:
+                                  t.status === "inactive"
+                                    ? "Activate"
+                                    : "Deactivate",
+                                icon: t.status === "inactive" ? PowerOff : Power,
+                                onClick: () => handleToggleStatus(t),
+                              },
+                              {
+                                label: "Delete",
+                                icon: Trash2,
+                                onClick: () => setToDelete(t),
+                                danger: true,
+                              },
+                            ]}
+                          />
                         </>
                       ) : (
                         <button

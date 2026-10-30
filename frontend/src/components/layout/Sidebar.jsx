@@ -4,7 +4,7 @@ import {
   LayoutDashboard,
   History,
   Users,
-  PlusCircle,
+  Play,
   FileText,
   ListChecks,
 } from "lucide-react";
@@ -29,8 +29,8 @@ export const MENU = [
       },
       {
         path: "/tests/new",
-        label: "Test Case",
-        icon: PlusCircle,
+        label: "Run Test",
+        icon: Play,
         roles: ["Admin", "Tester"],
       },
       {
@@ -89,7 +89,7 @@ export default function Sidebar({
       className={`relative z-40 flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out shrink-0 sticky top-0 h-[calc(100vh-4rem)] overflow-y-auto ${
         collapsed
           ? "w-0 overflow-hidden border-r-0 opacity-0"
-          : "w-64 opacity-100"
+          : "w-48 opacity-100"
       }`}
     >
       {/* Danh sách các mục menu */}

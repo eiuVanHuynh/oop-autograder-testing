@@ -19,6 +19,9 @@ export const toTemplate = (row) => ({
   // BACKEND-TODO: thống nhất tên cột với nhóm DB rồi bỏ nhánh dự phòng.
   defaultEnv: row.env ?? row.default_env,
   defaultTimeoutMs: row.timeout ?? row.default_timeout_ms,
+  // BACKEND-TODO: test_templates chưa có cột status; updateTemplateSchema (zod) cũng lược bỏ
+  // field này nên deactivate chưa lưu được. Cần cột status ENUM('active','inactive').
+  status: row.status ?? 'active',
   // BACKEND-TODO: created_by chỉ là id. Cần backend join users để trả tên người tạo (api-endpoints.md mục 4: "người tạo").
   createdBy: row.created_by,
   updatedAt: dateOnly(row.updated_at || row.created_at),
@@ -33,6 +36,7 @@ export const toBody = (t) => {
     scope: t.scope,
     env: t.defaultEnv || undefined,
     timeout: t.defaultTimeoutMs || undefined,
+    status: t.status || undefined, // BACKEND-TODO: xem ghi chú ở toTemplate
   };
   // Template trỏ tới suite thì giữ nguyên suiteId, nếu không sẽ gửi testIds rỗng và bị 400.
   if (t.suiteId) body.target_json = { suiteId: t.suiteId };

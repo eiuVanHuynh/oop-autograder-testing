@@ -238,7 +238,8 @@ export default function TestCreation() {
   const [templates, setTemplates] = useState([]);
   useEffect(() => {
     listTemplates()
-      .then(setTemplates)
+      // Template đã deactivate thì không cho chọn chạy (issue #41 mục 2).
+      .then((list) => setTemplates(list.filter((t) => t.status !== "inactive")))
       .catch((err) =>
         toast.error(getErrorMessage(err, "Cannot load templates.")),
       );

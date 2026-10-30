@@ -72,3 +72,12 @@ export const saveSteps = async (id, steps) => {
     }));
   await API.put(`/catalog/cases/${id}/steps`, { steps: body });
 };
+// BACKEND-TODO: PUT/DELETE /catalog/cases/:id là 🟡 ở api-endpoints.md mục 9, backend chưa khai
+// route trong catalog.routes.js -> hiện trả 404. Xoá khi còn steps/data con sẽ trả 409, khi đó
+// nên đổi test_status sang 'deprecated' thay vì xoá.
+export const updateCase = async (id, c) =>
+  toCase(unwrap(await API.put(`/catalog/cases/${id}`, toBody(c))));
+
+export const deleteCase = async (id) => {
+  await API.delete(`/catalog/cases/${id}`);
+};
