@@ -36,7 +36,8 @@ export const toBody = (t) => {
     scope: t.scope,
     env: t.defaultEnv || undefined,
     timeout: t.defaultTimeoutMs || undefined,
-    status: t.status || undefined, // BACKEND-TODO: xem ghi chú ở toTemplate
+    // `status` KHÔNG gửi: test_templates không có cột này và updateTemplateSchema loại bỏ nó,
+    // nên gửi lên chỉ bị âm thầm bỏ qua. Thêm lại khi DB có cột status.
   };
   // Template trỏ tới suite thì giữ nguyên suiteId, nếu không sẽ gửi testIds rỗng và bị 400.
   if (t.suiteId) body.target_json = { suiteId: t.suiteId };

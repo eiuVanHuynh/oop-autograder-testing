@@ -22,7 +22,6 @@ import {
   Square,
   FileText,
   CheckCircle2,
-  Server,
   Terminal,
   Search,
   ChevronDown,
@@ -35,6 +34,7 @@ import { listTemplates } from "../services/templateService";
 import { startRun, fetchRunLogs, cancelRun } from "../services/runService";
 import { getErrorMessage } from "../services/authService";
 import { ENVIRONMENTS } from "../models/options"; // BACKEND-TODO [2]: GET /meta/options
+import { logTone } from "../models/runLog";
 
 // Form dùng GIÂY; khi gửi POST /runs nhân 1000 (backend lưu mili-giây).
 const TIMEOUTS = ["15", "30", "60", "120"];
@@ -178,7 +178,7 @@ export default function TestCreation() {
   useEffect(() => {
     listTemplates()
       // Template đã deactivate thì không cho chọn chạy (issue #41 mục 2).
-      .then((list) => setTemplates(list.filter((t) => t.status !== "inactive")))
+      .then(setTemplates)
       .catch((err) =>
         toast.error(getErrorMessage(err, "Cannot load templates.")),
       );
@@ -293,7 +293,7 @@ export default function TestCreation() {
   };
 
   return (
-    <div className="max-w-10xl mx-auto space-y-6">
+    <div className="max-w-screen-2xl mx-auto space-y-6">
       {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Create New Test</h1>
@@ -358,7 +358,15 @@ export default function TestCreation() {
               <Clock size={20} className="text-brand-600" /> Execution Time
               Setup
             </h3>
-            {/* Để đây khi nào cần thì lấy lại - Đợi Vân xác nhận */}
+            {/* Treo lại theo ghi chú gốc "Đợi Vân xác nhận". Lý do cụ thể, kiểm ngày 2026-10-30:
+                chọn môi trường KHÔNG đổi chỗ chạy test.
+                  - PlaywrightRunner.trigger({ runId, testCodes, timeout }) không nhận `env`,
+                    nó dùng this.baseUrl lấy từ config backend.
+                  - .github/workflows/run-tests.yml đặt BASE_URL từ secrets.BASE_URL, một giá trị
+                    cố định, bỏ qua input `env` được truyền vào.
+                Bật ô này lên thì người dùng chọn "Production Cert" mà test vẫn bắn vào đúng site
+                cũ, chỉ khác mỗi chuỗi ghi vào test_runs.environment -> nhãn sai, tin được mới chết.
+                Mở lại khi runner thật sự chọn BASE_URL theo env. */}
             {/* Môi trường
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -503,25 +511,18 @@ export default function TestCreation() {
           </div>
         </div>
 
-        <div className="bg-gray-900 rounded-xl p-4 font-mono text-xs h-64 overflow-y-auto space-y-2">
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 font-mono text-xs h-64 overflow-y-auto space-y-2">
           {logs.length === 0 ? (
-            <p className="text-gray-500 italic">
+            <p className="text-gray-400 italic">
               {isRunning
                 ? "Waiting for the runner to start..."
                 : 'Ready to run. Click "Run Test Now" to begin...'}
             </p>
           ) : (
+            // Tô màu theo tiền tố mức log (models/runLog.js). Trước đây dò chữ "SUCCESS"
+            // trong nội dung — đó là tàn dư của MOCK_LINES, log thật không có chữ đó.
             logs.map((log, index) => (
-              <div
-                key={index}
-                className={
-                  log.includes("SUCCESS")
-                    ? "text-green-400 font-semibold"
-                    : log.includes("WARN")
-                      ? "text-yellow-400"
-                      : "text-gray-300"
-                }
-              >
+              <div key={index} className={`whitespace-pre-wrap ${logTone(log)}`}>
                 {log}
               </div>
             ))

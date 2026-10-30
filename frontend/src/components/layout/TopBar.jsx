@@ -1,17 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  Bell,
-  ChevronDown,
-  LogOut,
-  Menu,
-  Search,
-  User,
-  Terminal,
-  PanelLeftClose,
-  PanelLeftOpen,
-  ChevronRight,
-} from "lucide-react";
+import { Bell, ChevronDown, LogOut, Search, User, Terminal } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../controllers/AuthContext";
 import { MENU, isActive } from "./Sidebar";
@@ -31,7 +20,6 @@ const pageTitle = (pathname) =>
 
 // Thanh trên cùng. Logout nằm ở menu avatar tại đây, không còn ở sidebar (yêu cầu v3).
 export default function TopBar({
-  onMenuClick = () => {},
   onToggleSidebar = () => {},
   collapsed = false,
 }) {

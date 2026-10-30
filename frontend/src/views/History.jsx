@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../controllers/AuthContext";
-import { canRunTest } from "../models/permissions";
+import toast from "react-hot-toast";
 import { getRuns } from "../services/runService";
+import { getErrorMessage } from "../services/authService";
 import { useNavigate } from "react-router-dom";
 import {
   History as HistoryIcon,
@@ -14,30 +14,36 @@ import {
   Calendar,
 } from "lucide-react";
 
+// Status do backend tính: running | passed | failed | interrupted.
+const BADGE = {
+  PASSED: "bg-emerald-100 text-emerald-700",
+  RUNNING: "bg-amber-100 text-amber-700",
+  FAILED: "bg-red-100 text-red-700",
+  INTERRUPTED: "bg-orange-100 text-orange-700",
+};
+
 export default function History() {
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   // Dữ liệu dùng chung với Dashboard (runService)
   const [testRuns, setTestRuns] = useState([]);
   const [selectedRun, setSelectedRun] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getRuns().then((data) => {
-      setTestRuns(data);
-      setSelectedRun(data[0] || null);
-    });
+    getRuns()
+      .then((data) => {
+        setTestRuns(data);
+        setSelectedRun(data[0] || null);
+      })
+      .catch((e) => toast.error(getErrorMessage(e, "Cannot load test runs.")))
+      .finally(() => setLoading(false));
   }, []);
 
-  const badge = (status) =>
-    status === "PASSED"
-      ? "bg-emerald-100 text-emerald-700"
-      : status === "RUNNING"
-        ? "bg-amber-100 text-amber-700"
-        : "bg-red-100 text-red-700";
+  const badge = (status) => BADGE[status] ?? "bg-gray-100 text-gray-600";
 
   return (
-    <div className="max-w-10xl mx-auto space-y-6">
+    <div className="max-w-screen-2xl mx-auto space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -65,7 +71,12 @@ export default function History() {
 
           {/* Khung bọc danh sách có giới hạn chiều cao và bật thanh cuộn tự động */}
           <div className="max-h-[500px] overflow-auto divide-y divide-gray-100">
-            {/* ⚠️ Đã sửa lại từ runs.map thành testRuns.map cho đúng tên state */}
+            {loading && (
+              <p className="p-6 text-sm text-gray-500">Loading runs…</p>
+            )}
+            {!loading && testRuns.length === 0 && (
+              <p className="p-6 text-sm text-gray-500">No test runs yet.</p>
+            )}
             {testRuns.map((run) => {
               const isSelected = selectedRun?.id === run.id;
               return (
@@ -110,7 +121,7 @@ export default function History() {
                       <span>•</span>
                       <span>
                         <Clock size={12} className="inline mr-1" />
-                        {run.duration}
+                        {run.duration ?? "—"}
                       </span>
                     </p>
                   </div>
@@ -171,24 +182,25 @@ export default function History() {
                 </p>
               </div>
 
-              {/* Thống kê tỉ lệ */}
+              {/* Chỉ các trường GET /runs thật sự trả về. Số case passed/failed nằm ở
+                  bảng test_results nhưng chưa có endpoint nào đọc -> không hiển thị. */}
               <div className="grid grid-cols-3 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">
                 <div>
-                  <p className="text-xs text-gray-500">Total Cases</p>
+                  <p className="text-xs text-gray-500">Planned</p>
                   <p className="text-base font-bold text-gray-900">
-                    {selectedRun.total}
+                    {selectedRun.testCodes.length || "—"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-emerald-600 font-medium">Passed</p>
-                  <p className="text-base font-bold text-emerald-600">
-                    {selectedRun.passed}
+                  <p className="text-xs text-gray-500">Duration</p>
+                  <p className="text-base font-bold text-gray-900">
+                    {selectedRun.duration ?? "—"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-red-500 font-medium">Failed</p>
-                  <p className="text-base font-bold text-red-500">
-                    {selectedRun.failed}
+                  <p className="text-xs text-gray-500">Run by</p>
+                  <p className="text-base font-bold text-gray-900">
+                    {selectedRun.runBy}
                   </p>
                 </div>
               </div>
@@ -198,7 +210,7 @@ export default function History() {
                 onClick={() => navigate(`/runs/${selectedRun.id}`)}
                 className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-brand-500/25 flex items-center justify-center gap-2 transition cursor-pointer"
               >
-                <span>View Full Report & Diff Viewer</span>{" "}
+                <span>View Full Report</span>{" "}
                 <ArrowRight size={16} />
               </button>
             </div>

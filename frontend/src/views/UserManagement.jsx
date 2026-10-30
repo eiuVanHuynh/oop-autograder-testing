@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Lock, Unlock, UserCheck, Users } from "lucide-react";
+import { Shield, Lock, UserCheck, Users } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function UserManagement() {
@@ -53,7 +53,7 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="max-w-10xl mx-auto space-y-6">
+    <div className="max-w-screen-2xl mx-auto space-y-6">
       {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">User Management</h1>

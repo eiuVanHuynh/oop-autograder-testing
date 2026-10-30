@@ -3,11 +3,22 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "//": [
+    "npm run check = bộ self-check cho src/models/ (xem checks/*.check.mjs).",
+    "Chạy bằng node:assert có sẵn trong Node — KHÔNG cần cài thêm dependency nào.",
+    "lint và build chỉ bắt lỗi cú pháp. Ba file dưới đây giữ hợp đồng với backend,",
+    "sai thì build vẫn xanh mà giao diện hỏng âm thầm:",
+    "  testSteps.js  — 4 action và ngữ pháp locator mà bộ chạy test thật sự hiểu",
+    "  runLog.js     — khuôn dòng log, dùng để bóc pass/fail của từng test case",
+    "  reportHtml.js — escaping cho file HTML mà nút Export sinh ra",
+    "Sửa một trong ba file đó, hoặc sửa câu log bên backend, thì chạy lại: npm run check"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check": "node checks/steps.check.mjs && node checks/runlog.check.mjs && node checks/report.check.mjs"
   },
   "dependencies": {
     "axios": "^1.20.0",

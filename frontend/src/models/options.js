@@ -11,18 +11,9 @@ export const ENVIRONMENTS = [
   { value: "production", label: "Production Cert" },
 ];
 
-export const SCOPES = [
-  "API",
-  "UX/UI",
-  "Database",
-  "Frontend",
-  "Backend",
-  "Integration",
-  "E2E",
-  "Performance",
-  "Security",
-  "Accessibility",
-];
+// Phải khớp z.enum(["UI","API","DB"]) trong templates.schema.js của backend;
+// gửi giá trị khác là 400 và người dùng chỉ thấy "Invalid input."
+export const SCOPES = ["UI", "API", "DB"];
 
 export const envLabel = (value) =>
   ENVIRONMENTS.find((e) => e.value === value)?.label ?? value;

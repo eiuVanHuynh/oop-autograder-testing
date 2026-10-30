@@ -1,9 +1,7 @@
 // Trang Quản lý Template (/templates) – theo docs/frontend/design/08-template-management.png
 // và docs/backend/api-endpoints.md mục 4.
-/// EHEHEHHEHE
 import { useState, useEffect, useRef } from "react";
 import {
-  Plus,
   Pencil,
   Trash2,
   Eye,
@@ -328,7 +326,7 @@ export default function Templates() {
   const readOnly = !!form?.readOnly;
 
   return (
-    <div className="max-w-10xl mx-auto space-y-6">
+    <div className="max-w-screen-2xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

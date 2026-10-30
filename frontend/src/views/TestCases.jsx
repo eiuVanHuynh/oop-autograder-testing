@@ -2,13 +2,17 @@
 // liệt kê, lọc, tạo, xem chi tiết, sửa, deprecate, xoá, và thêm case vào template (issue #41).
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Eye, X, Pencil, Trash2, Archive } from "lucide-react";
+import { Eye, X, Pencil, Trash2, Copy, AlertTriangle, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
 import { canManageCases } from "../models/permissions";
 import { CASE_TYPES, CASE_PRIORITIES, CASE_STATUSES } from "../models/options";
 import {
-  listCases, listSuites, listSpecs, getCase, createCase, updateCase, deleteCase, saveSteps,
+  STEP_ACTIONS, LOCATOR_KINDS, isLocatorAction, splitTarget, joinTarget,
+  requiredDataFields, stepProblems, dataInsertSql, readyUpdateSql,
+} from "../models/testSteps";
+import {
+  listCases, listSuites, listSpecs, getCase, createCase, deleteCase, saveSteps,
 } from "../services/catalogService";
 import { listTemplates, updateTemplate } from "../services/templateService";
 import { getErrorMessage } from "../services/authService";
@@ -34,10 +38,12 @@ const PRIORITY_BADGE = {
   high: "bg-orange-100 text-orange-700",
   critical: "bg-red-100 text-red-700",
 };
+// `field` chỉ dùng cho bước FILL: tên field trong test_data lấy giá trị để điền.
+const EMPTY_STEP = { action: "", target: "", expected: "", field: "" };
 const EMPTY = {
   suiteId: "", specId: "", code: "", title: "", preconditions: "",
   expectedResult: "", priority: "medium", type: "functional", status: "draft",
-  steps: [{ action: "", target: "", expected: "" }],
+  steps: [{ ...EMPTY_STEP }], testData: [],
 };
 
 // Case từ API -> giá trị form sửa (luôn để sẵn 1 dòng step trống cho dễ nhập).
@@ -45,7 +51,8 @@ const toForm = (c) => ({
   ...c,
   suiteId: c.suiteId ?? "",
   specId: c.specId ?? "",
-  steps: c.steps.length ? c.steps : [{ action: "", target: "", expected: "" }],
+  steps: c.steps.length ? c.steps : [{ ...EMPTY_STEP }],
+  testData: c.testData ?? [],
 });
 
 export default function TestCases() {
@@ -103,12 +110,25 @@ export default function TestCases() {
 
   // Template trỏ tới cả một suite thì không thêm lẻ từng case được.
   const addableTemplates = useMemo(
-    () => templates.filter((t) => !t.suiteId && t.status !== "inactive"),
+    () => templates.filter((t) => !t.suiteId),
     [templates],
   );
   const usedIn = (code) => templates.filter((t) => t.targetTestIds?.includes(code));
 
   const refresh = () => { setSel([]); setReloadKey((k) => k + 1); };
+
+  // Soi lại ĐÚNG luật mà runner thi hành (models/testSteps.js) để báo trước thay vì
+  // để người dùng phát hiện lúc run fail hoặc nhận 409 "No ready test cases".
+  const problems = form ? stepProblems(form.steps) : [];
+  const required = form ? requiredDataFields(form.steps) : [];
+  const dataByField = new Map((form?.testData ?? []).map((d) => [d.field, d]));
+  const missingData = required.filter((f) => !dataByField.has(f));
+  const stepErrors = problems.filter((p) => p.level === "error");
+  // Chỉ CHẶN những gì sửa được ngay trong form này. Thiếu test_data thì CẢNH BÁO chứ không
+  // chặn: UI chưa ghi được test_data (chưa có endpoint), mà status lại chỉ đặt được lúc tạo
+  // -> chặn ở đây là bịt luôn đường đưa case vào trạng thái chạy được.
+  const canBeReady = stepErrors.length === 0;
+  const runnable = canBeReady && missingData.length === 0;
 
   // Chọn suite trong form -> GET /catalog/suites/:id/specs
   const pickSuite = async (suiteId, keepSpec) => {
@@ -119,6 +139,23 @@ export default function TestCases() {
     catch (e) { toast.error(getErrorMessage(e, "Cannot load specs.")); }
   };
 
+  // SQL bắc cầu: gộp phần thiếu test_data và phần đưa case ra khỏi 'draft'.
+  const fixupSql = () =>
+    [
+      missingData.length > 0 ? dataInsertSql(form.id, missingData) : "",
+      form.status !== "ready" ? readyUpdateSql(form.id) : "",
+    ].filter(Boolean).join("\n\n");
+
+  const copySql = async () => {
+    try {
+      await navigator.clipboard.writeText(fixupSql());
+      toast.success("Đã copy câu SQL.");
+    } catch {
+      // Không có clipboard API (http thường) -> người dùng tự chọn trong khối <pre>.
+      toast.error("Không copy được — hãy bôi đen đoạn SQL rồi copy tay.");
+    }
+  };
+
   const setStep = (i, key, v) =>
     setForm((f) => ({ ...f, steps: f.steps.map((s, j) => (j === i ? { ...s, [key]: v } : s)) }));
 
@@ -127,26 +164,57 @@ export default function TestCases() {
       const full = await getCase(c.id);                 // GET /catalog/cases/:id (có steps)
       setForm(toForm(full));
       setDetail(null);
-      if (full.suiteId) setSpecs(await listSpecs(full.suiteId));
+    } catch (e) { toast.error(getErrorMessage(e, "Cannot load the test case.")); }
+  };
+
+  // Nhân bản: mở modal TẠO MỚI mang theo steps của case nguồn, chỉ xoá mã để người dùng gõ mã mới.
+  // test_data KHÔNG theo sang (chưa có endpoint ghi), nên panel Test data bên dưới sẽ liệt kê
+  // đúng những field còn thiếu. Status thừa hưởng từ case nguồn và vẫn sửa được ở ô Status:
+  // ép 'draft' ở đây sẽ khoá case mới lại mãi, vì Edit không đặt được status.
+  // specLocked: GET /catalog/cases/:id không trả suite_id (cột đó ở test_specs), nên không dựng
+  // lại được 2 ô Suite/Spec — spec của case nguồn hiện ở dạng chỉ đọc.
+  const openClone = async (c) => {
+    try {
+      const full = await getCase(c.id);
+      setForm({ ...toForm(full), id: undefined, code: "", testData: [], specLocked: true });
+      setDetail(null);
     } catch (e) { toast.error(getErrorMessage(e, "Cannot load the test case.")); }
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     if (!canEdit) return toast.error("You do not have permission.");
-    if (!form.specId) return toast.error("Pick a suite and a spec.");
-    if (!form.code.trim()) return toast.error("Test code is required (e.g. TC-45).");
-    if (!form.title.trim()) return toast.error("Title is required.");
-    if (!form.expectedResult.trim()) return toast.error("Expected result is required.");
+    if (!form.id) {
+      if (!form.specId) return toast.error("Pick a suite and a spec.");
+      if (!form.code.trim()) return toast.error("Test code is required (e.g. TC-45).");
+      if (!form.title.trim()) return toast.error("Title is required.");
+      if (!form.expectedResult.trim()) return toast.error("Expected result is required.");
+      // Steps sai thì runner fail chắc chắn -> chặn. Thiếu test_data chỉ cảnh báo (xem trên).
+      if (form.status === "ready" && !canBeReady) {
+        return toast.error(`Chưa thể đặt 'ready': ${stepErrors[0].text}`);
+      }
+    }
     setSaving(true);
     try {
-      // POST /catalog/cases (201/409/400) hoặc PUT /catalog/cases/:id (200/404)
-      const saved = form.id ? await updateCase(form.id, form) : await createCase(form);
-      if (form.steps.some((s) => s.action.trim())) {
-        try { await saveSteps(saved.id ?? form.id, form.steps); } // PUT /catalog/cases/:id/steps
-        catch (err) { toast.error(getErrorMessage(err, "Case saved, but steps failed.")); }
+      // Sửa: backend chỉ có PUT /catalog/cases/:id/steps, không có PUT /catalog/cases/:id,
+      // nên các trường ngoài steps chỉ đặt được lúc tạo.
+      if (form.id) {
+        await saveSteps(form.id, form.steps);
+        toast.success(`Updated steps of ${form.code}.`);
+      } else {
+        const saved = await createCase(form);           // POST /catalog/cases (201/409/400)
+        try { await saveSteps(saved.id, form.steps); }   // PUT /catalog/cases/:id/steps
+        catch (err) { toast.error(getErrorMessage(err, "Case created, but steps failed.")); }
+        toast.success(`Created ${saved.code || form.code}.`);
+        // Nói ngay còn thiếu gì, kèm cách lấy SQL — nếu không người dùng chỉ biết lúc run fail.
+        if (missingData.length > 0) {
+          toast.error(
+            `${saved.code || form.code} chưa chạy được: thiếu test_data ${missingData.join(", ")}. ` +
+            `Mở lại case này để lấy câu SQL.`,
+            { duration: 8000 },
+          );
+        }
       }
-      toast.success(`${form.id ? "Updated" : "Created"} ${saved.code || form.code}.`);
       setForm(null);
       refresh();
     } catch (err) {
@@ -159,17 +227,8 @@ export default function TestCases() {
     catch (e) { toast.error(getErrorMessage(e, "Cannot load detail.")); }
   };
 
-  // Khuyến nghị của api-endpoints.md mục 9: đổi test_status thành 'deprecated' thay vì xoá.
-  const handleDeprecate = async (c) => {
-    if (!canEdit) return toast.error("You do not have permission.");
-    try {
-      const full = await getCase(c.id);   // bảng danh sách không chắc đủ trường cho PUT (expected_result…)
-      await updateCase(full.id, { ...full, status: "deprecated" });
-      toast.success(`${full.code} is now deprecated.`);
-      setToDelete(null); setDetail(null);
-      refresh();
-    } catch (e) { toast.error(getErrorMessage(e, "Cannot deprecate the test case.")); }
-  };
+  // "Deprecate" cần PUT /catalog/cases/:id (api-endpoints.md mục 9) mà backend chưa khai route,
+  // nên chưa có handler — thêm lại cùng lúc với route đó và với CASE_RETIRE_READY.
 
   const handleDelete = async () => {
     if (!canEdit) return toast.error("You do not have permission.");
@@ -287,13 +346,11 @@ export default function TestCases() {
                   <td className="text-right pr-3 whitespace-nowrap">
                     {canEdit ? (
                       <>
-                        <button onClick={() => openEdit(c)} className="p-2 text-gray-500 hover:text-brand-600" title="Edit"><Pencil size={16} /></button>
+                        <button onClick={() => openEdit(c)} className="p-2 text-gray-500 hover:text-brand-600" title="Edit steps"><Pencil size={16} /></button>
+                        <button onClick={() => openClone(c)} className="p-2 text-gray-500 hover:text-brand-600" title="Nhân bản (copy steps sang case mới)"><Copy size={16} /></button>
                         {CASE_RETIRE_READY && (
                           <RowMenu
                             items={[
-                              ...(c.status === "deprecated"
-                                ? []
-                                : [{ label: "Deprecate", icon: Archive, onClick: () => handleDeprecate(c) }]),
                               { label: "Delete", icon: Trash2, onClick: () => setToDelete(c), danger: true },
                             ]}
                           />
@@ -319,6 +376,15 @@ export default function TestCases() {
               <button type="button" onClick={() => setForm(null)} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
             </div>
             <fieldset disabled={saving} className="space-y-4">
+              {form.specLocked && (
+                <p className="rounded-xl bg-gray-50 border border-gray-200 p-3 text-xs text-gray-600">
+                  Nhân bản từ <span className="font-mono">{form.specCode || `spec #${form.specId}`}</span>.
+                  Spec giữ nguyên theo case nguồn; test_data không được copy nên hãy đặt mã mới rồi
+                  bổ sung dữ liệu ở phần dưới.
+                </p>
+              )}
+              {!form.id && !form.specLocked && (
+                <>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Suite *</label>
@@ -335,6 +401,10 @@ export default function TestCases() {
                   </select>
                 </div>
               </div>
+                </>
+              )}
+              {!form.id && (
+                <>
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-1">
                   <label className={labelCls}>Test code *</label>
@@ -363,19 +433,147 @@ export default function TestCases() {
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-gray-400 -mt-2">Only “ready” test cases can be run. New cases default to “draft”.</p>
-
+              <p className="text-xs text-gray-400 -mt-2">
+                Chỉ case “ready” mới được đưa vào run. Đặt “ready” được ngay, nhưng case chỉ thật
+                sự chạy khi phần Test data bên dưới không còn thiếu field nào.
+              </p>
+                </>
+              )}
+              {/* Sửa: chỉ steps lưu được (không có PUT /catalog/cases/:id), nên các trường
+                  còn lại hiện ở dạng chỉ đọc thay vì mời người dùng sửa rồi mất. */}
+              {form.id && (
+              <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 space-y-1">
+                <p className="text-sm font-semibold text-gray-900">
+                  <span className="font-mono">{form.code}</span> — {form.title}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Spec {form.specCode || `#${form.specId}`} • {form.type} • {form.priority} • {form.status}
+                </p>
+                <p className="text-xs text-orange-700">
+                  Only the steps below can be saved. Editing code, title, spec, type,
+                  priority or status needs PUT /catalog/cases/:id, which the backend
+                  does not expose yet.
+                </p>
+              </div>
+              )}
               <div>
-                <label className={labelCls}>Steps</label>
-                {form.steps.map((s, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 mb-2">
-                    <input className={inputCls} placeholder={`Step ${i + 1} action`} value={s.action} onChange={(e) => setStep(i, "action", e.target.value)} />
-                    <input className={inputCls} placeholder="Target (selector)" value={s.target} onChange={(e) => setStep(i, "target", e.target.value)} />
-                    <input className={inputCls} placeholder="Expected" value={s.expected} onChange={(e) => setStep(i, "expected", e.target.value)} />
-                    <button type="button" onClick={() => setForm({ ...form, steps: form.steps.filter((_, j) => j !== i) })} className="text-gray-400 hover:text-red-600"><X size={16} /></button>
-                  </div>
+                <div className="flex items-baseline justify-between mb-1">
+                  <label className={labelCls}>Steps</label>
+                  <span className="text-xs text-gray-400">
+                    Action + locator = <b>cách thực thi</b>. Giá trị để điền nằm ở Test data.
+                  </span>
+                </div>
+                {form.steps.map((s, i) => {
+                  const action = String(s.action || "").toUpperCase();
+                  const loc = splitTarget(s.target);
+                  return (
+                    <div key={i} className="mb-2 rounded-xl border border-gray-200 bg-gray-50/60 p-2.5 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 shrink-0 font-mono text-xs text-gray-400">#{i + 1}</span>
+                        <select className={`${inputCls} w-32 shrink-0`} value={action}
+                                onChange={(e) => setStep(i, "action", e.target.value)}>
+                          <option value="">— action —</option>
+                          {STEP_ACTIONS.map((a) => <option key={a}>{a}</option>)}
+                        </select>
+
+                        {action === "NAVIGATE" ? (
+                          <input className={inputCls} placeholder="/login"
+                                 value={s.target} onChange={(e) => setStep(i, "target", e.target.value)} />
+                        ) : isLocatorAction(action) ? (
+                          <>
+                            <select className={`${inputCls} w-36 shrink-0`} value={loc.kind}
+                                    onChange={(e) => setStep(i, "target", joinTarget(e.target.value, loc.value))}>
+                              {LOCATOR_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
+                            </select>
+                            <input className={inputCls} value={loc.value}
+                                   placeholder={action === "VERIFY" ? "để trống = kiểm tra expected_url" : "Sign In"}
+                                   onChange={(e) => setStep(i, "target", joinTarget(loc.kind, e.target.value))} />
+                          </>
+                        ) : (
+                          <input className={inputCls} disabled placeholder="chọn action trước" />
+                        )}
+
+                        <button type="button" title="Xoá bước"
+                                onClick={() => setForm({ ...form, steps: form.steps.filter((_, j) => j !== i) })}
+                                className="shrink-0 text-gray-400 hover:text-red-600"><X size={16} /></button>
+                      </div>
+
+                      <div className="flex items-center gap-2 pl-8">
+                        <input className={inputCls} placeholder="Expected result (chữ cho người đọc)"
+                               value={s.expected} onChange={(e) => setStep(i, "expected", e.target.value)} />
+                        {action === "FILL" && (
+                          <input className={`${inputCls} w-48 shrink-0 font-mono`} placeholder="field, vd: username"
+                                 value={s.field || ""} onChange={(e) => setStep(i, "field", e.target.value)} />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                <button type="button" onClick={() => setForm({ ...form, steps: [...form.steps, { ...EMPTY_STEP }] })} className="text-sm text-brand-600">+ Add step</button>
+              </div>
+
+              {/* Đối chiếu steps với luật của runner và với test_data thật trong DB. */}
+              <div className="rounded-xl border border-gray-200 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  {runnable
+                    ? <CheckCircle2 size={15} className="text-green-600" />
+                    : <AlertTriangle size={15} className="text-orange-500" />}
+                  <p className="text-xs font-semibold text-gray-700">
+                    Test data &amp; readiness {runnable ? "— đủ để chạy" : "— chưa chạy được"}
+                  </p>
+                </div>
+
+                {problems.map((pb, k) => (
+                  <p key={k} className={`text-xs ${pb.level === "error" ? "text-red-600" : "text-amber-600"}`}>
+                    {pb.text}
+                  </p>
                 ))}
-                <button type="button" onClick={() => setForm({ ...form, steps: [...form.steps, { action: "", target: "", expected: "" }] })} className="text-sm text-brand-600">+ Add step</button>
+
+                {required.length === 0 ? (
+                  <p className="text-xs text-gray-500">Các bước hiện tại không cần test_data.</p>
+                ) : (
+                  <table className="w-full text-xs">
+                    <tbody>
+                      {required.map((f) => {
+                        const row = dataByField.get(f);
+                        return (
+                          <tr key={f} className="border-t border-gray-100">
+                            <td className="py-1 font-mono text-gray-700">{f}</td>
+                            <td className="py-1 text-right">
+                              {row ? (
+                                <span className="font-mono text-gray-500">
+                                  {row.value}{row.isValid ? "" : " (invalid)"}
+                                </span>
+                              ) : (
+                                <span className="text-red-600">chưa có trong test_data</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+
+                {form.id && fixupSql() && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-500">
+                      Backend chưa có route ghi test_data và sửa test_status, nên phần còn lại làm bằng SQL:
+                    </p>
+                    <pre className="m-0 overflow-auto rounded-lg bg-slate-900 p-2 font-mono text-[11px] text-slate-100">
+                      {fixupSql()}
+                    </pre>
+                    <button type="button" onClick={copySql}
+                            className="flex items-center gap-1 text-xs text-brand-600">
+                      <Copy size={13} /> Copy SQL
+                    </button>
+                  </div>
+                )}
+                {missingData.length > 0 && !form.id && (
+                  <p className="text-xs text-gray-500">
+                    Tạo case trước, rồi mở lại để lấy câu SQL bổ sung test_data.
+                  </p>
+                )}
               </div>
             </fieldset>
             {form.id && (
@@ -406,7 +604,12 @@ export default function TestCases() {
             <ol className="list-decimal pl-5 text-sm space-y-1">
               {detail.steps.length === 0 && <li className="list-none text-gray-400">No steps.</li>}
               {detail.steps.map((s) => (
-                <li key={s.order}>{s.action}{s.target && <span className="text-gray-400"> → {s.target}</span>}{s.expected && <span className="text-gray-500"> (expect: {s.expected})</span>}</li>
+                <li key={s.order}>
+                  {s.action}
+                  {s.target && <span className="text-gray-400"> → {s.target}</span>}
+                  {s.field && <span className="text-brand-600 font-mono"> ← data.{s.field}</span>}
+                  {s.expected && <span className="text-gray-500"> (expect: {s.expected})</span>}
+                </li>
               ))}
             </ol>
 
@@ -434,7 +637,6 @@ export default function TestCases() {
             <h3 className="text-lg font-bold">Delete {toDelete.code}?</h3>
             <p className="text-sm text-gray-600">
               This cannot be undone. Deleting fails while the case still has steps or test data.
-              Marking it <b>deprecated</b> keeps the history and already excludes it from runs.
             </p>
             {usedIn(toDelete.code).length > 0 && (
               <p className="text-sm text-orange-700">
@@ -443,7 +645,6 @@ export default function TestCases() {
             )}
             <div className="flex justify-end gap-2">
               <button onClick={() => setToDelete(null)} className="px-3 py-2 text-sm rounded-xl border border-gray-300">Cancel</button>
-              <button onClick={() => handleDeprecate(toDelete)} className="px-3 py-2 text-sm rounded-xl border border-orange-300 text-orange-700">Deprecate</button>
               <button onClick={handleDelete} className="px-3 py-2 text-sm rounded-xl bg-red-600 text-white">Delete</button>
             </div>
           </div>

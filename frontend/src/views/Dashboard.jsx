@@ -16,132 +16,19 @@ import {
   Loader2,
   XCircle,
   Eye,
-  Plus,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
 import { canRunTest } from "../models/permissions";
 import { getRuns, computeStats, dailyPassFail } from "../services/runService";
+import { getErrorMessage } from "../services/authService";
 import CreateButton from "../components/ui/CreateButton";
 const STATUS_STYLE = {
   PASSED: "bg-emerald-100 text-emerald-700",
   FAILED: "bg-red-100 text-red-700",
   RUNNING: "bg-amber-100 text-amber-700",
+  INTERRUPTED: "bg-orange-100 text-orange-700",
 };
-// Component custom dropdown chọn template có tích hợp ô search
-function SearchableTemplateSelect({
-  value,
-  onChange,
-  templates = [],
-  disabled = false,
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const dropdownRef = useRef(null);
-
-  // Tìm template đang được chọn để hiển thị tên lên nút bấm
-  const selectedTpl = templates.find((t) => String(t.id) === String(value));
-
-  // Lọc danh sách template theo từ khóa gõ vào ô search
-  const filteredTemplates = (templates || []).filter((t) =>
-    String(t.name || "")
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase()),
-  );
-
-  // Đóng dropdown khi click ra ngoài
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative w-full" ref={dropdownRef}>
-      {/* Nút bấm hiển thị template đang chọn */}
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => {
-          if (!isOpen) setSearchQuery("");
-          setIsOpen(!isOpen);
-        }}
-        className={`${inputCls} flex items-center justify-between text-left bg-gray-50 cursor-pointer select-none`}
-      >
-        <span
-          className={
-            selectedTpl ? "text-gray-900 font-medium truncate" : "text-gray-400"
-          }
-        >
-          {selectedTpl ? selectedTpl.name : "-- Choose a Test Template --"}
-        </span>
-        <ChevronDown size={16} className="text-gray-400 shrink-0 ml-1" />
-      </button>
-
-      {/* Menu xổ xuống chứa ô input search */}
-      {isOpen && !disabled && (
-        <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-2 space-y-2">
-          {/* Ô input tìm kiếm */}
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
-            <Search
-              size={14}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-            />
-            <input
-              type="text"
-              autoFocus
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search templates..."
-              className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-900"
-            />
-          </div>
-
-          {/* Danh sách các template đã lọc */}
-          <div className="max-h-48 overflow-y-auto space-y-0.5">
-            <div
-              onClick={() => {
-                onChange("");
-                setIsOpen(false);
-                setSearchQuery("");
-              }}
-              className="px-3 py-2 text-xs text-gray-500 hover:bg-gray-100 rounded-lg cursor-pointer"
-            >
-              -- Choose a Test Template --
-            </div>
-
-            {filteredTemplates.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-gray-400 text-center">
-                No templates found
-              </div>
-            ) : (
-              filteredTemplates.map((t) => (
-                <div
-                  key={t.id}
-                  onClick={() => {
-                    onChange(String(t.id));
-                    setIsOpen(false);
-                    setSearchQuery("");
-                  }}
-                  className={`px-3 py-2 text-xs rounded-lg cursor-pointer transition ${
-                    String(value) === String(t.id)
-                      ? "bg-brand-50 text-brand-600 font-semibold"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  {t.name}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -149,10 +36,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getRuns().then((data) => {
-      setRuns(data);
-      setLoading(false);
-    });
+    // GET /runs lỗi thì vẫn phải thoát trạng thái loading, nếu không trang treo ở "Loading…".
+    getRuns()
+      .then(setRuns)
+      .catch((e) => toast.error(getErrorMessage(e, "Cannot load test runs.")))
+      .finally(() => setLoading(false));
   }, []);
 
   const stats = useMemo(() => computeStats(runs), [runs]);
@@ -194,7 +82,7 @@ export default function Dashboard() {
     return <p className="text-sm text-gray-500">Loading dashboard...</p>;
 
   return (
-    <div className="max-w-10xl mx-auto space-y-6">
+    <div className="max-w-screen-2xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
@@ -284,7 +172,7 @@ export default function Dashboard() {
                   <td className="px-5 py-3 text-gray-600">{r.executedAt}</td>
                   <td className="px-5 py-3">
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLE[r.status]}`}
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLE[r.status] ?? "bg-gray-100 text-gray-600"}`}
                     >
                       {r.status}
                     </span>

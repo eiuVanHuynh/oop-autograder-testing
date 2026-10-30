@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -67,16 +66,9 @@ export const isActive = (item, pathname) =>
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
 
-export default function Sidebar({
-  collapsed: propCollapsed,
-  onToggle: propOnToggle,
-}) {
+export default function Sidebar({ collapsed = false }) {
   const { user } = useAuth();
   const { pathname } = useLocation();
-
-  const [internalCollapsed, setInternalCollapsed] = useState(false);
-  const collapsed =
-    propCollapsed !== undefined ? propCollapsed : internalCollapsed;
 
   // Lọc theo vai trò; nhóm không còn mục nào thì ẩn luôn.
   const groups = MENU.map((g) => ({
@@ -86,6 +78,8 @@ export default function Sidebar({
 
   return (
     <aside
+      inert={collapsed}
+      aria-hidden={collapsed || undefined}
       className={`relative z-40 flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out shrink-0 sticky top-0 h-[calc(100vh-4rem)] overflow-y-auto ${
         collapsed
           ? "w-0 overflow-hidden border-r-0 opacity-0"

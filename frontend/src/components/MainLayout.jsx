@@ -11,15 +11,11 @@ export default function MainLayout() {
       {/* TopBar nằm cố định trên cùng */}
       <TopBar
         collapsed={sidebarCollapsed}
-        onMenuClick={() => setSidebarCollapsed((prev) => !prev)}
         onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
       />
 
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed((prev) => !prev)}
-        />
+        <Sidebar collapsed={sidebarCollapsed} />
 
         {/* Chỉ phần nội dung này mới có thanh cuộn riêng khi dài */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
