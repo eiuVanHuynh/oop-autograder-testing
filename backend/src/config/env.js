@@ -1,8 +1,10 @@
 const path = require("path");
 
-require("dotenv").config({
-  path: path.resolve(__dirname, "../../../.env"),
-});
+// Hai chỗ, chỗ nào có trước thì thắng (dotenv không ghi đè biến đã có):
+//   backend/.env  — nơi .env.example chỉ tới, chạy server từ thư mục backend/
+//   <gốc repo>/.env — dùng chung với automation/ và migrate.js
+require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
+require("dotenv").config({ path: path.resolve(__dirname, "../../../.env") });
 
 // Đọc biến môi trường một lần. Thiếu biến bắt buộc thì chết ngay lúc khởi động,
 // Read env vars once. A missing required var kills the process at startup,
@@ -33,9 +35,9 @@ module.exports = {
   GITHUB_WORKFLOW: process.env.GITHUB_WORKFLOW || "run-tests.yml",
   GITHUB_REF: process.env.GITHUB_REF || "main",
 
-  // RUNNER=playwright: chạy thật bằng Playwright ngay trong backend (local).
+  // RUNNER=playwright: chạy thật bằng Playwright ngay trong backend (chỉ local).
+  // Tài khoản test không khai ở đây: test_data trỏ 'env:TEST_*' và services/runner/steps.js
+  // đọc thẳng process.env, giống hệt khi spec chạy trong GitHub Actions.
   BASE_URL: process.env.BASE_URL, // web đích, vd https://web-nhom-kia
-  PW_USERNAME: process.env.PW_USERNAME,
-  PW_PASSWORD: process.env.PW_PASSWORD,
   PLAYWRIGHT_CHROMIUM_PATH: process.env.PLAYWRIGHT_CHROMIUM_PATH,
 };

@@ -42,8 +42,8 @@ class TemplatesService {
     if (typeof template.target_json === "string") {
       template.target_json = JSON.parse(template.target_json);
     }
-    t.ready_count = await this.caseRepository.countReadyForTarget(
-      t.target_json,
+    template.ready_count = await this.caseRepository.countReadyForTarget(
+      template.target_json,
     );
     return template;
   }

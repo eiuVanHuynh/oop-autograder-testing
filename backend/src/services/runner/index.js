@@ -2,7 +2,6 @@ const env = require('../../config/env');
 const FakeRunner = require('./FakeRunner');
 const GithubActionsRunner = require('./GithubActionsRunner');
 const PlaywrightRunner = require('./PlaywrightRunner');
-const { query } = require('../../config/db');
 
 // Chọn bộ chạy test theo biến môi trường RUNNER ('github' | 'fake').
 // Bỏ trống: có GITHUB_TOKEN → github, không có → fake (chỉ ngoài production).
@@ -14,7 +13,7 @@ const notConfigured = (reason) => ({
   cancel: async () => {},
 });
 
-function createRunner({ logRepository, runRepository }) {
+function createRunner({ logRepository, runRepository, resultRepository, catalogRepository }) {
   const kind = (env.RUNNER || (env.GITHUB_TOKEN ? 'github' : 'fake')).toLowerCase();
 
   if (kind === 'github') {
@@ -29,15 +28,15 @@ function createRunner({ logRepository, runRepository }) {
     });
   }
 
+  // playwright = chạy thật trong tiến trình backend, chỉ dùng local (xem PlaywrightRunner).
   if (kind === 'playwright') {
     if (!env.BASE_URL) return notConfigured('thiếu BASE_URL (web đích để chạy Playwright)');
     return new PlaywrightRunner({
       logRepository,
       runRepository,
-      query,
+      resultRepository,
+      catalogRepository,
       baseUrl: env.BASE_URL,
-      username: env.PW_USERNAME,
-      password: env.PW_PASSWORD,
       executablePath: env.PLAYWRIGHT_CHROMIUM_PATH,
     });
   }

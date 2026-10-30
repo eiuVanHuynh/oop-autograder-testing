@@ -82,6 +82,9 @@ class RunsService {
     const configJson = {
       templateId: data.templateId || null,
       testIds: data.testIds || null,
+      // Mã test đã giải ra, để bộ chạy / GET /ingest/runs/:id/plan dùng lại.
+      // Không bao giờ parse ngược từ `grep`: grep là chuỗi cho GitHub Actions, không phải dữ liệu.
+      testCodes,
       grep,
       env,
       timeout,
@@ -95,7 +98,7 @@ class RunsService {
     });
 
     try {
-      const ciRunId = await this.testRunner.trigger({ runId, grep, env, timeout });
+      const ciRunId = await this.testRunner.trigger({ runId, testCodes, grep, env, timeout });
       if (ciRunId) await this.runRepository.setCiRunId(runId, ciRunId);
     } catch (ciError) {
       await this.runRepository.markFinished(runId, "failed");

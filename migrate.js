@@ -1,10 +1,11 @@
 const fs = require("fs");
 const path = require("path");
 const { Client } = require("pg");
+// .env thật nằm ở backend/ (xem db/SETUP-LOCAL.md); giữ cả .env gốc nếu có.
+require("dotenv").config({ path: path.join(__dirname, "backend", ".env") });
 require("dotenv").config();
 
-const connectionString =
-  "postgresql://postgres.bvtstxpufnukwqvgfwnp:j4Hp4dhhrITFOyMv@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres";
+const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
   console.error("Lỗi: Chưa cấu hình DATABASE_URL trong file .env!");
@@ -21,17 +22,22 @@ const migrationFiles = [
   "db/migrations/007_seed_users.sql",
   "db/migrations/008_dashboard_runs_templates.sql",
   "db/migrations/009_seed_sample_template.sql",
+  // 010 thay cho 001/002/005/006 (bản MySQL, không chạy được trên Postgres).
+  "db/migrations/010_seed_auth_postgres.sql",
 ];
 
 async function runMigrations() {
   const client = new Client({
     connectionString,
-    ssl: { rejectUnauthorized: false },
+    // Postgres local không bật SSL; chỉ DB cloud (Supabase) mới cần.
+    ssl: /@(localhost|127\.0\.0\.1)[:/]/.test(connectionString)
+      ? false
+      : { rejectUnauthorized: false },
   });
 
   try {
     await client.connect();
-    console.log("Kết nối thành công tới Supabase PostgreSQL!");
+    console.log("Kết nối PostgreSQL thành công!");
 
     for (const relativePath of migrationFiles) {
       const filePath = path.join(__dirname, relativePath);
@@ -50,7 +56,7 @@ async function runMigrations() {
     }
 
     console.log(
-      "\nĐã chạy thành công toàn bộ migration và seed data lên Supabase!",
+      "\nĐã chạy thành công toàn bộ migration và seed data!",
     );
   } catch (err) {
     console.error("\nLỗi trong quá trình chạy migration:", err.message);

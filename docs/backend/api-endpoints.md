@@ -191,13 +191,18 @@ Phục vụ trang: **RunDetail** (nút Tải PDF / Export HTML / Copy link) và 
 
 | Ưu tiên | Endpoint | Quyền hạn | Status code | Ghi chú |
 | :-: | --- | --- | --- | --- |
+| 🟢 | `GET /ingest/runs/:id/plan` | Máy (API key) | `200`, `401`, `404`, `409` | **Kế hoạch chạy** – một lần gọi trả mọi test case của run kèm `test_steps` + `test_data`. CI không nối thẳng DB (mục 5 của backend-design). `data_value` giữ nguyên dạng `env:TEN_BIEN`; nơi chạy test tự giải từ GitHub Secrets. |
+| 🟢 | `POST /ingest/runs/:id/ci-run-id` | Máy (API key) | `200`, `401`, `404` | **Báo `GITHUB_RUN_ID` về** – `workflow_dispatch` không trả id lần chạy, không có đường này thì `POST /runs/:id/cancel` không hủy được workflow. |
 | 🔴 | `POST /ingest/runs` | Máy (API key) | `201`, `400`, `401` | **Báo "bắt đầu chạy"** – tạo một lần chạy mới, kèm thông tin: trình duyệt, môi trường, nhánh code, người chạy. |
 | 🔴 | `POST /ingest/runs/:id/results` | Máy (API key) | `201`, `400`, `401`, `404` | **Gửi kết quả từng test case**: đạt/lỗi, kết quả thực tế, thời gian chạy, thông báo lỗi. Có thể gửi nhiều kết quả một lúc. |
 | 🔴 | `POST /ingest/runs/:id/logs` | Máy (API key) | `202`, `400`, `401`, `404` | **Gửi từng dòng log** khi đang chạy, để người xem trên web thấy chữ chạy trực tiếp (mục 6). *(Log chỉ lưu tạm, bị xóa sau khi lần chạy kết thúc.)* |
 | 🔴 | `PATCH /ingest/runs/:id/finish` | Máy (API key) | `200`, `400`, `401`, `404`, `409` | **Báo "đã chạy xong"** – ghi giờ kết thúc và kết quả chung. Gọi 2 lần cho cùng một lần chạy → `409`. |
-| 🟡 | `POST /ingest/results/:id/evidences` | Máy (API key) | `201`, `400`, `401`, `404`, `413` | **Gửi ảnh chụp màn hình / file trace** của test bị lỗi. File quá lớn → `413`. |
+| ⚪ | `POST /ingest/results/:id/evidences` | Máy (API key) | `201`, `400`, `401`, `404`, `413` | **Gửi ảnh chụp màn hình / file trace** của test bị lỗi. *Chưa làm — chốt là để `test_evidences` rỗng ở bản này; trace/screenshot hiện chỉ nằm trong artifact của GitHub Actions (7 ngày).* |
 
 ---
+
+> 🟢 = đã làm xong và có test. `POST /ingest/runs` (máy tự tạo run) vẫn chưa làm: luồng chính là
+> backend tạo run ở `POST /runs` rồi `workflow_dispatch`, nên CI không cần tự tạo.
 
 ## 9. Bên trong một bộ test: đặc tả, test case, các bước
 

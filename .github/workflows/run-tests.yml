@@ -1,0 +1,91 @@
+# Nơi chạy test thật. Backend (Vercel) kích hoạt bằng workflow_dispatch với run_id,
+# rồi CI tự lấy kế hoạch và đẩy log/kết quả về /api/ingest/*.
+# Vercel là serverless nên không chạy chromium được — xem backend-design.md mục 3.
+name: run-tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: run_id trong bảng test_runs (backend đã tạo trước khi gọi)
+        required: true
+      grep:
+        description: Biểu thức --grep (bỏ qua ở workflow này; kế hoạch lấy từ run_id)
+        required: false
+      env:
+        description: Môi trường chạy
+        required: false
+        default: development
+      timeout:
+        description: Timeout mỗi bước (ms)
+        required: false
+        default: "30000"
+
+# Một run_id chỉ nên có một job chạy. Trùng thì hủy lần cũ, vì PATCH /finish gọi lần hai trả 409.
+concurrency:
+  group: run-tests-${{ inputs.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: automation
+    env:
+      API_BASE_URL: ${{ secrets.API_BASE_URL }}
+      INGEST_API_KEY: ${{ secrets.INGEST_API_KEY }}
+      RUN_ID: ${{ inputs.run_id }}
+      BASE_URL: ${{ secrets.BASE_URL }}
+      # Tài khoản test: test_data chỉ trỏ 'env:TEN_BIEN', giá trị thật nằm ở Secrets.
+      TEST_STUDENT_IRN: ${{ secrets.TEST_STUDENT_IRN }}
+      TEST_STUDENT_PASSWORD: ${{ secrets.TEST_STUDENT_PASSWORD }}
+      TEST_LECTURER_IRN: ${{ secrets.TEST_LECTURER_IRN }}
+      TEST_LECTURER_PASSWORD: ${{ secrets.TEST_LECTURER_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: automation/package-lock.json
+
+      - run: npm ci
+
+      # Chromium của Playwright được cache theo version trong package-lock.
+      - name: Cache Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('automation/package-lock.json') }}
+      - run: npx playwright install --with-deps chromium
+
+      - name: Lấy kế hoạch chạy
+        run: node scripts/fetch-plan.js
+
+      # Reporter push-to-backend tự đẩy kết quả + gọi PATCH /finish, nên bước này không
+      # được dừng workflow khi có test fail — test fail là kết quả, không phải lỗi hạ tầng.
+      - name: Chạy Playwright
+        run: npx playwright test
+        continue-on-error: true
+
+      - name: Lưu trace/screenshot làm artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ inputs.run_id }}
+          path: automation/test-results
+          retention-days: 7
+
+      # Lưới an toàn: nếu Playwright chết trước khi reporter chạy onEnd thì run sẽ treo
+      # 'running' mãi. 409 ở đây là bình thường — nghĩa là reporter đã báo xong rồi.
+      - name: Đóng run nếu reporter chưa kịp báo
+        if: always()
+        run: |
+          curl -s -o /dev/null -w '%{http_code}\n' -X PATCH \
+            -H "x-api-key: $INGEST_API_KEY" -H 'content-type: application/json' \
+            -d '{"final_status":"failed"}' \
+            "$API_BASE_URL/api/ingest/runs/$RUN_ID/finish"

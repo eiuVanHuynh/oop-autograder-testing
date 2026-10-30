@@ -27,6 +27,74 @@ class CatalogRepository extends BaseRepository {
     return res.rows.map((r) => r.code);
   }
 
+  // Một test case theo mã (tc_code hoặc automation_ref) kèm bước và dữ liệu — bộ chạy test cần.
+  // Không tìm thấy → null. Bước đã sắp theo step_order nên nơi gọi chạy tuần tự được luôn.
+  async findCaseByCode(code) {
+    const found = await this.query(
+      `SELECT c.test_id FROM test_cases c WHERE ${CODE_EXPR} = $1 LIMIT 1`,
+      [code],
+    );
+    if (!found.rows[0]) return null;
+    const { test_id: testId } = found.rows[0];
+
+    const [steps, data] = await Promise.all([
+      this.query(
+        `SELECT step_order, step_action, step_target, expected_result
+           FROM test_steps WHERE test_id = $1 ORDER BY step_order`,
+        [testId],
+      ),
+      this.query(
+        `SELECT field_name, data_value FROM test_data WHERE test_id = $1 ORDER BY data_id`,
+        [testId],
+      ),
+    ]);
+
+    return {
+      test_id: testId,
+      steps: steps.rows,
+      data: Object.fromEntries(data.rows.map((r) => [r.field_name, r.data_value])),
+    };
+  }
+
+  // Kế hoạch chạy của GitHub Actions: nhiều case kèm steps + test_data, 3 truy vấn cố định.
+  // Giữ nguyên chuỗi 'env:TEN_BIEN' trong data_value — nơi chạy test tự giải, backend không giải
+  // (mật khẩu thật không được đi qua response rồi lọt vào log Actions của repo public).
+  async findCasesByCodes(codes) {
+    if (!codes || !codes.length) return [];
+    const cases = await this.query(
+      `SELECT c.test_id, c.tc_code, c.title, ${CODE_EXPR} AS code
+         FROM test_cases c
+        WHERE ${CODE_EXPR} = ANY($1::text[])
+        ORDER BY c.tc_code`,
+      [codes],
+    );
+    if (!cases.rows.length) return [];
+    const ids = cases.rows.map((r) => r.test_id);
+
+    const [steps, data] = await Promise.all([
+      this.query(
+        `SELECT test_id, step_order, step_action, step_target, expected_result
+           FROM test_steps WHERE test_id = ANY($1::int[]) ORDER BY test_id, step_order`,
+        [ids],
+      ),
+      this.query(
+        `SELECT test_id, field_name, data_value
+           FROM test_data WHERE test_id = ANY($1::int[]) ORDER BY test_id, data_id`,
+        [ids],
+      ),
+    ]);
+
+    return cases.rows.map((c) => ({
+      code: c.code,
+      tc_code: c.tc_code,
+      title: c.title,
+      steps: steps.rows.filter((s) => s.test_id === c.test_id),
+      data: Object.fromEntries(
+        data.rows.filter((d) => d.test_id === c.test_id).map((d) => [d.field_name, d.data_value]),
+      ),
+    }));
+  }
+
   // Trong danh sách tc_code người dùng gửi lên, chỉ giữ mã có thật và đang 'ready'.
   async findReadyCodesByTcCodes(tcCodes) {
     const res = await this.query(
@@ -228,3 +296,4 @@ class CatalogRepository extends BaseRepository {
 }
 
 module.exports = CatalogRepository;
+module.exports.CODE_EXPR = CODE_EXPR; // ResultRepository ghi kết quả theo cùng biểu thức mã test
