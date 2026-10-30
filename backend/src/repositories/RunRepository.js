@@ -2,19 +2,28 @@ const BaseRepository = require("./BaseRepository");
 
 // Truy vấn bảng test_runs.
 // Queries the test_runs table.
-//
+// Một case = MỘT kết quả: dòng execution_id lớn nhất của case đó trong run (CI đẩy /results
+// hai lần thì bảng có hai dòng cho cùng test_id). GET /runs/:id/results cũng lọc đúng như vậy,
+// nên số liệu dưới đây và bảng trên trang báo cáo không bao giờ lệch nhau.
+const LAST_PER_CASE = `(
+  SELECT DISTINCT ON (x.test_id) x.result_status
+    FROM test_results x
+   WHERE x.run_id = r.run_id
+   ORDER BY x.test_id, x.execution_id DESC
+)`;
+
 // Trạng thái KHÔNG lưu thành cột riêng mà tính ra (backend-design mục 6):
-//   finished_at IS NULL            → 'running'
-//   final_status IS NOT NULL       → final_status (hủy / lỗi kích hoạt: chưa có dòng test_results nào)
-//   có test_results failed|timedOut → 'failed'
-//   có test_results interrupted    → 'interrupted'
-//   còn lại                        → 'passed'
+//   finished_at IS NULL          → 'running'
+//   final_status IS NOT NULL     → final_status (hủy / lỗi kích hoạt: chưa có dòng test_results nào)
+//   có kết quả failed|timedOut   → 'failed'
+//   có kết quả interrupted       → 'interrupted'
+//   còn lại                      → 'passed'
 // Nhờ vậy /ingest/runs/:id/finish chỉ cần ghi finished_at.
 const STATUS_EXPR = `CASE
     WHEN r.finished_at IS NULL THEN 'running'
     WHEN r.final_status IS NOT NULL THEN r.final_status
-    WHEN EXISTS (SELECT 1 FROM test_results x WHERE x.run_id = r.run_id AND x.result_status IN ('failed', 'timedOut')) THEN 'failed'
-    WHEN EXISTS (SELECT 1 FROM test_results x WHERE x.run_id = r.run_id AND x.result_status = 'interrupted') THEN 'interrupted'
+    WHEN agg.failed_count > 0 THEN 'failed'
+    WHEN agg.interrupted_count > 0 THEN 'interrupted'
     ELSE 'passed'
   END`;
 
@@ -22,7 +31,22 @@ class RunRepository extends BaseRepository {
   constructor() {
     super("test_runs", "run_id");
     // Bảng + cột status tính ra. Cột "status" luôn do câu SQL này quyết định.
-    this.withStatus = `(SELECT r.*, ${STATUS_EXPR} AS status FROM ${this.tableName} r) t`;
+    // Mọi câu SELECT của repository này đi qua đây, nên số case và tên người chạy chỉ cần
+    // khai một lần: Dashboard/History hiện được cột Passed/Failed và tên thay cho "User #1".
+    this.withStatus = `(
+      SELECT r.*, ${STATUS_EXPR} AS status,
+             u.full_name AS tester_name,
+             agg.total_count, agg.passed_count, agg.failed_count
+        FROM ${this.tableName} r
+        LEFT JOIN users u ON u.user_id = r.tester_id
+        LEFT JOIN LATERAL (
+          SELECT count(*)::int AS total_count,
+                 count(*) FILTER (WHERE d.result_status = 'passed')::int AS passed_count,
+                 count(*) FILTER (WHERE d.result_status IN ('failed', 'timedOut'))::int AS failed_count,
+                 count(*) FILTER (WHERE d.result_status = 'interrupted')::int AS interrupted_count
+            FROM ${LAST_PER_CASE} d
+        ) agg ON true
+    ) t`;
   }
 
   async findById(id) {

@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS test_steps (
     step_action     TEXT NOT NULL,
     step_target     VARCHAR(255) NULL,
     expected_result TEXT NULL,
+    field_name      VARCHAR(100) NULL, -- FILL: tro sang test_data.field_name (xem migration 011)
     CONSTRAINT uq_steps_order UNIQUE (test_id, step_order),
     CONSTRAINT fk_steps_case FOREIGN KEY (test_id) REFERENCES test_cases(test_id) ON DELETE CASCADE
 );
@@ -226,4 +227,4 @@ CREATE TRIGGER trg_pages_updated_at BEFORE UPDATE ON pages FOR EACH ROW EXECUTE 
 DROP TRIGGER IF EXISTS trg_items_updated_at ON items;
 CREATE TRIGGER trg_items_updated_at BEFORE UPDATE ON items FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-ALTER TABLE test_cases ADD COLUMN page_id INTEGER REFERENCES pages(page_id) ON DELETE SET NULL;
+ALTER TABLE test_cases ADD COLUMN IF NOT EXISTS page_id INTEGER REFERENCES pages(page_id) ON DELETE SET NULL;

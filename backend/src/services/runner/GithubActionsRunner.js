@@ -1,4 +1,5 @@
 const TestRunner = require('./TestRunner');
+const { ENVIRONMENTS } = require('../../validators/options');
 
 // Bản chạy thật: kích hoạt .github/workflows/run-tests.yml bằng workflow_dispatch.
 // The real implementation: triggers .github/workflows/run-tests.yml via workflow_dispatch.
@@ -11,12 +12,21 @@ const TestRunner = require('./TestRunner');
 //   cancel() mới hủy được. Chưa có id thì cancel() chỉ ghi nhận, run vẫn được đánh dấu 'interrupted'.
 // - Actions mất 20–60 giây mới khởi động → đừng coi 'chưa có log' là lỗi.
 class GithubActionsRunner extends TestRunner {
-  constructor({ token, repo, workflow = 'run-tests.yml', ref = 'main' }) {
-    super();
+  constructor({ token, repo, workflow = 'run-tests.yml', ref = 'main', baseUrls }) {
+    super({ baseUrls });
     this.token = token;
     this.repo = repo;
     this.workflow = workflow;
     this.ref = ref;
+  }
+
+  // URL thật nằm ở GitHub Secrets, backend không đọc được — nên ở đây chỉ kiểm TÊN môi trường
+  // có trong danh sách, KHÔNG đòi khai BASE_URL_* lần thứ hai phía backend. Secret thiếu thì
+  // step "Kiểm BASE_URL của môi trường" trong run-tests.yml fail và nói rõ tên secret.
+  checkEnv(env) {
+    return ENVIRONMENTS.includes(env)
+      ? null
+      : `Môi trường "${env}" không có trong danh sách: ${ENVIRONMENTS.join(', ')}`;
   }
 
   get headers() {

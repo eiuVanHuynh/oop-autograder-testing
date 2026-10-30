@@ -10,6 +10,9 @@ const ResultRepository = require("../repositories/ResultRepository");
 const RunsService = require("../services/runs.service");
 const IngestService = require("../services/ingest.service");
 const CatalogService = require("../services/catalog.service");
+const UsersService = require("../services/users.service");
+const BugsService = require("../services/bugs.service");
+const BugRepository = require("../repositories/BugRepository");
 const { createTargetResolver } = require("../services/target");
 const { createRunner } = require("../services/runner");
 
@@ -37,12 +40,27 @@ const catalogService = new CatalogService({ catalogRepository });
 const runRepository = new RunRepository();
 const logRepository = new LogRepository();
 const resultRepository = new ResultRepository();
+// testRunner đứng riêng vì hai nơi dùng: chạy test, và /meta/options hỏi nó môi trường nào
+// chạy được — một nguồn chân lý, không để giao diện mời chọn thứ POST /runs sẽ từ chối.
+const testRunner = createRunner({
+  logRepository,
+  runRepository,
+  resultRepository,
+  catalogRepository,
+});
 const runsService = new RunsService({
   runRepository,
   templateRepository,
   logRepository,
   targetResolver: createTargetResolver({ catalogRepository }),
-  testRunner: createRunner({ logRepository, runRepository, resultRepository, catalogRepository }),
+  testRunner,
+  resultRepository,
+});
+
+const usersService = new UsersService({ userRepository });
+const bugsService = new BugsService({
+  bugRepository: new BugRepository(),
+  resultRepository,
 });
 
 const ingestService = new IngestService({
@@ -58,5 +76,8 @@ module.exports = {
   templatesService,
   runsService,
   catalogService,
+  usersService,
+  bugsService,
+  testRunner,
   userRepository, // requireAuth cần để kiểm tra trạng thái khóa của tài khoản
 };

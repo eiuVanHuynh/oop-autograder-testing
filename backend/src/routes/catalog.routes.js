@@ -7,7 +7,10 @@ const {
   caseQuerySchema,
   caseIdParamsSchema,
   replaceCaseStepsSchema,
+  replaceCaseDataSchema,
+  caseDataParamsSchema,
   createCaseSchema,
+  updateCaseSchema,
 } = require("../validators/catalog.schema");
 // Suite / spec / case – nơi khai báo test, nguồn để chọn target.
 // Suites / specs / cases – where tests are declared, the source for picking targets.
@@ -19,7 +22,12 @@ const {
 // - Route chỉ khai báo URL, không có logic.
 
 // TODO: khai báo các route của nhóm catalog
-router.get("/cases/:id", requireAuth, catalogController.getCaseDetails);
+router.get(
+  "/cases/:id",
+  requireAuth,
+  validate(caseIdParamsSchema, "params"),
+  catalogController.getCaseDetails,
+);
 router.put(
   "/cases/:id/steps",
   requireAuth,
@@ -27,6 +35,29 @@ router.put(
   validate(caseIdParamsSchema, "params"),
   validate(replaceCaseStepsSchema),
   catalogController.replaceCaseSteps,
+);
+router.put(
+  "/cases/:id/data",
+  requireAuth,
+  requireRole("admin", "tester"),
+  validate(caseIdParamsSchema, "params"),
+  validate(replaceCaseDataSchema),
+  catalogController.replaceCaseData,
+);
+router.delete(
+  "/cases/:id/data/:field",
+  requireAuth,
+  requireRole("admin", "tester"),
+  validate(caseDataParamsSchema, "params"),
+  catalogController.deleteCaseDataField,
+);
+router.put(
+  "/cases/:id",
+  requireAuth,
+  requireRole("admin", "tester"),
+  validate(caseIdParamsSchema, "params"),
+  validate(updateCaseSchema),
+  catalogController.updateCase,
 );
 router.get(
   "/cases",

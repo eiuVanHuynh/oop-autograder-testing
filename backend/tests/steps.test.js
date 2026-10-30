@@ -24,6 +24,17 @@ test('resolveValue đọc env: và báo lỗi khi thiếu biến', () => {
   assert.throws(() => resolveValue('env:TC_TEST_KHONG_CO'), /thiếu biến môi trường TC_TEST_KHONG_CO/);
 });
 
+test('fillValueFor ưu tiên cột field_name của bước', () => {
+  const data = { lecturer_password: 'gv-pass', password: 'sai' };
+  const step = {
+    step_target: 'placeholder=Enter your password',
+    field_name: 'lecturer_password',
+    // Cột thắng chuỗi "(field …)" cũ, kể cả khi hai bên nói khác nhau.
+    expected_result: 'Password is entered (field password).',
+  };
+  assert.equal(fillValueFor(step, data), 'gv-pass');
+});
+
 test('fillValueFor ưu tiên "(field …)" trong expected_result', () => {
   const data = { lecturer_password: 'gv-pass', password: 'sai' };
   const step = { step_target: 'placeholder=Enter your password', expected_result: 'Password is entered (field lecturer_password).' };
@@ -117,4 +128,18 @@ test('test case không có bước nào → failed, không passed', async () => 
   const r = await runCase(pageAt('http://x/'), { steps: [], data: {} });
   assert.equal(r.status, 'failed');
   assert.match(r.error, /không có bước nào/);
+});
+
+test('requiredFields: field của FILL + expected_url cho VERIFY không target', () => {
+  const { requiredFields } = require('../src/services/runner/steps');
+  assert.deepEqual(
+    requiredFields([
+      { step_action: 'NAVIGATE', step_target: '/' },
+      { step_action: 'FILL', step_target: 'placeholder=IRN', field_name: 'username' },
+      { step_action: 'FILL', step_target: 'placeholder=Enter your password' }, // đoán: password
+      { step_action: 'VERIFY', step_target: 'text=Welcome' }, // có target → không cần dữ liệu
+      { step_action: 'VERIFY', step_target: null },
+    ]),
+    ['username', 'password', 'expected_url'],
+  );
 });

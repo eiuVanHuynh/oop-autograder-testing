@@ -1,14 +1,33 @@
 const asyncHandler = require("../utils/asyncHandler");
+const { usersService } = require("../config/container");
 
 // Quản lý thành viên – chỉ Admin.
-// Member management – Admin only.
 // Controller mỏng: đọc req → gọi service → res.json({ data }). Không có quy tắc nghiệp vụ.
-// Thin controller: read req → call the service → res.json({ data }). No business rules here.
-//
-// Cần làm / To do:
-// - Danh sách có lọc/phân trang, đổi vai trò, khóa/mở khóa, tự sửa hồ sơ, đổi mật khẩu.
-// - Trả đúng status code ghi trong api-endpoints.md mục 2.
 
-// TODO: các hàm xử lý, bọc trong asyncHandler
+// 1. GET /users?q=&role=&status=&page=&limit= (200)
+const getUsers = asyncHandler(async (req, res) => {
+  const result = await usersService.getUsers(req.query);
+  return res.status(200).json(result); // { data, meta }
+});
 
-module.exports = {};
+// 2. PATCH /users/:id/role (200)
+const changeRole = asyncHandler(async (req, res) => {
+  const user = await usersService.changeRole(
+    req.params.id,
+    req.body.role,
+    req.user.user_id,
+  );
+  return res.status(200).json({ data: user });
+});
+
+// 3. PATCH /users/:id/status (200)
+const changeStatus = asyncHandler(async (req, res) => {
+  const user = await usersService.changeStatus(
+    req.params.id,
+    req.body.status,
+    req.user.user_id,
+  );
+  return res.status(200).json({ data: user });
+});
+
+module.exports = { getUsers, changeRole, changeStatus };

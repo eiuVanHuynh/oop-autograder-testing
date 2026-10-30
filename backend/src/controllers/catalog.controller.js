@@ -37,8 +37,27 @@ const replaceCaseSteps = asyncHandler(async (req, res) => {
 
   res.status(200).json({ data: result });
 });
+const replaceCaseData = asyncHandler(async (req, res) => {
+  const result = await catalogService.replaceCaseData(
+    req.params.id,
+    req.body.data,
+  );
+
+  res.status(200).json({ data: result });
+});
+const deleteCaseDataField = asyncHandler(async (req, res) => {
+  await catalogService.deleteCaseDataField(req.params.id, req.params.field);
+  res.status(204).send();
+});
+const updateCase = asyncHandler(async (req, res) => {
+  const testCase = await catalogService.updateCase(req.params.id, req.body);
+  res.status(200).json({ data: testCase });
+});
 module.exports = {
   getCases,
+  replaceCaseData,
+  deleteCaseDataField,
+  updateCase,
   getCaseDetails,
   replaceCaseSteps,
   createCase,

@@ -14,6 +14,7 @@ const getTemplates = asyncHandler(async (req, res) => {
   const filters = {
     q: req.query.q,
     scope: req.query.scope,
+    status: req.query.status,
   };
   const data = await templatesService.getAllTemplates(filters);
   // Bỏ success: true theo đúng backend-design.md mục 4[cite: 2]

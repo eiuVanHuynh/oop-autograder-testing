@@ -1,14 +1,23 @@
 const asyncHandler = require('../utils/asyncHandler');
+const { bugsService } = require('../config/container');
 
 // Báo lỗi từ một kết quả test bị Fail (🟡).
-// Bug reports raised from a failed test result (🟡).
 // Controller mỏng: đọc req → gọi service → res.json({ data }). Không có quy tắc nghiệp vụ.
-// Thin controller: read req → call the service → res.json({ data }). No business rules here.
-//
-// Cần làm / To do:
-// - POST /results/:id/bugs, GET /bugs có lọc, PATCH /bugs/:id.
-// - Trả đúng status code ghi trong api-endpoints.md mục 10.
 
-// TODO: các hàm xử lý, bọc trong asyncHandler
+// 1. POST /results/:id/bugs (201; 409 nếu kết quả không phải Fail)
+const createBug = asyncHandler(async (req, res) => {
+  const bug = await bugsService.createForResult(req.params.id, req.body, req.user.user_id);
+  return res.status(201).json({ data: bug });
+});
 
-module.exports = {};
+// 2. GET /bugs?status=&severity= (200)
+const getBugs = asyncHandler(async (req, res) => {
+  return res.status(200).json({ data: await bugsService.getBugs(req.query) });
+});
+
+// 3. PATCH /bugs/:id (200)
+const updateBug = asyncHandler(async (req, res) => {
+  return res.status(200).json({ data: await bugsService.updateBug(req.params.id, req.body) });
+});
+
+module.exports = { createBug, getBugs, updateBug };

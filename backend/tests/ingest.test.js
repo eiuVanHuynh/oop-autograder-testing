@@ -1,4 +1,7 @@
-process.env.DATABASE_URL = 'postgresql://postgres:x@localhost:55432/test_automation_db';
+// Chỉ nhận TEST_DATABASE_URL, KHÔNG tự lấy DATABASE_URL: test có ghi/xóa dòng thật,
+// lấy nhầm .env là chạy thẳng lên Supabase. Mặc định: container postgres tạm ở cổng 55432.
+process.env.DATABASE_URL =
+  process.env.TEST_DATABASE_URL || 'postgresql://postgres:x@localhost:55432/test_automation_db';
 process.env.JWT_SECRET = 'test-secret';
 process.env.INGEST_API_KEY = 'secret-ci-key';
 process.env.RUNNER = 'fake';

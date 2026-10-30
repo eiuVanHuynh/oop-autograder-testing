@@ -1,10 +1,16 @@
 const { z } = require("zod");
+const { ENVIRONMENTS } = require("./options");
 
 // Schema zod cho nhóm runs; middleware validate() dùng các schema này.
 // zod schemas for the runs group; the validate() middleware consumes them.
 //
 // Cần làm / To do:
 // - createRunSchema: templateId HOẶC testIds, không cả hai; env, timeout tùy chọn.
+
+// :id trong URL phải là số: thiếu bước này thì /runs/abc đi tới SQL và thành 500 thay vì 400.
+const runIdParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
 
 const createRunSchema = z
   .object({
@@ -13,7 +19,8 @@ const createRunSchema = z
       .array(z.string())
       .nonempty("testIds array cannot be empty")
       .optional(),
-    env: z.string().optional(),
+    // Enum thay vì chuỗi tự do: gửi "prod" rồi tưởng đã chạy trên production là sai nguy hiểm.
+    env: z.enum(ENVIRONMENTS).optional(),
     timeout: z.number().int().positive().optional(),
   })
   .refine(
@@ -29,23 +36,7 @@ const createRunSchema = z
     },
   );
 
-const validate = (schema) => (req, res, next) => {
-  try {
-    schema.parse(req.body);
-    next();
-  } catch (error) {
-    return res.status(400).json({
-      success: false,
-      error: error.errors
-        ? error.errors
-            .map((e) => `${e.path.join(".")}: ${e.message}`)
-            .join(", ")
-        : "Validation error",
-    });
-  }
-};
-
 module.exports = {
   createRunSchema,
-  validateCreateRun: validate(createRunSchema),
+  runIdParamsSchema,
 };

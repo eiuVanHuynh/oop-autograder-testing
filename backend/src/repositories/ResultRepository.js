@@ -30,6 +30,38 @@ class ResultRepository extends BaseRepository {
     return res.rows[0] ? res.rows[0][this.primaryKey] : null;
   }
 
+  // Kết quả từng case của một run, kèm bằng chứng (screenshot/trace) — trang báo cáo dùng.
+  // Nhờ có nó, frontend không phải bóc pass/fail từ chuỗi log nữa.
+  async findByRun(runId) {
+    // DISTINCT ON: một case chỉ một dòng, lấy execution_id lớn nhất. CI đẩy /results hai lần
+    // (workflow bị dispatch lại cùng RUN_ID) thì bảng có hai dòng cho cùng test_id; trang báo
+    // cáo khoá theo tc_code nên hai dòng sẽ thành hai hàng mâu thuẫn. Giữ lần chạy cuối, đúng
+    // như cách đọc log cũ ("dòng sau đè dòng trước").
+    const res = await this.query(
+      `SELECT DISTINCT ON (r.test_id)
+              r.${this.primaryKey}, r.test_id, c.tc_code, c.title,
+              r.result_status, r.actual_result, r.execution_time_ms,
+              r.error_message, r.retry_count,
+              COALESCE(
+                json_agg(
+                  json_build_object('evidence_id', e.evidence_id,
+                                    'evidence_type', e.evidence_type,
+                                    'file_path', e.file_path)
+                  ORDER BY e.evidence_id
+                ) FILTER (WHERE e.evidence_id IS NOT NULL),
+                '[]'
+              ) AS evidences
+         FROM ${this.tableName} r
+         JOIN test_cases c ON c.test_id = r.test_id
+         LEFT JOIN test_evidences e ON e.result_id = r.${this.primaryKey}
+        WHERE r.run_id = $1
+        GROUP BY r.${this.primaryKey}, r.test_id, c.tc_code, c.title
+        ORDER BY r.test_id, r.${this.primaryKey} DESC`,
+      [runId],
+    );
+    return res.rows;
+  }
+
   // Nhiều kết quả một lượt cho POST /ingest/runs/:id/results.
   // Trả về danh sách mã không tìm thấy trong test_cases để nơi gọi báo lại cho CI.
   async recordMany(runId, items) {

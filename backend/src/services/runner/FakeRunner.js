@@ -7,8 +7,8 @@ const TestRunner = require('./TestRunner');
 // - Nếu truyền logRepository + runRepository thì mô phỏng một lần chạy: ghi vài dòng log
 //   gắn nhãn [FAKE RUNNER] rồi đóng run là 'passed'. KHÔNG phải kết quả test thật.
 class FakeRunner extends TestRunner {
-  constructor({ logRepository, runRepository, stepMs = 700 } = {}) {
-    super();
+  constructor({ logRepository, runRepository, stepMs = 700, baseUrls } = {}) {
+    super({ baseUrls });
     this.logRepository = logRepository;
     this.runRepository = runRepository;
     this.stepMs = stepMs;

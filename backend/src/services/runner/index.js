@@ -11,6 +11,7 @@ const notConfigured = (reason) => ({
     throw new Error(`Chưa cấu hình bộ chạy test: ${reason}`);
   },
   cancel: async () => {},
+  checkEnv: () => null, // lỗi cấu hình thuộc về trigger(), không giả thành lỗi 400 của người dùng
 });
 
 function createRunner({ logRepository, runRepository, resultRepository, catalogRepository }) {
@@ -25,18 +26,21 @@ function createRunner({ logRepository, runRepository, resultRepository, catalogR
       repo: env.GITHUB_REPO,
       workflow: env.GITHUB_WORKFLOW,
       ref: env.GITHUB_REF,
+      baseUrls: env.BASE_URLS,
     });
   }
 
   // playwright = chạy thật trong tiến trình backend, chỉ dùng local (xem PlaywrightRunner).
   if (kind === 'playwright') {
-    if (!env.BASE_URL) return notConfigured('thiếu BASE_URL (web đích để chạy Playwright)');
+    if (!Object.keys(env.BASE_URLS).length) {
+      return notConfigured('thiếu BASE_URL_<MÔI TRƯỜNG> (web đích để chạy Playwright)');
+    }
     return new PlaywrightRunner({
       logRepository,
       runRepository,
       resultRepository,
       catalogRepository,
-      baseUrl: env.BASE_URL,
+      baseUrls: env.BASE_URLS,
       executablePath: env.PLAYWRIGHT_CHROMIUM_PATH,
     });
   }

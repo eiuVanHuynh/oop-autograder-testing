@@ -33,17 +33,39 @@ function resolveValue(value) {
   return got;
 }
 
-// test_steps không có cột field_name; seed ghi tên field trong expected_result:
-// "IRN is entered (field lecturer_username)." → lecturer_username.
+// Tên field trong test_data mà bước FILL điền: cột test_steps.field_name (migration 011).
+// shortcut: còn đọc chuỗi "(field x)" trong expected_result làm đường lui cho dòng steps cũ
+// chưa điền cột; bỏ nhánh regex khi mọi bước FILL đã có field_name.
 function fieldOf(step) {
+  if (step.field_name) return step.field_name;
   const m = /\(field\s+([A-Za-z0-9_]+)\)/.exec(step.expected_result || '');
   return m ? m[1] : null;
 }
 
-// Giá trị để FILL. shortcut: không khai "(field …)" thì đoán theo placeholder chứa "password";
-// bỏ được khi test_steps có cột field_name trỏ thẳng test_data.
+// Field mà một bước FILL điền. shortcut: bước không khai field_name (và cũng không có
+// "(field …)") thì đoán theo placeholder chứa "password"; bỏ nhánh đoán khi mọi bước FILL
+// đều có field_name.
+function fieldFor(step) {
+  return fieldOf(step) || (/password/i.test(step.step_target || '') ? 'password' : 'username');
+}
+
+// Những field test_data mà một bộ bước BẮT BUỘC phải có mới chạy được — chính là các field
+// mà runStep sẽ đọc. Dùng cho PUT /catalog/cases/:id để chặn test_status = 'ready' hụt dữ liệu,
+// nên luật phải nằm CẠNH nơi thi hành nó, không chép sang service.
+function requiredFields(steps = []) {
+  const out = new Set();
+  for (const step of steps) {
+    const action = String(step.step_action || '').toUpperCase();
+    if (action === 'FILL') out.add(fieldFor(step));
+    // VERIFY không có target thì chỉ còn test_data.expected_url để khẳng định (xem verify()).
+    else if (action === 'VERIFY' && !step.step_target) out.add('expected_url');
+  }
+  return [...out];
+}
+
+// Giá trị để FILL.
 function fillValueFor(step, data) {
-  const field = fieldOf(step) || (/password/i.test(step.step_target || '') ? 'password' : 'username');
+  const field = fieldFor(step);
   const value = resolveValue(data[field]);
   if (value == null || value === '') {
     throw new Error(`thiếu test_data cho FILL ${step.step_target} (field ${field})`);
@@ -118,4 +140,4 @@ async function runCase(page, kase, log = noop) {
   }
 }
 
-module.exports = { runCase, runStep, toLocator, fillValueFor, resolveValue, fieldOf, ACTIONS };
+module.exports = { runCase, runStep, toLocator, fillValueFor, resolveValue, fieldOf, requiredFields, ACTIONS };

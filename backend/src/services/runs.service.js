@@ -1,5 +1,6 @@
 const AppError = require("../utils/AppError");
 const { buildGrep } = require("./target");
+const { ENVIRONMENTS } = require("../validators/options");
 
 // Chạy test, theo dõi log, lịch sử, hủy, chạy lại.
 // Running tests, log tailing, history, cancel, re-run.
@@ -25,6 +26,7 @@ class RunsService {
     logRepository,
     targetResolver,
     testRunner,
+    resultRepository,
   }) {
     Object.entries({
       runRepository,
@@ -32,6 +34,7 @@ class RunsService {
       logRepository,
       targetResolver,
       testRunner,
+      resultRepository,
     }).forEach(([name, dep]) => {
       if (!dep) throw new Error(`RunsService thiếu phụ thuộc: ${name}`);
     });
@@ -40,6 +43,7 @@ class RunsService {
     this.logRepository = logRepository;
     this.targetResolver = targetResolver;
     this.testRunner = testRunner;
+    this.resultRepository = resultRepository;
   }
 
   async getAllRuns(filters = {}) {
@@ -54,6 +58,12 @@ class RunsService {
     if (!run) throw new AppError(404, "NOT_FOUND", "Run not found");
     run.config_json = parseJson(run.config_json);
     return run;
+  }
+
+  // Kết quả từng case của một run. Run không có → 404 (chứ không phải danh sách rỗng).
+  async getRunResults(id) {
+    await this.getRunById(id);
+    return this.resultRepository.findByRun(id);
   }
 
   async createRun(userId, data) {
@@ -76,6 +86,22 @@ class RunsService {
 
     // Giá trị người dùng chọn lúc bấm Run thắng mặc định của template.
     const env = data.env || template?.env || "development";
+
+    // env của template KHÔNG đi qua zod (nó là giá trị cũ trong DB, có thể là 'dev'), nên
+    // kiểm danh sách ở đây để thông báo giống nhau dù runner nào đang cắm.
+    if (!ENVIRONMENTS.includes(env)) {
+      throw new AppError(
+        400,
+        "VALIDATION_ERROR",
+        `Môi trường "${env}" không hợp lệ; phải là một trong: ${ENVIRONMENTS.join(", ")}`,
+      );
+    }
+
+    // Môi trường phải trỏ tới một web thật. Trước đây env chỉ là nhãn: một run gắn
+    // "production" vẫn bắn vào site cũ. Chặn ở đây, TRƯỚC khi tạo dòng test_runs.
+    const envProblem = this.testRunner.checkEnv(env);
+    if (envProblem) throw new AppError(400, "VALIDATION_ERROR", envProblem);
+
     const timeout = data.timeout || template?.timeout || 30000;
     const grep = buildGrep(testCodes);
 

@@ -19,7 +19,7 @@ Module._load = function (req) {
             templates.push({
               template_id: nextId,
               template_name: p[0], description: p[1], scope: p[2],
-              target_json: p[3], env: p[4], timeout: p[5], created_by: p[6],
+              target_json: p[3], env: p[4], timeout: p[5], status: p[6], created_by: p[7],
             });
             return { rows: [{ template_id: nextId++ }], rowCount: 1 };
           }

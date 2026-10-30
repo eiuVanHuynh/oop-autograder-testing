@@ -39,6 +39,12 @@ const getRunLogs = asyncHandler(async (req, res) => {
   return res.status(200).json({ data: result });
 });
 
+// 4b. GET /runs/:id/results - Kết quả từng test case của lần chạy (Status code: 200 OK)
+const getRunResults = asyncHandler(async (req, res) => {
+  const result = await runsService.getRunResults(req.params.id);
+  return res.status(200).json({ data: result });
+});
+
 // 5. GET /runs/:id/logs/stream - Xem log trực tiếp dạng SSE (Status code: 200 OK)
 const streamRunLogs = asyncHandler(async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
@@ -61,13 +67,6 @@ const rerunRun = asyncHandler(async (req, res) => {
   return res.status(202).json({ data: result });
 });
 
-// 8. GET /runs/:id/results/:resultId/evidences - Xem bằng chứng (Status code: 200 OK)
-const getEvidences = asyncHandler(async (req, res) => {
-  const { id, resultId } = req.params;
-  const result = await runsService.getEvidences(id, resultId);
-  return res.status(200).json({ data: result });
-});
-
 // 9. DELETE /runs/:id - Xóa lần chạy khỏi lịch sử (Status code: 204 No Content)
 const deleteRun = asyncHandler(async (req, res) => {
   await runsService.deleteRun(req.params.id);
@@ -79,9 +78,9 @@ module.exports = {
   getRuns,
   getRunById,
   getRunLogs,
+  getRunResults,
   streamRunLogs,
   cancelRun,
   rerunRun,
-  getEvidences,
   deleteRun,
 };

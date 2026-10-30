@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node src/server.js",
     "test": "node --test tests/",
-    "routes": "node scripts/routes.js"
+    "routes": "node scripts/routes.js",
+    "migrate": "node ../migrate.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

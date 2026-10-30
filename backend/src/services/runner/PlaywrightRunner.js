@@ -13,23 +13,27 @@ const { runCase } = require('./steps');
 class PlaywrightRunner extends TestRunner {
   constructor({
     logRepository, runRepository, resultRepository, catalogRepository,
-    baseUrl, executablePath,
+    baseUrls, executablePath,
   }) {
-    super();
+    super({ baseUrls });
     this.logRepository = logRepository;
     this.runRepository = runRepository;
     this.resultRepository = resultRepository;
     this.catalogRepository = catalogRepository;
-    this.baseUrl = baseUrl;
     this.executablePath = executablePath || '/usr/bin/chromium';
     this.sessions = new Map(); // ciRunId -> { browser }
     this.cancelled = new Set();
   }
 
+  // Chạy web nào là do env của run quyết định, không phải một BASE_URL cố định.
+  checkEnv(env) {
+    return this.requireBaseUrl(env);
+  }
+
   // testCodes do runs.service giải ra từ template/suite — không parse lại từ biểu thức grep.
-  async trigger({ runId, testCodes, timeout }) {
+  async trigger({ runId, testCodes, timeout, env }) {
     const ciRunId = `pw-${runId}`;
-    this._run(runId, ciRunId, { codes: testCodes || [], timeout }); // không await: chạy nền
+    this._run(runId, ciRunId, { codes: testCodes || [], timeout, env }); // không await: chạy nền
     return ciRunId;
   }
 
@@ -40,15 +44,17 @@ class PlaywrightRunner extends TestRunner {
     if (s && s.browser) await s.browser.close().catch(() => {});
   }
 
-  async _run(runId, ciRunId, { codes, timeout }) {
+  async _run(runId, ciRunId, { codes, timeout, env }) {
     const log = (level, msg) => this.logRepository.append(runId, level, msg).catch(() => {});
-    if (!this.baseUrl) {
-      await log('error', '[PLAYWRIGHT] Thiếu BASE_URL — không biết chạy trên web nào.');
+    const baseUrl = this.baseUrlFor(env);
+    if (!baseUrl) {
+      // runs.service đã chặn từ trước (400); tới đây chỉ khi cấu hình đổi giữa hai bước.
+      await log('error', `[PLAYWRIGHT] ${this.requireBaseUrl(env)}`);
       await this.runRepository.markFinished(runId, 'failed');
       return;
     }
 
-    await log('info', `[PLAYWRIGHT] ${codes.length} test case trên ${this.baseUrl}: ${codes.join(', ')}`);
+    await log('info', `[PLAYWRIGHT] ${codes.length} test case trên ${baseUrl} (${env}): ${codes.join(', ')}`);
 
     let browser;
     try {
@@ -62,7 +68,7 @@ class PlaywrightRunner extends TestRunner {
           await this.runRepository.markFinished(runId, 'interrupted');
           return;
         }
-        await this._runCase(browser, runId, code, timeout, log);
+        await this._runCase(browser, runId, code, timeout, log, baseUrl);
       }
 
       // final_status để trống: status của run được tính từ test_results.
@@ -79,8 +85,8 @@ class PlaywrightRunner extends TestRunner {
   }
 
   // Một case = một page mới (không mang session đăng nhập sang case sau) + một dòng test_results.
-  async _runCase(browser, runId, code, timeout, log) {
-    const page = await browser.newPage({ baseURL: this.baseUrl });
+  async _runCase(browser, runId, code, timeout, log, baseUrl) {
+    const page = await browser.newPage({ baseURL: baseUrl });
     page.setDefaultTimeout(Number(timeout) || 30000);
     try {
       const kase = (await this.catalogRepository.findCaseByCode(code)) || { steps: [], data: {} };

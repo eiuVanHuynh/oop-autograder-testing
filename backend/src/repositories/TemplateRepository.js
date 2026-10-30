@@ -27,6 +27,11 @@ class TemplateRepository extends BaseRepository {
       sql += ` AND scope = $${params.length}`;
     }
 
+    if (filters.status) {
+      params.push(filters.status);
+      sql += ` AND status = $${params.length}`;
+    }
+
     sql += " ORDER BY created_at DESC";
     const res = await this.query(sql, params);
     return res.rows;
@@ -48,12 +53,13 @@ class TemplateRepository extends BaseRepository {
       target_json,
       env,
       timeout,
+      status,
       created_by,
     } = data;
     const sql = `
       INSERT INTO ${this.tableName} 
-      (template_name, description, scope, target_json, env, timeout, created_by) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      (template_name, description, scope, target_json, env, timeout, status, created_by) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING ${this.primaryKey}
     `;
     // target_json là JSONB (backend-design.md mục 6): pg tự tuần tự hóa object.
@@ -65,6 +71,7 @@ class TemplateRepository extends BaseRepository {
       target_json,
       env || "development",
       timeout || 30000,
+      status || "active",
       created_by,
     ]);
     return res.rows[0][this.primaryKey];
@@ -82,6 +89,7 @@ class TemplateRepository extends BaseRepository {
       "target_json",
       "env",
       "timeout",
+      "status",
     ];
     for (const field of allowedFields) {
       if (data[field] !== undefined) {

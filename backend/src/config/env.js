@@ -16,6 +16,19 @@ require("dotenv").config({ path: path.resolve(__dirname, "../../../.env") });
 // - Khi deploy Vercel nhớ khai báo đúng những tên này trong Project Settings.
 const required = ["DATABASE_URL", "JWT_SECRET"];
 
+// BASE_URL_<MÔI TRƯỜNG> → web đích của môi trường đó, vd BASE_URL_STAGING.
+// Chọn môi trường lúc bấm Run phải ĐỔI chỗ test chạy, chứ không chỉ là nhãn trong test_runs;
+// thiếu biến cho môi trường nào thì POST /runs với env đó trả 400 (services/runner/TestRunner.js).
+// BASE_URL (tên cũ, không hậu tố) vẫn được nhận là development để cấu hình local cũ còn chạy.
+const baseUrls = Object.fromEntries(
+  Object.entries(process.env)
+    .filter(([key, value]) => key.startsWith("BASE_URL_") && value)
+    .map(([key, value]) => [key.slice("BASE_URL_".length).toLowerCase(), value]),
+);
+if (process.env.BASE_URL && !baseUrls.development) {
+  baseUrls.development = process.env.BASE_URL;
+}
+
 const missing = required.filter((key) => !process.env[key]);
 if (missing.length) {
   throw new Error(`Thiếu biến môi trường bắt buộc: ${missing.join(", ")}`);
@@ -38,6 +51,7 @@ module.exports = {
   // RUNNER=playwright: chạy thật bằng Playwright ngay trong backend (chỉ local).
   // Tài khoản test không khai ở đây: test_data trỏ 'env:TEST_*' và services/runner/steps.js
   // đọc thẳng process.env, giống hệt khi spec chạy trong GitHub Actions.
-  BASE_URL: process.env.BASE_URL, // web đích, vd https://web-nhom-kia
+  // BASE_URL (tên cũ) không export riêng nữa: nó đã được gộp vào BASE_URLS.development ở trên.
+  BASE_URLS: baseUrls, // { development: 'https://…', staging: '…' }
   PLAYWRIGHT_CHROMIUM_PATH: process.env.PLAYWRIGHT_CHROMIUM_PATH,
 };

@@ -28,27 +28,9 @@ const resetSchema = z.object({
     .min(6, "New password must be at least 6 characters long"),
 });
 
-// Middleware helper để validate dữ liệu bằng Zod schemas
-const validate = (schema) => (req, res, next) => {
-  try {
-    schema.parse(req.body);
-    next();
-  } catch (error) {
-    return res.status(400).json({
-      error: error.errors
-        ? error.errors.map((e) => e.message).join(", ")
-        : "Validation error",
-    });
-  }
-};
-
 module.exports = {
   registerSchema,
   loginSchema,
   forgotSchema,
   resetSchema,
-  validateRegister: validate(registerSchema),
-  validateLogin: validate(loginSchema),
-  validateForgotPassword: validate(forgotSchema),
-  validateResetPassword: validate(resetSchema),
 };

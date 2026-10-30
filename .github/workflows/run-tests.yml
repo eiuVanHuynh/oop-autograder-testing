@@ -37,7 +37,10 @@ jobs:
       API_BASE_URL: ${{ secrets.API_BASE_URL }}
       INGEST_API_KEY: ${{ secrets.INGEST_API_KEY }}
       RUN_ID: ${{ inputs.run_id }}
-      BASE_URL: ${{ secrets.BASE_URL }}
+      # Môi trường chọn lúc bấm Run quyết định web đích: secret BASE_URL_DEVELOPMENT,
+      # BASE_URL_STAGING… Không fallback về secrets.BASE_URL: một run gắn nhãn "production"
+      # mà lặng lẽ bắn vào site development là sai nguy hiểm hơn là fail.
+      BASE_URL: ${{ secrets[format('BASE_URL_{0}', inputs.env)] }}
       # Tài khoản test: test_data chỉ trỏ 'env:TEN_BIEN', giá trị thật nằm ở Secrets.
       TEST_STUDENT_IRN: ${{ secrets.TEST_STUDENT_IRN }}
       TEST_STUDENT_PASSWORD: ${{ secrets.TEST_STUDENT_PASSWORD }}
@@ -45,6 +48,15 @@ jobs:
       TEST_LECTURER_PASSWORD: ${{ secrets.TEST_LECTURER_PASSWORD }}
 
     steps:
+      # Thiếu secret cho môi trường đang chọn thì dừng ngay, thay vì để Playwright chạy
+      # với BASE_URL rỗng rồi fail bằng một thông báo không ai hiểu.
+      - name: Kiểm BASE_URL của môi trường
+        run: |
+          test -n "$BASE_URL" || {
+            echo "::error::Thiếu secret BASE_URL_$(echo '${{ inputs.env }}' | tr 'a-z' 'A-Z') cho môi trường '${{ inputs.env }}'"
+            exit 1
+          }
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
