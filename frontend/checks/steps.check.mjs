@@ -13,19 +13,11 @@
 import assert from 'node:assert/strict';
 const M = await import('../src/models/testSteps.js');
 
-// --- bóc/nhúng field: phải khớp regex fieldOf() của runner --------------------
+// --- bóc field của dòng CŨ: phải khớp regex fieldOf() của runner --------------
+// Dòng mới dùng cột field_name; hai hàm này chỉ còn để đọc dữ liệu trước migration 011.
 assert.equal(M.parseField('IRN is entered (field username).'), 'username');
 assert.equal(M.stripField('IRN is entered (field username).'), 'IRN is entered.');
-// Lưu ý: dấu chấm nằm SAU ngoặc trong dữ liệu seed, nên nhúng lại sẽ thành
-// "IRN is entered. (field username)" — chữ cho người đọc xê dịch, regex của runner vẫn đúng.
-assert.equal(M.parseField(M.embedField(M.stripField('IRN is entered (field username).'), 'username')), 'username');
 assert.equal(M.parseField('Login page is displayed.'), '');
-// Nhúng rồi bóc lại phải ra đúng field (vòng tròn khép kín).
-const round = M.embedField('Password is entered.', 'lecturer_password');
-assert.equal(M.parseField(round), 'lecturer_password');
-assert.equal(M.embedField('abc (field old)', 'new'), 'abc (field new)', 'phải thay, không nhân đôi');
-assert.equal(M.embedField('abc (field old)', ''), 'abc', 'bỏ field thì gỡ chuỗi');
-assert.equal(M.embedField('', 'username'), '(field username)');
 
 // --- target ------------------------------------------------------------------
 assert.deepEqual(M.splitTarget('placeholder=e.g. 20521234'), { kind: 'placeholder', value: 'e.g. 20521234' });
@@ -76,12 +68,6 @@ assert.deepEqual(
   ['username'],
 );
 
-// --- SQL bắc cầu --------------------------------------------------------------
-assert.equal(M.dataInsertSql(0, ['username']), '', 'không có test_id thì không sinh SQL');
-assert.equal(M.dataInsertSql(7, []), '');
-assert.match(M.dataInsertSql(7, ['username', 'expected_url']), /\(7, 'username', 'TODO', true\),\n  \(7, 'expected_url', 'TODO', true\);$/);
-assert.equal(M.dataInsertSql(7, ["x'; DROP TABLE users;--"]), '', 'tên field lạ phải bị loại');
-
 // --- normalizeTarget: khoảng trắng bên trong tiền tố KHÔNG được lọt xuống runner ----
 assert.equal(M.normalizeTarget('FILL', 'text=  Sign In  '), 'text=Sign In');
 assert.equal(M.normalizeTarget('FILL', 'placeholder='), '', 'chưa khai value -> không có target');
@@ -101,20 +87,5 @@ assert.match(withBlank[0].text, /Bước #2/, 'phải là #2, không phải #1')
 
 // Toàn dòng trống vẫn là "chưa có bước nào"
 assert.match(M.stepProblems([{ action: '  ', target: '' }])[0].text, /chưa có bước nào/);
-
-// --- SQL có nhắc is_valid cho case âm ------------------------------------------------
-assert.match(M.dataInsertSql(7, ['password']), /is_valid = false/);
-assert.match(M.dataInsertSql(7, ['password']), /INSERT INTO test_data/);
-
-// --- readyUpdateSql: đường thoát khỏi 'draft' khi chưa có PUT /catalog/cases/:id -----
-assert.equal(M.readyUpdateSql(0), '', 'chưa có test_id thì không sinh SQL');
-assert.equal(M.readyUpdateSql(12), "UPDATE test_cases SET test_status = 'ready' WHERE test_id = 12;");
-// Output được dán thẳng vào psql -> test_id không phải số nguyên dương thì KHÔNG sinh gì,
-// thà không có SQL hơn là có SQL rác hoặc SQL do người khác chèn.
-assert.equal(M.readyUpdateSql('12; DROP TABLE users'), '');
-assert.equal(M.readyUpdateSql(-3), '');
-assert.equal(M.readyUpdateSql(1.5), '');
-assert.equal(M.readyUpdateSql('12'), "UPDATE test_cases SET test_status = 'ready' WHERE test_id = 12;", 'chuỗi số hợp lệ vẫn dùng được');
-assert.equal(M.dataInsertSql('1); DELETE FROM users; --', ['u']), '', 'test_id bẩn -> không sinh INSERT');
 
 console.log('testSteps OK');

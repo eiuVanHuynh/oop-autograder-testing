@@ -2,17 +2,18 @@
 // liệt kê, lọc, tạo, xem chi tiết, sửa, deprecate, xoá, và thêm case vào template (issue #41).
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Eye, X, Pencil, Trash2, Copy, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Eye, X, Pencil, Archive, Copy, AlertTriangle, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
 import { canManageCases } from "../models/permissions";
 import { CASE_TYPES, CASE_PRIORITIES, CASE_STATUSES } from "../models/options";
 import {
   STEP_ACTIONS, LOCATOR_KINDS, isLocatorAction, splitTarget, joinTarget,
-  requiredDataFields, stepProblems, dataInsertSql, readyUpdateSql,
+  requiredDataFields, stepProblems,
 } from "../models/testSteps";
 import {
-  listCases, listSuites, listSpecs, getCase, createCase, deleteCase, saveSteps,
+  listCases, listSuites, listSpecs, getCase, createCase, updateCase, deprecateCase,
+  saveSteps, saveCaseData,
 } from "../services/catalogService";
 import { listTemplates, updateTemplate } from "../services/templateService";
 import { getErrorMessage } from "../services/authService";
@@ -28,10 +29,6 @@ const BADGE = {
   draft: "bg-gray-100 text-gray-600",
   deprecated: "bg-orange-100 text-orange-700",
 };
-// Hoãn cho tới khi backend có DELETE /catalog/cases/:id và chốt cách "deprecate" ở DB.
-// Đổi thành true là mở lại nút, mọi hàm xử lý vẫn còn nguyên bên dưới.
-const CASE_RETIRE_READY = false;
-
 const PRIORITY_BADGE = {
   low: "bg-gray-100 text-gray-600",
   medium: "bg-blue-100 text-blue-700",
@@ -71,7 +68,7 @@ export default function TestCases() {
   const [reloadKey, setReloadKey] = useState(0);
   const [form, setForm] = useState(null);       // null = đóng modal tạo/sửa
   const [detail, setDetail] = useState(null);   // null = đóng modal xem
-  const [toDelete, setToDelete] = useState(null); // null = đóng modal xác nhận xoá
+  const [toRetire, setToRetire] = useState(null); // null = đóng modal xác nhận deprecate
   const [sel, setSel] = useState([]);           // tc_code đang tick, để thêm vào template
   const [addTo, setAddTo] = useState("");       // id template đang chọn ở thanh "Add to template"
   const [saving, setSaving] = useState(false);
@@ -122,13 +119,32 @@ export default function TestCases() {
   const problems = form ? stepProblems(form.steps) : [];
   const required = form ? requiredDataFields(form.steps) : [];
   const dataByField = new Map((form?.testData ?? []).map((d) => [d.field, d]));
-  const missingData = required.filter((f) => !dataByField.has(f));
+  // Dòng test_data rỗng cũng là thiếu: runner sẽ điền chuỗi rỗng rồi fail ở bước sau.
+  const missingData = required.filter((f) => !dataByField.get(f)?.value);
   const stepErrors = problems.filter((p) => p.level === "error");
-  // Chỉ CHẶN những gì sửa được ngay trong form này. Thiếu test_data thì CẢNH BÁO chứ không
-  // chặn: UI chưa ghi được test_data (chưa có endpoint), mà status lại chỉ đặt được lúc tạo
-  // -> chặn ở đây là bịt luôn đường đưa case vào trạng thái chạy được.
-  const canBeReady = stepErrors.length === 0;
-  const runnable = canBeReady && missingData.length === 0;
+  // 'ready' là lời hứa "bấm Run là chạy được"; backend cũng kiểm lại (409 NOT_RUNNABLE).
+  const runnable = stepErrors.length === 0 && missingData.length === 0;
+  const canBeReady = runnable;
+
+  // Mỗi field runner cần + mọi dòng test_data đang có trong DB. Dòng sau đè dòng trước,
+  // nên field vừa có trong steps vừa có trong DB hiện ra với giá trị thật.
+  const dataRows = form
+    ? [...new Map([
+        ...required.map((f) => [f, { field: f, value: "", isValid: true }]),
+        ...(form.testData ?? []).map((d) => [d.field, d]),
+      ]).values()]
+    : [];
+
+  const setData = (field, key, v) =>
+    setForm((f) => {
+      const list = f.testData ?? [];
+      const at = list.findIndex((d) => d.field === field);
+      if (at < 0) return { ...f, testData: [...list, { field, value: "", isValid: true, [key]: v }] };
+      return { ...f, testData: list.map((d, i) => (i === at ? { ...d, [key]: v } : d)) };
+    });
+
+  const dropData = (field) =>
+    setForm((f) => ({ ...f, testData: (f.testData ?? []).filter((d) => d.field !== field) }));
 
   // Chọn suite trong form -> GET /catalog/suites/:id/specs
   const pickSuite = async (suiteId, keepSpec) => {
@@ -137,23 +153,6 @@ export default function TestCases() {
     if (!suiteId) return;
     try { setSpecs(await listSpecs(suiteId)); }
     catch (e) { toast.error(getErrorMessage(e, "Cannot load specs.")); }
-  };
-
-  // SQL bắc cầu: gộp phần thiếu test_data và phần đưa case ra khỏi 'draft'.
-  const fixupSql = () =>
-    [
-      missingData.length > 0 ? dataInsertSql(form.id, missingData) : "",
-      form.status !== "ready" ? readyUpdateSql(form.id) : "",
-    ].filter(Boolean).join("\n\n");
-
-  const copySql = async () => {
-    try {
-      await navigator.clipboard.writeText(fixupSql());
-      toast.success("Đã copy câu SQL.");
-    } catch {
-      // Không có clipboard API (http thường) -> người dùng tự chọn trong khối <pre>.
-      toast.error("Không copy được — hãy bôi đen đoạn SQL rồi copy tay.");
-    }
   };
 
   const setStep = (i, key, v) =>
@@ -184,41 +183,42 @@ export default function TestCases() {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!canEdit) return toast.error("You do not have permission.");
-    if (!form.id) {
-      if (!form.specId) return toast.error("Pick a suite and a spec.");
-      if (!form.code.trim()) return toast.error("Test code is required (e.g. TC-45).");
-      if (!form.title.trim()) return toast.error("Title is required.");
-      if (!form.expectedResult.trim()) return toast.error("Expected result is required.");
-      // Steps sai thì runner fail chắc chắn -> chặn. Thiếu test_data chỉ cảnh báo (xem trên).
-      if (form.status === "ready" && !canBeReady) {
-        return toast.error(`Chưa thể đặt 'ready': ${stepErrors[0].text}`);
-      }
+    if (!form.id && !form.specId) return toast.error("Pick a suite and a spec.");
+    if (!form.id && !form.code.trim()) return toast.error("Test code is required (e.g. TC-45).");
+    if (!form.title.trim()) return toast.error("Title is required.");
+    if (!form.expectedResult.trim()) return toast.error("Expected result is required.");
+    // Chặn tại chỗ thay vì để backend trả 409 NOT_RUNNABLE với câu khó hiểu hơn.
+    if (form.status === "ready" && !canBeReady) {
+      const why = stepErrors[0]?.text || `thiếu test_data: ${missingData.join(", ")}`;
+      return toast.error(`Chưa thể đặt 'ready': ${why}`);
     }
     setSaving(true);
+    // Khai ngoài try: nếu bước sau hỏng thì case ĐÃ tạo rồi, phải nói ra — không thì người
+    // dùng bấm Create lại và chỉ nhận 409 "tc_code đã tồn tại".
+    let id = form.id;
     try {
-      // Sửa: backend chỉ có PUT /catalog/cases/:id/steps, không có PUT /catalog/cases/:id,
-      // nên các trường ngoài steps chỉ đặt được lúc tạo.
-      if (form.id) {
-        await saveSteps(form.id, form.steps);
-        toast.success(`Updated steps of ${form.code}.`);
-      } else {
-        const saved = await createCase(form);           // POST /catalog/cases (201/409/400)
-        try { await saveSteps(saved.id, form.steps); }   // PUT /catalog/cases/:id/steps
-        catch (err) { toast.error(getErrorMessage(err, "Case created, but steps failed.")); }
-        toast.success(`Created ${saved.code || form.code}.`);
-        // Nói ngay còn thiếu gì, kèm cách lấy SQL — nếu không người dùng chỉ biết lúc run fail.
-        if (missingData.length > 0) {
-          toast.error(
-            `${saved.code || form.code} chưa chạy được: thiếu test_data ${missingData.join(", ")}. ` +
-            `Mở lại case này để lấy câu SQL.`,
-            { duration: 8000 },
-          );
-        }
+      // Thứ tự bắt buộc: steps + test_data trước, rồi mới đặt test_status. Backend kiểm
+      // "chạy được chưa" ngay lúc PUT case, nên đặt 'ready' trước là chắc chắn 409.
+      if (!id) {
+        // Tạo ở 'draft' rồi nâng lên sau: case mới chưa có bước nào, tạo thẳng 'ready' sẽ
+        // bị backend hạ về draft ở bước lưu steps.
+        const saved = await createCase({ ...form, status: "draft" });  // POST /catalog/cases (201/409/400)
+        id = saved.id;
       }
+      const demoted = [await saveSteps(id, form.steps), await saveCaseData(id, dataRows)].filter(Boolean);
+      if (form.id || form.status !== "draft") await updateCase(id, form); // PUT /catalog/cases/:id
+      toast.success(form.id ? `Updated ${form.code}.` : `Created ${form.code}.`);
+      if (demoted.length) toast.error(demoted[0], { duration: 8000 });
       setForm(null);
       refresh();
     } catch (err) {
       toast.error(getErrorMessage(err, "Cannot save the test case."));  // 409 -> "tc_code ... đã tồn tại"
+      if (!form.id && id) {
+        toast.error(`${form.code} đã được tạo ở trạng thái draft — mở lại case đó để sửa tiếp.`,
+                    { duration: 8000 });
+        setForm(null);
+        refresh();
+      }
     } finally { setSaving(false); }
   };
 
@@ -227,18 +227,17 @@ export default function TestCases() {
     catch (e) { toast.error(getErrorMessage(e, "Cannot load detail.")); }
   };
 
-  // "Deprecate" cần PUT /catalog/cases/:id (api-endpoints.md mục 9) mà backend chưa khai route,
-  // nên chưa có handler — thêm lại cùng lúc với route đó và với CASE_RETIRE_READY.
-
-  const handleDelete = async () => {
+  // Không có DELETE /catalog/cases/:id — và cũng không nên có: lịch sử chạy trỏ vào case.
+  // "Bỏ" một case = đưa về deprecated, runner sẽ không nhận nữa.
+  const handleRetire = async () => {
     if (!canEdit) return toast.error("You do not have permission.");
     try {
-      await deleteCase(toDelete.id);                      // DELETE /catalog/cases/:id (204/409)
-      toast.success(`${toDelete.code} deleted.`);
-      setToDelete(null); setDetail(null);
+      await deprecateCase(toRetire.id);                   // PUT /catalog/cases/:id
+      toast.success(`${toRetire.code} deprecated.`);
+      setToRetire(null); setDetail(null);
       refresh();
     } catch (e) {
-      toast.error(getErrorMessage(e, "Cannot delete the test case."));  // 409 -> còn dữ liệu con
+      toast.error(getErrorMessage(e, "Cannot deprecate the test case."));
     }
   };
 
@@ -348,10 +347,10 @@ export default function TestCases() {
                       <>
                         <button onClick={() => openEdit(c)} className="p-2 text-gray-500 hover:text-brand-600" title="Edit steps"><Pencil size={16} /></button>
                         <button onClick={() => openClone(c)} className="p-2 text-gray-500 hover:text-brand-600" title="Nhân bản (copy steps sang case mới)"><Copy size={16} /></button>
-                        {CASE_RETIRE_READY && (
+                        {c.status !== "deprecated" && (
                           <RowMenu
                             items={[
-                              { label: "Delete", icon: Trash2, onClick: () => setToDelete(c), danger: true },
+                              { label: "Deprecate", icon: Archive, onClick: () => setToRetire(c), danger: true },
                             ]}
                           />
                         )}
@@ -370,12 +369,12 @@ export default function TestCases() {
       {/* Modal tạo / sửa test case */}
       {form && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <form onSubmit={handleSave} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+          <form onSubmit={handleSave} className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-5 space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">{form.id ? "Edit Test Case" : "Create Test Case"}</h3>
               <button type="button" onClick={() => setForm(null)} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
             </div>
-            <fieldset disabled={saving} className="space-y-4">
+            <fieldset disabled={saving} className="space-y-3">
               {form.specLocked && (
                 <p className="rounded-xl bg-gray-50 border border-gray-200 p-3 text-xs text-gray-600">
                   Nhân bản từ <span className="font-mono">{form.specCode || `spec #${form.specId}`}</span>.
@@ -403,25 +402,27 @@ export default function TestCases() {
               </div>
                 </>
               )}
-              {!form.id && (
-                <>
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-1">
                   <label className={labelCls}>Test code *</label>
-                  <input className={inputCls} placeholder="TC-45" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+                  {/* tc_code bất biến sau khi tạo (updateCaseSchema .omit) */}
+                  <input className={inputCls} placeholder="TC-45" value={form.code} disabled={!!form.id}
+                         onChange={(e) => setForm({ ...form, code: e.target.value })} />
                 </div>
                 <div className="col-span-2">
                   <label className={labelCls}>Title *</label>
                   <input className={inputCls} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
                 </div>
               </div>
-              <div>
-                <label className={labelCls}>Preconditions</label>
-                <textarea rows={2} className={inputCls} value={form.preconditions} onChange={(e) => setForm({ ...form, preconditions: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelCls}>Expected result *</label>
-                <textarea rows={2} className={inputCls} value={form.expectedResult} onChange={(e) => setForm({ ...form, expectedResult: e.target.value })} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Preconditions</label>
+                  <textarea rows={2} className={inputCls} value={form.preconditions} onChange={(e) => setForm({ ...form, preconditions: e.target.value })} />
+                </div>
+                <div>
+                  <label className={labelCls}>Expected result *</label>
+                  <textarea rows={2} className={inputCls} value={form.expectedResult} onChange={(e) => setForm({ ...form, expectedResult: e.target.value })} />
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 {[["Type", "type", CASE_TYPES], ["Priority", "priority", CASE_PRIORITIES], ["Status", "status", CASE_STATUSES]].map(([label, key, opts]) => (
@@ -434,28 +435,10 @@ export default function TestCases() {
                 ))}
               </div>
               <p className="text-xs text-gray-400 -mt-2">
-                Chỉ case “ready” mới được đưa vào run. Đặt “ready” được ngay, nhưng case chỉ thật
-                sự chạy khi phần Test data bên dưới không còn thiếu field nào.
+                Chỉ case “ready” mới được đưa vào run, và chỉ đặt được “ready” khi phần
+                Test data bên dưới không còn thiếu field nào.
+                {form.id && ` Spec ${form.specCode || `#${form.specId}`} không đổi được sau khi tạo.`}
               </p>
-                </>
-              )}
-              {/* Sửa: chỉ steps lưu được (không có PUT /catalog/cases/:id), nên các trường
-                  còn lại hiện ở dạng chỉ đọc thay vì mời người dùng sửa rồi mất. */}
-              {form.id && (
-              <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 space-y-1">
-                <p className="text-sm font-semibold text-gray-900">
-                  <span className="font-mono">{form.code}</span> — {form.title}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Spec {form.specCode || `#${form.specId}`} • {form.type} • {form.priority} • {form.status}
-                </p>
-                <p className="text-xs text-orange-700">
-                  Only the steps below can be saved. Editing code, title, spec, type,
-                  priority or status needs PUT /catalog/cases/:id, which the backend
-                  does not expose yet.
-                </p>
-              </div>
-              )}
               <div>
                 <div className="flex items-baseline justify-between mb-1">
                   <label className={labelCls}>Steps</label>
@@ -467,30 +450,30 @@ export default function TestCases() {
                   const action = String(s.action || "").toUpperCase();
                   const loc = splitTarget(s.target);
                   return (
-                    <div key={i} className="mb-2 rounded-xl border border-gray-200 bg-gray-50/60 p-2.5 space-y-2">
+                    <div key={i} className="mb-1.5 rounded-xl border border-gray-200 bg-gray-50/60 p-2 space-y-1.5">
                       <div className="flex items-center gap-2">
                         <span className="w-6 shrink-0 font-mono text-xs text-gray-400">#{i + 1}</span>
-                        <select className={`${inputCls} w-32 shrink-0`} value={action}
+                        <select className={`${inputCls} basis-32 shrink-0`} value={action}
                                 onChange={(e) => setStep(i, "action", e.target.value)}>
                           <option value="">— action —</option>
                           {STEP_ACTIONS.map((a) => <option key={a}>{a}</option>)}
                         </select>
 
                         {action === "NAVIGATE" ? (
-                          <input className={inputCls} placeholder="/login"
+                          <input className={`${inputCls} min-w-0 flex-1`} placeholder="/login"
                                  value={s.target} onChange={(e) => setStep(i, "target", e.target.value)} />
                         ) : isLocatorAction(action) ? (
                           <>
-                            <select className={`${inputCls} w-36 shrink-0`} value={loc.kind}
+                            <select className={`${inputCls} basis-36 shrink-0`} value={loc.kind}
                                     onChange={(e) => setStep(i, "target", joinTarget(e.target.value, loc.value))}>
                               {LOCATOR_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
                             </select>
-                            <input className={inputCls} value={loc.value}
+                            <input className={`${inputCls} min-w-0 flex-1`} value={loc.value}
                                    placeholder={action === "VERIFY" ? "để trống = kiểm tra expected_url" : "Sign In"}
                                    onChange={(e) => setStep(i, "target", joinTarget(loc.kind, e.target.value))} />
                           </>
                         ) : (
-                          <input className={inputCls} disabled placeholder="chọn action trước" />
+                          <input className={`${inputCls} min-w-0 flex-1`} disabled placeholder="chọn action trước" />
                         )}
 
                         <button type="button" title="Xoá bước"
@@ -499,10 +482,10 @@ export default function TestCases() {
                       </div>
 
                       <div className="flex items-center gap-2 pl-8">
-                        <input className={inputCls} placeholder="Expected result (chữ cho người đọc)"
+                        <input className={`${inputCls} min-w-0 flex-1`} placeholder="Expected result (chữ cho người đọc)"
                                value={s.expected} onChange={(e) => setStep(i, "expected", e.target.value)} />
                         {action === "FILL" && (
-                          <input className={`${inputCls} w-48 shrink-0 font-mono`} placeholder="field, vd: username"
+                          <input className={`${inputCls} basis-48 shrink-0 font-mono`} placeholder="field, vd: username"
                                  value={s.field || ""} onChange={(e) => setStep(i, "field", e.target.value)} />
                         )}
                       </div>
@@ -529,23 +512,36 @@ export default function TestCases() {
                   </p>
                 ))}
 
-                {required.length === 0 ? (
+                {dataRows.length === 0 ? (
                   <p className="text-xs text-gray-500">Các bước hiện tại không cần test_data.</p>
                 ) : (
                   <table className="w-full text-xs">
                     <tbody>
-                      {required.map((f) => {
-                        const row = dataByField.get(f);
+                      {dataRows.map((row) => {
+                        const missing = !row.value;
                         return (
-                          <tr key={f} className="border-t border-gray-100">
-                            <td className="py-1 font-mono text-gray-700">{f}</td>
-                            <td className="py-1 text-right">
-                              {row ? (
-                                <span className="font-mono text-gray-500">
-                                  {row.value}{row.isValid ? "" : " (invalid)"}
-                                </span>
-                              ) : (
-                                <span className="text-red-600">chưa có trong test_data</span>
+                          <tr key={row.field} className="border-t border-gray-100">
+                            <td className="py-1 pr-2 font-mono text-gray-700 whitespace-nowrap">{row.field}</td>
+                            <td className="py-1 w-full">
+                              <input
+                                className={`${inputCls} py-1 font-mono ${missing ? "border-red-300" : ""}`}
+                                placeholder="giá trị, hoặc env:TEN_BIEN cho dữ liệu bí mật"
+                                value={row.value ?? ""}
+                                onChange={(e) => setData(row.field, "value", e.target.value)}
+                              />
+                            </td>
+                            <td className="py-1 pl-2 whitespace-nowrap">
+                              {/* is_valid = false: dữ liệu sai có chủ ý (case âm) */}
+                              <label className="flex items-center gap-1 text-gray-500">
+                                <input type="checkbox" checked={row.isValid === false}
+                                       onChange={(e) => setData(row.field, "isValid", !e.target.checked)} />
+                                invalid
+                              </label>
+                            </td>
+                            <td className="py-1 pl-1">
+                              {!required.includes(row.field) && (
+                                <button type="button" title="Xoá field" onClick={() => dropData(row.field)}
+                                        className="text-gray-400 hover:text-red-600"><X size={14} /></button>
                               )}
                             </td>
                           </tr>
@@ -555,23 +551,9 @@ export default function TestCases() {
                   </table>
                 )}
 
-                {form.id && fixupSql() && (
-                  <div className="space-y-1">
-                    <p className="text-xs text-gray-500">
-                      Backend chưa có route ghi test_data và sửa test_status, nên phần còn lại làm bằng SQL:
-                    </p>
-                    <pre className="m-0 overflow-auto rounded-lg bg-slate-900 p-2 font-mono text-[11px] text-slate-100">
-                      {fixupSql()}
-                    </pre>
-                    <button type="button" onClick={copySql}
-                            className="flex items-center gap-1 text-xs text-brand-600">
-                      <Copy size={13} /> Copy SQL
-                    </button>
-                  </div>
-                )}
-                {missingData.length > 0 && !form.id && (
+                {missingData.length > 0 && (
                   <p className="text-xs text-gray-500">
-                    Tạo case trước, rồi mở lại để lấy câu SQL bổ sung test_data.
+                    Điền giá trị cho {missingData.join(", ")} rồi Save — test_data lưu cùng lúc với case.
                   </p>
                 )}
               </div>
@@ -630,22 +612,23 @@ export default function TestCases() {
         </div>
       )}
 
-      {/* Modal xác nhận xoá */}
-      {toDelete && (
+      {/* Modal xác nhận deprecate */}
+      {toRetire && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-3">
-            <h3 className="text-lg font-bold">Delete {toDelete.code}?</h3>
+            <h3 className="text-lg font-bold">Deprecate {toRetire.code}?</h3>
             <p className="text-sm text-gray-600">
-              This cannot be undone. Deleting fails while the case still has steps or test data.
+              Case vẫn còn trong lịch sử chạy nhưng sẽ không được đưa vào run nữa.
+              Mở lại bằng cách đổi Status về draft/ready trong modal sửa.
             </p>
-            {usedIn(toDelete.code).length > 0 && (
+            {usedIn(toRetire.code).length > 0 && (
               <p className="text-sm text-orange-700">
-                Still referenced by {usedIn(toDelete.code).length} template(s).
+                Still referenced by {usedIn(toRetire.code).length} template(s).
               </p>
             )}
             <div className="flex justify-end gap-2">
-              <button onClick={() => setToDelete(null)} className="px-3 py-2 text-sm rounded-xl border border-gray-300">Cancel</button>
-              <button onClick={handleDelete} className="px-3 py-2 text-sm rounded-xl bg-red-600 text-white">Delete</button>
+              <button onClick={() => setToRetire(null)} className="px-3 py-2 text-sm rounded-xl border border-gray-300">Cancel</button>
+              <button onClick={handleRetire} className="px-3 py-2 text-sm rounded-xl bg-red-600 text-white">Deprecate</button>
             </div>
           </div>
         </div>

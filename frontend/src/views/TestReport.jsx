@@ -65,7 +65,7 @@ export default function TestReport() {
     let off = false;
     listCases()
       .then((l) => !off && setTitles(new Map(l.map((c) => [c.code.toUpperCase(), c.title]))))
-      .catch(() => {});
+      .catch(() => { });
     return () => { off = true; };
   }, []);
 
@@ -154,7 +154,7 @@ export default function TestReport() {
           onClick={() => navigate("/history")}
           className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-brand-600 transition"
         >
-          <ArrowLeft size={16} /> Back to History
+          <ArrowLeft size={16} /> Back
         </button>
         <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
           <AlertTriangle size={32} className="mx-auto mb-3 text-orange-400" />
@@ -164,14 +164,14 @@ export default function TestReport() {
     );
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-4">
       {/* Thanh điều hướng + hành động */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-center gap-4">
         <button
           onClick={() => navigate("/history")}
-          className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-brand-600 transition"
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition"
         >
-          <ArrowLeft size={16} /> Back to History
+          <ArrowLeft size={16} /> Back
         </button>
 
         <div className="flex flex-wrap items-center gap-2.5">
@@ -181,14 +181,14 @@ export default function TestReport() {
               disabled={rerunning}
               className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-semibold rounded-xl text-sm shadow-sm transition flex items-center gap-2"
             >
-              <Play size={16} /> {rerunning ? "Starting…" : "Re-run Test"}
+              <Play size={16} /> {rerunning ? "Starting…" : "Re-run"}
             </button>
           )}
           <button
             onClick={handleShare}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition"
           >
-            <Copy size={16} /> Copy Link
+            <Copy size={16} /> Copy 
           </button>
           {/* Dropdown Report khi hover */}
           <div className="relative group">
@@ -196,7 +196,7 @@ export default function TestReport() {
               type="button"
               className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium shadow-lg shadow-brand-500/20 transition"
             >
-              <Download size={16} /> Report
+              <Download size={16} /> Export
               {/* Icon mũi tên xoay nhẹ khi hover */}
               <span className="text-xs ml-1 opacity-80 group-hover:rotate-180 transition-transform duration-200">
                 ▼
@@ -204,19 +204,19 @@ export default function TestReport() {
             </button>
 
             {/* Menu xổ ra khi hover vào nút cha */}
-            <div className="absolute right-0 top-full pt-2 hidden group-hover:block z-50 min-w-[160px] animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="absolute w-full right-0 top-full pt-2 hidden group-hover:block z-50 animate-in min-w-x fade-in slide-in-from-top-2 duration-150">
               <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-1.5 space-y-1">
                 <button
                   onClick={handleExportPDF}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-brand-50 hover:text-brand-600 rounded-lg transition text-left"
                 >
-                  <Download size={14} /> Export PDF
+                  <Download size={14} /> PDF
                 </button>
                 <button
                   onClick={handleExportHTML}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-brand-50 hover:text-brand-600 rounded-lg transition text-left"
                 >
-                  <FileCode size={14} /> Export HTML
+                  <FileCode size={14} />  HTML
                 </button>
               </div>
             </div>
@@ -225,25 +225,36 @@ export default function TestReport() {
       </div>
 
       {/* Thông tin run */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      <div className="bg-white rounded-2xl p-6 mt-6s shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="w-1/2">
           <div className="flex items-center gap-3 mb-2">
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
-                STATUS_STYLE[run.status] ?? "bg-gray-100 text-gray-600"
-              }`}
-            >
-              <StatusIcon status={run.status} /> {run.status}
-            </span>
-            <span className="text-xs text-gray-400 font-mono">
-              Run ID: #{run.id}
-            </span>
+            <div className="flex flex-row items-center gap-3 border-b justify-between w-full">
+              <h1 className="text-xl font-bold my-6 text-gray-900">{run.name}</h1>
+              <span
+                className={`px-3 py-1 rounded-full my-6 text-xs font-semibold flex items-center gap-1 ${STATUS_STYLE[run.status] ?? "bg-gray-100 text-gray-600"
+                  }`}
+              >
+                <StatusIcon status={run.status} /> {run.status}
+              </span>
+            </div>
           </div>
-          <h1 className="text-xl font-bold text-gray-900">{run.name}</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Environment:{" "}
+          <p className="text-sm text-gray-500 mt-1 flex justify-between">
+            <>
+            ID:
+              <strong className="text-gray-700"> {run.id} </strong>
+            </>
+          <>
+             | Env:{" "}
             <strong className="text-gray-700">{run.environment}</strong>
-            {run.executedAt && <> • Executed at {run.executedAt}</>} • Run by{" "}
+          </>
+          <>
+            {run.executedAt && <>  
+            |  At 
+            <strong className="text-gray-700"> {run.executedAt} </strong>
+            </>
+            }
+          </>
+             | by{" "}
             <strong className="text-gray-700">{run.runBy}</strong>
           </p>
         </div>
@@ -287,10 +298,6 @@ export default function TestReport() {
             <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
               <ListChecks size={18} className="text-brand-600" /> Test cases
             </h3>
-            <p className="text-xs text-gray-400 mt-1">
-              Danh sách lấy từ config của lần chạy; trạng thái đọc từ log vì chưa có API trả
-              bảng test_results. Case không có trạng thái là case runner chưa chạy tới.
-            </p>
           </div>
           {cases.length === 0 ? (
             <p className="p-5 text-sm text-gray-500">
@@ -311,9 +318,8 @@ export default function TestReport() {
                   <div className="shrink-0 text-right">
                     {c.status ? (
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                          STATUS_STYLE[c.status] ?? "bg-gray-100 text-gray-600"
-                        }`}
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[c.status] ?? "bg-gray-100 text-gray-600"
+                          }`}
                       >
                         <StatusIcon status={c.status} size={12} /> {c.status}
                       </span>

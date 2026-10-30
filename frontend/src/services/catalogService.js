@@ -1,5 +1,5 @@
 import API from "../models/api";
-import { embedField, parseField, stripField, normalizeTarget } from "../models/testSteps";
+import { parseField, stripField, normalizeTarget } from "../models/testSteps";
 
 const unwrap = (r) => r?.data?.data ?? r?.data ?? r;
 const rows = (p) => (Array.isArray(p) ? p : Array.isArray(p?.data) ? p.data : []);
@@ -22,15 +22,17 @@ export const toCase = (r = {}) => ({
     ? r.steps.map((s) => {
         const action = String(s.stepAction ?? s.step_action ?? "").toUpperCase();
         const expected = s.expectedResult ?? s.expected_result ?? "";
-        // CHỈ bước FILL mới bóc "(field x)" ra. Bóc ở bước khác thì runner không dùng field đó,
-        // mà lưu lại sẽ làm mất đoạn chữ đó khỏi expected_result.
+        const column = s.fieldName ?? s.field_name ?? "";
+        // Cột field_name là nguồn chuẩn. Dòng cũ (trước migration 011) vẫn còn "(field x)"
+        // nhúng trong expected_result, nên chỉ bóc khi cột trống — và chỉ cho FILL.
         const isFill = action === "FILL";
+        const legacy = isFill && !column ? parseField(expected) : "";
         return {
           order: s.stepOrder ?? s.step_order,
           action,
           target: s.stepTarget ?? s.step_target ?? "",
-          expected: isFill ? stripField(expected) : expected,
-          field: isFill ? parseField(expected) : "",
+          expected: legacy ? stripField(expected) : expected,
+          field: isFill ? column || legacy : "",
         };
       })
     : [],
@@ -86,22 +88,51 @@ export const saveSteps = async (id, steps) => {
     .filter((s) => s.action?.trim())
     .map((s) => {
       const action = s.action.trim().toUpperCase();
-      // Chỉ bước FILL mới nhúng field; nhúng vào bước khác thì runner không đọc, chỉ làm rác chữ.
-      const expected = embedField(s.expected ?? "", action === "FILL" ? s.field : "");
+      const expected = (s.expected ?? "").trim();
+      // field_name chỉ có nghĩa với FILL; gửi ở bước khác chỉ làm bẩn cột.
+      const field = action === "FILL" ? (s.field ?? "").trim() : "";
       const target = normalizeTarget(action, s.target);
       return {
         step_action: action,
         ...(target ? { step_target: target } : {}),
         ...(expected ? { expected_result: expected } : {}),
+        ...(field ? { field_name: field } : {}),
       };
     });
-  await API.put(`/catalog/cases/${id}/steps`, { steps: body });
+  // Backend tự hạ case 'ready' về 'draft' nếu bộ steps mới không chạy được, và nói lý do.
+  const res = unwrap(await API.put(`/catalog/cases/${id}/steps`, { steps: body }));
+  return res?.demotedReason ?? "";
 };
 
-// BACKEND-TODO: PUT/DELETE /catalog/cases/:id là 🟡 ở api-endpoints.md mục 9 và backend CHƯA khai
-// route trong catalog.routes.js. Vì vậy ở đây không có updateCase — sửa một case hiện chỉ thay
-// được steps (PUT /catalog/cases/:id/steps). Thêm lại khi route PUT có thật.
-// deleteCase cũng chờ route DELETE; nút gọi nó đang tắt sau cờ CASE_RETIRE_READY ở TestCases.jsx.
-export const deleteCase = async (id) => {
-  await API.delete(`/catalog/cases/${id}`);
+// PUT /catalog/cases/:id – sửa metadata. spec_id và tc_code BỊ LOẠI ở schema backend
+// (mã test là bất biến sau khi tạo), nên chỉ gửi những trường thật sự đổi được.
+// Đặt test_status='ready' mà case chưa chạy được -> 409 NOT_RUNNABLE.
+export const updateCase = async (id, c) => {
+  const body = {
+    title: c.title.trim(),
+    expected_result: c.expectedResult.trim(),
+    preconditions: c.preconditions?.trim() || null,
+    priority: c.priority,
+    test_type: c.type,
+    test_status: c.status,
+  };
+  return toCase(unwrap(await API.put(`/catalog/cases/${id}`, body)));
+};
+
+// Không có DELETE /catalog/cases/:id: "bỏ" một case = đưa về deprecated.
+export const deprecateCase = async (id) =>
+  toCase(unwrap(await API.put(`/catalog/cases/${id}`, { test_status: "deprecated" })));
+
+// PUT /catalog/cases/:id/data – thay toàn bộ test_data của case (mảng rỗng = xoá hết).
+// Gửi hai dòng cùng field_name là 400, nên lọc trùng ngay ở đây.
+export const saveCaseData = async (id, data) => {
+  const byField = new Map();
+  for (const d of data) {
+    const field = d.field?.trim();
+    // Dòng chưa có giá trị thì KHÔNG ghi: ghi vào là case trông như đã đủ test_data
+    // (_assertRunnable chỉ xét có mặt hay không) rồi fail lúc chạy thật.
+    if (field && d.value) byField.set(field, { field_name: field, data_value: d.value, is_valid: d.isValid !== false });
+  }
+  const res = unwrap(await API.put(`/catalog/cases/${id}/data`, { data: [...byField.values()] }));
+  return res?.demotedReason ?? "";
 };

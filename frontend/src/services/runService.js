@@ -20,8 +20,9 @@ const durationOf = (row) => {
 };
 
 // GET /runs trả { data, meta }; `status` do SQL tính: running | passed | failed | interrupted.
-// Số case passed/failed của từng run KHÔNG có trong response (backend chưa có endpoint đọc
-// test_results), nên adapter để trống thay vì bịa — nơi gọi phải chịu được giá trị null.
+// Backend đếm passed/failed/total trên bảng test_results (RunRepository.withStatus) và join
+// users để trả tên người chạy, nên không còn chỗ nào phải để trống hay bịa số.
+// Run chưa có kết quả nào thì cả ba số là 0 — nơi gọi phân biệt bằng total === 0.
 export const toRun = (row = {}) => ({
   id: String(row.run_id ?? row.id),
   name: row.run_name || `Run #${row.run_id}`,
@@ -29,11 +30,31 @@ export const toRun = (row = {}) => ({
   duration: durationOf(row),
   environment: row.environment || '—',
   executedAt: fmt(row.created_at || row.started_at),
-  // tester_id là id; backend chưa join users để trả tên người chạy.
-  runBy: row.tester_id ? `User #${row.tester_id}` : '—',
+  runBy: row.tester_name || (row.tester_id ? `User #${row.tester_id}` : '—'),
+  total: Number(row.total_count ?? 0),
+  passed: Number(row.passed_count ?? 0),
+  failed: Number(row.failed_count ?? 0),
   // Danh sách case ĐƯỢC LÊN KẾ HOẠCH chạy, không phải kết quả.
   testCodes: row.config_json?.testCodes ?? [],
 });
+
+// GET /runs/:id/results -> kết quả TỪNG case, đọc thẳng bảng test_results.
+// Thay cho việc bóc pass/fail từ chuỗi log (models/runLog.js): số liệu ở đây khớp đúng
+// passed/failed của toRun vì backend lọc cùng một tập (một case = dòng mới nhất của nó).
+// `status` ở dạng chữ HOA cho khớp STATUS_STYLE của trang báo cáo.
+export const toCaseResult = (row = {}) => ({
+  code: String(row.tc_code ?? '').toUpperCase(),
+  title: row.title ?? '',
+  status: String(row.result_status ?? '').toUpperCase(),
+  ms: Number(row.execution_time_ms ?? 0),
+  error: row.error_message || null,
+  retries: Number(row.retry_count ?? 0),
+  // [{ evidence_id, evidence_type: 'screenshot' | 'trace', file_path }]
+  evidences: Array.isArray(row.evidences) ? row.evidences : [],
+});
+
+export const getRunResults = async (runId) =>
+  rows(unwrap(await API.get(`/runs/${runId}/results`))).map(toCaseResult);
 
 // GET /runs?q=&status=&from=&to=&page=&limit=
 export const getRuns = async (params = {}) =>
