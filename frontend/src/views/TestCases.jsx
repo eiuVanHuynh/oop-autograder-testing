@@ -24,6 +24,10 @@ const BADGE = {
   draft: "bg-gray-100 text-gray-600",
   deprecated: "bg-orange-100 text-orange-700",
 };
+// Hoãn cho tới khi backend có DELETE /catalog/cases/:id và chốt cách "deprecate" ở DB.
+// Đổi thành true là mở lại nút, mọi hàm xử lý vẫn còn nguyên bên dưới.
+const CASE_RETIRE_READY = false;
+
 const PRIORITY_BADGE = {
   low: "bg-gray-100 text-gray-600",
   medium: "bg-blue-100 text-blue-700",
@@ -284,14 +288,16 @@ export default function TestCases() {
                     {canEdit ? (
                       <>
                         <button onClick={() => openEdit(c)} className="p-2 text-gray-500 hover:text-brand-600" title="Edit"><Pencil size={16} /></button>
-                        <RowMenu
-                          items={[
-                            ...(c.status === "deprecated"
-                              ? []
-                              : [{ label: "Deprecate", icon: Archive, onClick: () => handleDeprecate(c) }]),
-                            { label: "Delete", icon: Trash2, onClick: () => setToDelete(c), danger: true },
-                          ]}
-                        />
+                        {CASE_RETIRE_READY && (
+                          <RowMenu
+                            items={[
+                              ...(c.status === "deprecated"
+                                ? []
+                                : [{ label: "Deprecate", icon: Archive, onClick: () => handleDeprecate(c) }]),
+                              { label: "Delete", icon: Trash2, onClick: () => setToDelete(c), danger: true },
+                            ]}
+                          />
+                        )}
                       </>
                     ) : (
                       <button onClick={() => openDetail(c)} className="p-2 text-gray-500 hover:text-brand-600" title="View"><Eye size={16} /></button>

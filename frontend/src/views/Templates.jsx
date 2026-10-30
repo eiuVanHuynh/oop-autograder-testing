@@ -59,6 +59,9 @@ const toForm = (t, readOnly = false) => ({
   readOnly,
 });
 
+// Hoãn: test_templates chưa có cột status nên bật/tắt chưa lưu được. Đổi true khi DB có cột.
+const TEMPLATE_STATUS_READY = false;
+
 const tplCode = (id) => `TPL-${String(id).padStart(4, "0")}`;
 
 // ==========================================
@@ -356,15 +359,19 @@ export default function Templates() {
               allLabel: "All scopes",
               options: SCOPES,
             },
-            {
-              key: "status",
-              label: "Status",
-              allLabel: "All status",
-              options: [
-                { value: "active", label: "Active" },
-                { value: "inactive", label: "Inactive" },
-              ],
-            },
+            ...(TEMPLATE_STATUS_READY
+              ? [
+                  {
+                    key: "status",
+                    label: "Status",
+                    allLabel: "All status",
+                    options: [
+                      { value: "active", label: "Active" },
+                      { value: "inactive", label: "Inactive" },
+                    ],
+                  },
+                ]
+              : []),
           ]}
           value={filters}
           onChange={setFilters}
@@ -456,14 +463,21 @@ export default function Templates() {
                           </button>
                           <RowMenu
                             items={[
-                              {
-                                label:
-                                  t.status === "inactive"
-                                    ? "Activate"
-                                    : "Deactivate",
-                                icon: t.status === "inactive" ? PowerOff : Power,
-                                onClick: () => handleToggleStatus(t),
-                              },
+                              ...(TEMPLATE_STATUS_READY
+                                ? [
+                                    {
+                                      label:
+                                        t.status === "inactive"
+                                          ? "Activate"
+                                          : "Deactivate",
+                                      icon:
+                                        t.status === "inactive"
+                                          ? PowerOff
+                                          : Power,
+                                      onClick: () => handleToggleStatus(t),
+                                    },
+                                  ]
+                                : []),
                               {
                                 label: "Delete",
                                 icon: Trash2,

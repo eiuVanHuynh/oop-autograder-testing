@@ -1,9 +1,42 @@
+import API from '../models/api';
 import { buildMockRuns } from '../models/mockData';
 
-// Hiện dùng dữ liệu mẫu. Khi backend xong, thay thân hàm bằng API.get('/runs') (giữ nguyên chữ ký).
+// BACKEND-TODO: GET /runs đã có thật, nhưng mỗi dòng chưa kèm số test passed/failed và thời lượng
+// mà Dashboard/History đang hiển thị -> tạm giữ dữ liệu mẫu cho hai trang đó.
 const runs = buildMockRuns();
 
 export const getRuns = async () => runs;
+
+const unwrap = (r) => r?.data?.data ?? r?.data;
+
+// POST /runs { templateId, env, timeout } -> 202, body là run vừa tạo.
+// Lỗi: 403 (không đủ quyền), 404 (template không có), 409 (không có test case 'ready').
+export const startRun = async ({ templateId, testIds, env, timeout }) => {
+  const body = testIds?.length
+    ? { testIds }
+    : { templateId: Number(templateId) };
+  if (env) body.env = env;
+  if (timeout) body.timeout = timeout;
+  const run = unwrap(await API.post('/runs', body));
+  return { runId: run.run_id ?? run.runId, status: run.status };
+};
+
+// GET /runs/:id/logs?after= -> { lines: [{ seq, level, message }], nextAfter, status }.
+// status: running | passed | failed | interrupted.
+export const fetchRunLogs = async (runId, after = 0) => {
+  const d = unwrap(await API.get(`/runs/${runId}/logs`, { params: { after } })) || {};
+  const lines = d.lines || [];
+  return {
+    lines: lines.map((l) => `[${String(l.level || 'info').toUpperCase()}] ${l.message}`),
+    nextAfter: d.nextAfter ?? after,
+    status: d.status,
+  };
+};
+
+// POST /runs/:id/cancel -> 200. Run đã kết thúc thì 409.
+export const cancelRun = async (runId) => {
+  await API.post(`/runs/${runId}/cancel`);
+};
 
 export function computeStats(list) {
   const finished = list.filter((r) => r.status !== 'RUNNING');

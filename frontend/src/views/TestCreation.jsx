@@ -6,19 +6,14 @@
 // không còn Expected Output, Scope, file đính kèm, Lưu nháp, Lưu thành Template
 // (tạo template là việc của trang Templates, vì cần target_json).
 //
-// Hiện dùng dữ liệu giả. Mọi chỗ cần thay bằng backend đều có nhãn "BACKEND-TODO [n]".
-// Tìm nhanh bằng cách search "BACKEND-TODO".
+// Đã nối API thật: POST /runs, GET /runs/:id/logs?after=, POST /runs/:id/cancel
+// (services/runService.js). Chạy local với RUNNER=playwright thì backend mở chromium thật.
 //
-// BACKEND-TODO – danh sách tổng hợp:
-//  [1] Danh sách template  -> ĐÃ NỐI GET /templates. Còn thiếu: readyCount để chặn sớm template rỗng
-//  [2] Danh sách môi trường -> GET /meta/options (🟡, hiện: hằng số trong models/options.js)
-//  [3] Bấm Run              -> POST /runs { templateId, env, timeout } (hiện: hàm giả startRun)
-//  [4] Log + trạng thái     -> GET /runs/:id/logs?after= (hiện: hàm giả fetchRunLogs)
-//  [5] Bấm Hủy              -> POST /runs/:id/cancel (hiện: hàm giả cancelRun)
-//  [6] Thanh tiến độ        -> API không trả %, cần tự tính hoặc bỏ
-//  [7] Đơn vị timeout       -> form dùng GIÂY, backend dùng MILI-GIÂY (đã đổi khi gửi POST /runs)
-//  [8] Trạng thái "đang chuẩn bị máy chạy" (20-60s đầu, backend-design.md mục 5)
-//  [9] Nút "View Full Report" -> /runs/:id thật (hiện: mã run giả)
+// BACKEND-TODO còn lại:
+//  [1] readyCount của template -> GET /templates chưa trả, nên chưa chặn sớm được template rỗng (phải chịu 409)
+//  [2] Danh sách môi trường    -> GET /meta/options (🟡, hiện: hằng số trong models/options.js)
+//  [6] Thanh tiến độ           -> API không trả %, nên chỉ hiện trạng thái chạy/xong
+//  [7] Đơn vị timeout          -> form dùng GIÂY, backend dùng MILI-GIÂY (đã đổi khi gửi POST /runs)
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -37,6 +32,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
 import { canRunTest } from "../models/permissions";
 import { listTemplates } from "../services/templateService";
+import { startRun, fetchRunLogs, cancelRun } from "../services/runService";
 import { getErrorMessage } from "../services/authService";
 import { ENVIRONMENTS } from "../models/options"; // BACKEND-TODO [2]: GET /meta/options
 
@@ -62,63 +58,6 @@ const RUN_ERRORS = {
   404: "Template không tồn tại.",
   409: "Template này không có test case nào ở trạng thái ready.",
 };
-
-/* =====================================================================
- * PHẦN GIẢ LẬP – xóa cả khối này khi backend xong, thay bằng gọi API thật.
- * MOCK SECTION – delete this whole block when the backend is ready.
- * Chữ ký các hàm giữ đúng với dạng backend sẽ trả, nên phần component bên dưới
- * không cần sửa gì ngoài việc đổi thân hàm.
- * ===================================================================== */
-const MOCK_RUN_ID = 101; // BACKEND-TODO [9]: backend trả mã run thật trong 202
-const MOCK_LINES = [
-  { prog: 0, text: "[INFO] Initializing test container..." },
-  { prog: 0, text: "[INFO] Connecting to environment..." },
-  { prog: 25, text: "[INFO] Compiling codebase and loading test scripts..." },
-  { prog: 50, text: "[RUNNING] Executing test suites in sandbox mode..." },
-  {
-    prog: 75,
-    text: "[CHECK] Validating assertions against expected output...",
-  },
-  { prog: 100, text: "[SUCCESS] Test execution finished successfully!" },
-];
-const mockRun = { startedAt: 0, cancelled: false };
-
-// BACKEND-TODO [3]: POST /runs { templateId, env, timeout } -> 202 { runId }.
-// Lỗi: 403 (Viewer), 404 (template không tồn tại), 409 (template không có test ready).
-async function startRun({ templateId, env, timeout }) {
-  void templateId;
-  void env;
-  void timeout;
-  mockRun.startedAt = Date.now();
-  mockRun.cancelled = false;
-  return { runId: MOCK_RUN_ID };
-}
-
-// BACKEND-TODO [4]: GET /runs/:id/logs?after=<số dòng đã nhận> -> { lines, status }.
-// status: 'running' | 'passed' | 'failed' | 'cancelled'.
-// Nếu muốn nhận log trực tiếp: GET /runs/:id/logs/stream (SSE). Trên Vercel kết nối dài
-// có thể bị cắt nên vẫn giữ polling làm phương án dự phòng.
-// BACKEND-TODO [6]: 'progress' hiện do mock tự tính. API không trả %.
-async function fetchRunLogs(runId, after) {
-  void runId;
-  if (mockRun.cancelled) return { lines: [], progress: 0, status: "cancelled" };
-  const shown = Math.min(
-    MOCK_LINES.length,
-    Math.floor((Date.now() - mockRun.startedAt) / POLL_MS) + 1,
-  );
-  const progress = MOCK_LINES[shown - 1].prog;
-  return {
-    lines: MOCK_LINES.slice(after, shown).map((l) => l.text),
-    progress,
-    status: shown >= MOCK_LINES.length ? "passed" : "running",
-  };
-}
-
-// BACKEND-TODO [5]: POST /runs/:id/cancel -> 200. Run đã xong rồi thì trả 409.
-async function cancelRun(runId) {
-  void runId;
-  mockRun.cancelled = true;
-}
 
 // Component custom dropdown chọn template có tích hợp ô search
 function SearchableTemplateSelect({
@@ -254,7 +193,6 @@ export default function TestCreation() {
   const [runId, setRunId] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState([]);
   const [testStatus, setTestStatus] = useState("IDLE");
 
@@ -288,8 +226,6 @@ export default function TestCreation() {
         timeout: Number(timeout) * 1000, // backend dùng mili-giây
       });
       setRunId(res.runId);
-      setProgress(0);
-      // BACKEND-TODO [8]: hiện "đang chuẩn bị máy chạy" trong lúc GitHub Actions khởi động.
       setLogs([]);
       setTestStatus("RUNNING");
       setIsRunning(true);
@@ -304,7 +240,7 @@ export default function TestCreation() {
     }
   };
 
-  // Hỏi log mới theo chu kỳ. BACKEND-TODO [4]: giữ nguyên khung này, chỉ đổi fetchRunLogs.
+  // Hỏi log mới theo chu kỳ: GET /runs/:id/logs?after=<seq dòng cuối đã nhận>.
   useEffect(() => {
     if (!isRunning || !runId) return;
     let after = 0;
@@ -314,19 +250,13 @@ export default function TestCreation() {
       try {
         const res = await fetchRunLogs(runId, after);
         if (stopped) return;
-        if (res.lines.length) {
-          setLogs((prev) => [...prev, ...res.lines]);
-          after += res.lines.length;
-        }
-        setProgress(res.progress);
-        if (res.status !== "running") {
+        if (res.lines.length) setLogs((prev) => [...prev, ...res.lines]);
+        after = res.nextAfter;
+        if (res.status && res.status !== "running") {
           setIsRunning(false);
-          setTestStatus(res.status.toUpperCase());
-          if (res.status === "passed")
-            toast.success("Test execution completed!");
-          if (res.status === "failed") toast.error("Test execution failed.");
+          // Backend dùng 'interrupted' cho run bị hủy.
           const finalStatus =
-            res.status === "canceled" ? "CANCELLED" : res.status.toUpperCase();
+            res.status === "interrupted" ? "CANCELLED" : res.status.toUpperCase();
           setTestStatus(finalStatus);
           if (finalStatus === "PASSED")
             toast.success("Test execution completed!");
@@ -549,14 +479,26 @@ export default function TestCreation() {
         </div>
 
         <div>
+          {/* BACKEND-TODO [6]: API không trả %, nên hiện trạng thái thay cho con số tự bịa. */}
           <div className="flex justify-between text-xs text-gray-500 mb-1">
             <span>Progress</span>
-            <span>{progress}%</span>
+            <span>
+              {isRunning
+                ? "Running…"
+                : testStatus === "IDLE"
+                  ? "—"
+                  : "Finished"}
+            </span>
           </div>
           <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
             <div
-              className="bg-brand-600 h-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
+              className={`bg-brand-600 h-full transition-all duration-300 ${
+                isRunning
+                  ? "w-1/3 animate-pulse"
+                  : testStatus === "IDLE"
+                    ? "w-0"
+                    : "w-full"
+              }`}
             />
           </div>
         </div>
