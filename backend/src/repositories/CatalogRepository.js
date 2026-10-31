@@ -127,41 +127,7 @@ class CatalogRepository extends BaseRepository {
     );
     return res.rows.map((r) => r.code);
   }
-  async findCases(filters = {}) {
-    const conditions = [];
-    const values = [];
-
-    const addFilter = (column, value) => {
-      if (value !== undefined && value !== "") {
-        values.push(value);
-        conditions.push(`${column} = $${values.length}`);
-      }
-    };
-
-    addFilter("sp.suite_id", filters.suite);
-    addFilter("c.test_type", filters.type);
-    addFilter("c.priority", filters.priority);
-    if (filters.status !== undefined && filters.status !== "") {
-      values.push(filters.status.toUpperCase());
-      conditions.push(`UPPER(c.test_status) = $${values.length}`);
-    }
-
-    const whereClause = conditions.length
-      ? `WHERE ${conditions.join(" AND ")}`
-      : "";
-
-    const result = await this.query(
-      `SELECT c.*, sp.suite_id, sp.spec_code
-       FROM test_cases c
-       JOIN test_specs sp ON sp.spec_id = c.spec_id
-       ${whereClause}
-       ORDER BY c.test_id ASC`,
-      values,
-    );
-
-    return result.rows;
-  }
-
+  //Testcase
   async createCase(data) {
     const result = await this.query(
       `INSERT INTO test_cases
@@ -220,7 +186,133 @@ class CatalogRepository extends BaseRepository {
       test_data: dataResult.rows,
     };
   }
+  async findCases(filters = {}) {
+    const conditions = [];
+    const values = [];
 
+    const addFilter = (column, value) => {
+      if (value !== undefined && value !== "") {
+        values.push(value);
+        conditions.push(`${column} = $${values.length}`);
+      }
+    };
+
+    addFilter("sp.suite_id", filters.suite);
+    addFilter("c.test_type", filters.type);
+    addFilter("c.priority", filters.priority);
+    if (filters.status !== undefined && filters.status !== "") {
+      values.push(filters.status.toUpperCase());
+      conditions.push(`UPPER(c.test_status) = $${values.length}`);
+    }
+
+    const whereClause = conditions.length
+      ? `WHERE ${conditions.join(" AND ")}`
+      : "";
+
+    const result = await this.query(
+      `SELECT c.*, sp.suite_id, sp.spec_code
+       FROM test_cases c
+       JOIN test_specs sp ON sp.spec_id = c.spec_id
+       ${whereClause}
+       ORDER BY c.test_id ASC`,
+      values,
+    );
+
+    return result.rows;
+  }
+  async updateCase(id, data) {
+    const allowedFields = [
+      "title",
+      "preconditions",
+      "expected_result",
+      "priority",
+      "test_type",
+      "test_status",
+    ];
+
+    const fields = [];
+    const params = [];
+
+    for (const field of allowedFields) {
+      if (data[field] !== undefined) {
+        params.push(data[field]);
+        fields.push(`${field} = $${params.length}`);
+      }
+    }
+
+    if (fields.length === 0) return null;
+
+    params.push(id);
+    const result = await this.query(
+      `UPDATE test_cases SET ${fields.join(", ")}
+        WHERE test_id = $${params.length}
+       RETURNING *`,
+      params,
+    );
+
+    return result.rows[0] || null;
+  }
+  async deleteCase(id) {
+    const client = await getPool().connect();
+
+    try {
+      await client.query("BEGIN");
+
+      // Khóa testcase để tránh phát sinh dữ liệu con trong lúc kiểm tra và xóa.
+      const caseResult = await client.query(
+        `SELECT test_id
+         FROM test_cases
+         WHERE test_id = $1
+         FOR UPDATE`,
+        [id],
+      );
+
+      if (caseResult.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      // Kiểm tra dữ liệu con trước khi xóa.
+      const childrenResult = await client.query(
+        `SELECT
+           EXISTS (
+             SELECT 1 FROM test_steps WHERE test_id = $1
+           )
+           OR EXISTS (
+             SELECT 1 FROM test_data WHERE test_id = $1
+           )
+           OR EXISTS (
+             SELECT 1 FROM test_results WHERE test_id = $1
+           ) AS has_children`,
+        [id],
+      );
+
+      if (childrenResult.rows[0].has_children) {
+        await client.query("ROLLBACK");
+        return { deleted: false, reason: "HAS_CHILDREN" };
+      }
+
+      await client.query(
+        "DELETE FROM test_cases WHERE test_id = $1",
+        [id],
+      );
+
+      await client.query("COMMIT");
+
+      return { deleted: true };
+    } catch (error) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // Giữ nguyên lỗi ban đầu.
+      }
+
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  //Suite
   async findSuites() {
     const r = await this.query(
       `SELECT s.suite_id, s.suite_name,
@@ -234,7 +326,30 @@ class CatalogRepository extends BaseRepository {
     );
     return r.rows;
   }
+  async findSuiteById(id) {
+    const result = await this.query(
+      `SELECT
+       s.suite_id,
+       s.suite_name,
+       s.suite_description,
+       s.created_by,
+       s.created_at,
+       s.updated_by,
+       s.updated_at,
+       COUNT(c.test_id) AS case_count,
+       COUNT(c.test_id) FILTER (
+         WHERE c.test_status = 'ready'
+       ) AS ready_count
+     FROM test_suites s
+     LEFT JOIN test_specs sp ON sp.suite_id = s.suite_id
+     LEFT JOIN test_cases c ON c.spec_id = sp.spec_id
+     WHERE s.suite_id = $1
+     GROUP BY s.suite_id`,
+      [id],
+    );
 
+    return result.rows[0] || null;
+  }
   async findSpecsBySuite(suiteId) {
     const r = await this.query(
       `SELECT spec_id, spec_code, suite_id, screen_name
@@ -243,15 +358,174 @@ class CatalogRepository extends BaseRepository {
     );
     return r.rows;
   }
+  async createSpec(data) {
+    const result = await this.query(
+      `INSERT INTO test_specs
+       (spec_code, suite_id, source_reference, screen_name,
+        spec_description, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+      [
+        data.spec_code,
+        data.suite_id,
+        data.source_reference ?? null,
+        data.screen_name ?? null,
+        data.spec_description ?? null,
+        data.created_by ?? null,
+      ],
+    );
 
+    return result.rows[0];
+  }
+  async createSuite(data) {
+    const result = await this.query(
+      `INSERT INTO test_suites (suite_name, suite_description)
+       VALUES ($1, $2)
+       RETURNING *`,
+      [
+        data.suite_name,
+        data.suite_description ?? null,
+      ],
+    );
+
+    return result.rows[0];
+  }
+
+  async updateSuite(id, data) {
+    const allowedFields = ["suite_name", "suite_description"];
+
+    const fields = [];
+    const params = [];
+
+    for (const field of allowedFields) {
+      if (data[field] !== undefined) {
+        params.push(data[field]);
+        fields.push(`${field} = $${params.length}`);
+      }
+    }
+
+    if (fields.length === 0) return null;
+
+    params.push(id);
+
+    const result = await this.query(
+      `UPDATE test_suites
+       SET ${fields.join(", ")}
+       WHERE suite_id = $${params.length}
+       RETURNING *`,
+      params,
+    );
+
+    return result.rows[0] || null;
+  }
+
+  async deleteSuite(id) {
+    const client = await getPool().connect();
+
+    try {
+      await client.query("BEGIN");
+
+      // Khóa Suite để tránh thay đổi dữ liệu trong lúc kiểm tra và xóa.
+      const suiteResult = await client.query(
+        `SELECT suite_id
+         FROM test_suites
+         WHERE suite_id = $1
+         FOR UPDATE`,
+        [id],
+      );
+
+      if (suiteResult.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      // Suite đang được Specification tham chiếu thì không cho xóa.
+      const childrenResult = await client.query(
+        `SELECT EXISTS (
+           SELECT 1
+           FROM test_specs
+           WHERE suite_id = $1
+         ) AS has_children`,
+        [id],
+      );
+
+      if (childrenResult.rows[0].has_children) {
+        await client.query("ROLLBACK");
+        return { deleted: false, reason: "HAS_CHILDREN" };
+      }
+
+      await client.query(
+        `DELETE FROM test_suites
+         WHERE suite_id = $1`,
+        [id],
+      );
+
+      await client.query("COMMIT");
+
+      return { deleted: true };
+    } catch (error) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // Giữ nguyên lỗi ban đầu.
+      }
+
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  async updateSpec(id, data) {
+    const allowedFields = [
+      "source_reference",
+      "screen_name",
+      "spec_description",
+      "updated_by",
+    ];
+
+    const fields = [];
+    const params = [];
+
+    for (const field of allowedFields) {
+      if (data[field] !== undefined) {
+        params.push(data[field]);
+        fields.push(`${field} = $${params.length}`);
+      }
+    }
+
+    if (fields.length === 0) return null;
+
+    params.push(id);
+
+    const result = await this.query(
+      `UPDATE test_specs
+        SET ${fields.join(", ")}
+      WHERE spec_id = $${params.length}
+      RETURNING *`,
+      params,
+    );
+
+    return result.rows[0] || null;
+  }
+
+  async deleteSpec(id) {
+    const result = await this.query(
+      `DELETE FROM test_specs
+      WHERE spec_id = $1
+      RETURNING *`,
+      [id],
+    );
+
+    return result.rows[0] || null;
+  }
   // Đếm test 'ready' mà một target_json của template sẽ chạy (dùng cho readyCount).
   async countReadyForTarget(target = {}) {
     const codes =
       target.suiteId != null
         ? await this.findReadyCaseCodes(target.suiteId)
         : await this.findReadyCodesByTcCodes(
-            (target.testIds || []).map(String),
-          );
+          (target.testIds || []).map(String),
+        );
     return codes.length;
   }
 
@@ -368,42 +642,164 @@ class CatalogRepository extends BaseRepository {
     );
     return res.rowCount;
   }
+  async addCaseStep(id, data) {
+    const client = await getPool().connect();
 
-  // Sửa metadata của case (gồm test_status: draft → ready). Không có dòng nào khớp → null.
-  // tc_code và spec_id KHÔNG sửa được: test_runs.config_json lưu MÃ test, đổi mã xong thì
-  // Rerun một run cũ trả 409 NO_READY_TESTS mà người dùng không hiểu vì sao.
-  async updateCase(id, data) {
-    const allowedFields = [
-      "title",
-      "preconditions",
-      "expected_result",
-      "priority",
-      "test_type",
-      "test_status",
-    ];
+    try {
+      await client.query("BEGIN");
 
-    const fields = [];
-    const params = [];
+      const caseResult = await client.query(
+        `SELECT test_id
+       FROM test_cases
+       WHERE test_id = $1
+       FOR UPDATE`,
+        [id],
+      );
 
-    for (const field of allowedFields) {
-      if (data[field] !== undefined) {
-        params.push(data[field]);
-        fields.push(`${field} = $${params.length}`);
+      if (caseResult.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return null;
       }
-    }
 
-    if (fields.length === 0) return null;
+      const orderResult = await client.query(
+        `SELECT COALESCE(MAX(step_order), -1) + 1 AS next_order
+       FROM test_steps
+       WHERE test_id = $1`,
+        [id],
+      );
 
-    params.push(id);
-    const result = await this.query(
-      `UPDATE test_cases SET ${fields.join(", ")}
-        WHERE test_id = $${params.length}
+      const result = await client.query(
+        `INSERT INTO test_steps
+         (test_id, step_order, step_action, step_target, expected_result)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      params,
+        [
+          id,
+          orderResult.rows[0].next_order,
+          data.step_action,
+          data.step_target ?? null,
+          data.expected_result ?? null,
+        ],
+      );
+
+      await client.query("COMMIT");
+      return result.rows[0];
+    } catch (error) {
+      try {
+        await client.query("ROLLBACK");
+      } catch { }
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  async deleteCaseStep(stepId) {
+    const result = await this.query(
+      `DELETE FROM test_steps
+     WHERE step_id = $1
+     RETURNING *`,
+      [stepId],
     );
 
     return result.rows[0] || null;
   }
+  async reorderCaseSteps(id, steps) {
+    const client = await getPool().connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const caseResult = await client.query(
+        `SELECT test_id
+       FROM test_cases
+       WHERE test_id = $1
+       FOR UPDATE`,
+        [id],
+      );
+
+      if (caseResult.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      const currentResult = await client.query(
+        `SELECT step_id, step_order
+       FROM test_steps
+       WHERE test_id = $1
+       ORDER BY step_order`,
+        [id],
+      );
+
+      const currentIds = currentResult.rows.map((step) => Number(step.step_id));
+      const requestedIds = steps.map((step) => Number(step.step_id));
+      const requestedOrders = steps.map((step) => Number(step.step_order));
+
+      // Kiểm tra đầy đủ step, không trùng ID và không trùng thứ tự.
+      if (
+        currentIds.length !== requestedIds.length ||
+        new Set(requestedIds).size !== requestedIds.length ||
+        new Set(requestedOrders).size !== requestedOrders.length ||
+        !currentIds.every((stepId) => requestedIds.includes(stepId)) ||
+        requestedOrders.some(
+          (order) => order < 0 || order >= steps.length,
+        )
+      ) {
+        await client.query("ROLLBACK");
+        return false;
+      }
+
+      // Chuyển tạm step_order để tránh vi phạm UNIQUE(test_id, step_order).
+      const maxOrder = Math.max(
+        -1,
+        ...currentResult.rows.map((step) => Number(step.step_order)),
+      );
+
+      const offset = maxOrder + steps.length + 1;
+
+      for (const step of steps) {
+        await client.query(
+          `UPDATE test_steps
+         SET step_order = step_order + $1
+         WHERE test_id = $2 AND step_id = $3`,
+          [offset, id, step.step_id],
+        );
+      }
+
+      // Cập nhật thứ tự mới.
+      for (const step of steps) {
+        await client.query(
+          `UPDATE test_steps
+         SET step_order = $1
+         WHERE test_id = $2 AND step_id = $3`,
+          [step.step_order, id, step.step_id],
+        );
+      }
+
+      const result = await client.query(
+        `SELECT *
+       FROM test_steps
+       WHERE test_id = $1
+       ORDER BY step_order`,
+        [id],
+      );
+
+      await client.query("COMMIT");
+      return result.rows;
+    } catch (error) {
+      try {
+        await client.query("ROLLBACK");
+      } catch { }
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  // Sửa metadata của case (gồm test_status: draft → ready). Không có dòng nào khớp → null.
+  // tc_code và spec_id KHÔNG sửa được: test_runs.config_json lưu MÃ test, đổi mã xong thì
+  // Rerun một run cũ trả 409 NO_READY_TESTS mà người dùng không hiểu vì sao.
+  // Xóa test case.
+  // Còn steps, test_data hoặc test_results → không xóa, trả HAS_CHILDREN.
+  // Không tìm thấy → null.
 }
 
 module.exports = CatalogRepository;
