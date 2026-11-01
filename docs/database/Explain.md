@@ -3,8 +3,9 @@
 **Nội dung:** mọi thứ liên quan tới dữ liệu kiểm thử – giải thích khái niệm và phân công công việc cụ thể.
 
 > 📌 **Nguồn chuẩn về cấu trúc DB là `db/schema/test_automation_db_schema.sql`** (tên bảng, tên cột, kiểu, ENUM).
-> Seed và migration phải theo schema, không ngược lại. Hiện `db/seed/seed.sql` và `db/migrations/001`, `002` đang dùng
-> tên bảng chữ hoa (`Test_Suites`) và cột `description` thay vì `suite_description` → **sai, cần sửa**.
+> Seed và migration phải theo schema, không ngược lại. Hiện `db/seed/seed.sql`, `db/migrations/001`, `002`, `005`
+> và `db/verify.sql` đang dùng tên bảng chữ hoa (`Test_Suites`); riêng `seed.sql` và `001` còn dùng cột `description`
+> thay vì `suite_description` → **sai, cần sửa**. `004` và `006` đã đúng schema.
 > Nguồn chuẩn về kiến trúc và công nghệ là [`../architecture/SRS.md`](../architecture/SRS.md) – SRS ghi **Supabase (PostgreSQL)**
 > trong khi schema hiện là MySQL; đây là khoảng cách nhóm phải xử lý, xem [`../GIT_WORKFLOW.md`](../GIT_WORKFLOW.md) mục 9.
 
@@ -36,7 +37,7 @@ Hiện mới chỉ `TC-AUTH-005` chạy theo kiểu này; mục tiêu là mở r
 
 - 🔒 **Không bao giờ** đưa mật khẩu thật, token hay thông tin cá nhân vào DB, migration hay git. Trong `Test_Data` chỉ lưu tham chiếu `env:TÊN_BIẾN`; giá trị thật nằm trong `.env`.
 - **Chạy thật trước, ghi DB sau.** Không viết steps/data cho TC chưa chạy thử trên hệ thống thật; phải ghi đúng *exact message*.
-- **Không sửa migration cũ.** Website đổi thì thêm migration mới (`005_…`).
+- **Không sửa migration cũ.** Website đổi thì thêm migration mới (cao nhất hiện tại là `006`, nên file tiếp theo là `007_…`).
 - **Tên bảng/cột luôn theo `db/schema/`** (`snake_case` chữ thường). Nếu cần đổi thì sửa schema trước, rồi mới viết migration.
 - Migration đánh số tăng dần, không bỏ số – hiện **thiếu `003_submission_steps_data.sql`** (mục D6).
 - Cập nhật cột *Tiến độ* trong `phan-cong-db-va-du-lieu.md` mỗi khi xong một mục D/X.

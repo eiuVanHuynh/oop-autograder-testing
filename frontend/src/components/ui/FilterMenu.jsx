@@ -10,8 +10,7 @@
 // options: mảng chuỗi, hoặc mảng { value, label }. Mảng rỗng trong value = không lọc nhóm đó.
 import { useState, useEffect, useRef } from "react";
 import { Filter, ChevronDown } from "lucide-react";
-
-const toOption = (o) => (typeof o === "object" ? o : { value: o, label: o });
+import { toOption } from "../../models/searchTags";
 
 export const FilterPill = ({ active, onClick, children }) => (
   <button

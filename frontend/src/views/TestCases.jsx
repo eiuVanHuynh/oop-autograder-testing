@@ -15,6 +15,7 @@ import {
   listCases, listSuites, listSpecs, getCase, createCase, updateCase, deprecateCase,
   saveSteps, saveCaseData,
 } from "../services/catalogService";
+import { parseQuery, buildQuery } from "../models/searchTags";
 import { listTemplates, updateTemplate } from "../services/templateService";
 import { getErrorMessage } from "../services/authService";
 import FilterBar from "../components/ui/FilterBar";
@@ -61,10 +62,8 @@ export default function TestCases() {
   const [specs, setSpecs] = useState([]);       // spec của suite đang chọn trong form
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Ô search là nguồn sự thật duy nhất: tag nằm trong chuỗi `q`, filter suy ra từ nó.
   const [q, setQ] = useState("");
-  // Mảng rỗng = không lọc nhóm đó.
-  const [filters, setFilters] = useState({ suite: [], status: [], type: [] });
-  const { suite: fSuite, status: fStatus, type: fType } = filters;
   const [reloadKey, setReloadKey] = useState(0);
   const [form, setForm] = useState(null);       // null = đóng modal tạo/sửa
   const [detail, setDetail] = useState(null);   // null = đóng modal xem
@@ -79,7 +78,29 @@ export default function TestCases() {
     listTemplates().then(setTemplates).catch(() => setTemplates([]));
   }, [reloadKey]);
 
-  // GET /catalog/cases?suite=&status=&type=  (q và trường hợp chọn nhiều giá trị thì lọc ở client)
+  // Tag gợi ý trong ô search = chính các option của panel Filter bên cạnh.
+  const groups = useMemo(
+    () => [
+      {
+        key: "suite",
+        label: "Suite",
+        allLabel: "All suites",
+        options: suites.map((s) => ({ value: String(s.id), label: s.name })),
+      },
+      { key: "status", label: "Status", allLabel: "All status", options: CASE_STATUSES },
+      { key: "type", label: "Type", allLabel: "All types", options: CASE_TYPES },
+    ],
+    [suites],
+  );
+
+  // Giữ identity của `filters` ổn định theo nội dung, nếu không mỗi lần gõ free text
+  // là một lần gọi lại /catalog/cases.
+  const { filters: parsed, text } = useMemo(() => parseQuery(q, groups), [q, groups]);
+  const filterKey = JSON.stringify(parsed);
+  const filters = useMemo(() => JSON.parse(filterKey), [filterKey]);
+  const { suite: fSuite, status: fStatus, type: fType } = filters;
+
+  // GET /catalog/cases?suite=&status=&type=  (text và trường hợp chọn nhiều giá trị thì lọc ở client)
   useEffect(() => {
     let off = false;
     setLoading(true);
@@ -101,9 +122,9 @@ export default function TestCases() {
   }, [fSuite, fStatus, fType, reloadKey]);
 
   const shown = useMemo(() => {
-    const k = q.trim().toLowerCase();
+    const k = text.trim().toLowerCase();
     return k ? cases.filter((c) => c.code.toLowerCase().includes(k) || c.title.toLowerCase().includes(k)) : cases;
-  }, [cases, q]);
+  }, [cases, text]);
 
   // Template trỏ tới cả một suite thì không thêm lẻ từng case được.
   const addableTemplates = useMemo(
@@ -277,23 +298,15 @@ export default function TestCases() {
       <FilterBar
         value={q}
         onChange={setQ}
-        placeholder="Search code / title"
+        placeholder="Search code / title, or pick a tag"
         onRefresh={refresh}
         loading={loading}
+        tagGroups={groups}
       >
         <FilterMenu
-          groups={[
-            {
-              key: "suite",
-              label: "Suite",
-              allLabel: "All suites",
-              options: suites.map((s) => ({ value: String(s.id), label: s.name })),
-            },
-            { key: "status", label: "Status", allLabel: "All status", options: CASE_STATUSES },
-            { key: "type", label: "Type", allLabel: "All types", options: CASE_TYPES },
-          ]}
+          groups={groups}
           value={filters}
-          onChange={setFilters}
+          onChange={(next) => setQ(buildQuery(next, text, groups))}
         />
       </FilterBar>
 

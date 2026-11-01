@@ -1,6 +1,6 @@
 // Trang Quản lý Template (/templates) – theo docs/frontend/design/08-template-management.png
 // và docs/backend/api-endpoints.md mục 4.
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Pencil,
   Trash2,
@@ -30,6 +30,22 @@ import CreateButton from "../components/ui/CreateButton";
 import FilterBar from "../components/ui/FilterBar";
 import FilterMenu from "../components/ui/FilterMenu";
 import RowMenu from "../components/ui/RowMenu";
+import { parseQuery, buildQuery } from "../models/searchTags";
+
+// Tag của riêng trang Templates, dùng chung cho ô search và panel Filter.
+const GROUPS = [
+  { key: "scope", label: "Test scope", allLabel: "All scopes", options: SCOPES },
+  {
+    key: "status",
+    label: "Status",
+    allLabel: "All status",
+    options: [
+      { value: "active", label: "Active" },
+      { value: "inactive", label: "Inactive" },
+    ],
+  },
+];
+
 const EMPTY = {
   name: "",
   description: "",
@@ -193,14 +209,19 @@ export default function Templates() {
 
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Ô search là nguồn sự thật duy nhất: tag nằm trong chuỗi `q`, filter suy ra từ nó.
   const [q, setQ] = useState("");
-  // Mảng rỗng = không lọc nhóm đó.
-  const [filters, setFilters] = useState({ scope: [], status: [] });
-  const { scope: scopes, status: statuses } = filters;
   const [reloadKey, setReloadKey] = useState(0);
   const [form, setForm] = useState(null); // null = đóng
   const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState(null);
+
+  // Tag gợi ý trong ô search = chính các option của panel Filter bên cạnh.
+  const { filters: parsed, text } = useMemo(() => parseQuery(q, GROUPS), [q]);
+  // Giữ identity ổn định theo nội dung, nếu không mỗi ký tự gõ vào là một lần gọi lại API.
+  const filterKey = JSON.stringify(parsed);
+  const filters = useMemo(() => JSON.parse(filterKey), [filterKey]);
+  const { scope: scopes, status: statuses } = filters;
 
   // GET /templates?q=&scope= (tìm sau 300ms ngừng gõ)
   useEffect(() => {
@@ -211,7 +232,7 @@ export default function Templates() {
         // BACKEND-TODO: GET /templates chỉ nhận 1 scope / 1 status, nên chọn nhiều
         // giá trị thì lọc nốt ở client.
         const list = await listTemplates({
-          q: q.trim() || undefined,
+          q: text.trim() || undefined,
           scope: scopes.length === 1 ? scopes[0] : undefined,
           status: statuses.length === 1 ? statuses[0] : undefined,
         });
@@ -234,7 +255,7 @@ export default function Templates() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [q, scopes, statuses, reloadKey]);
+  }, [text, scopes, statuses, reloadKey]);
 
   const refresh = () => setReloadKey((k) => k + 1);
 
@@ -343,30 +364,15 @@ export default function Templates() {
       <FilterBar
         value={q}
         onChange={setQ}
-        placeholder="Search templates by name..."
+        placeholder="Search templates by name, or pick a tag"
         onRefresh={refresh}
         loading={loading}
+        tagGroups={GROUPS}
       >
         <FilterMenu
-          groups={[
-            {
-              key: "scope",
-              label: "Test scope",
-              allLabel: "All scopes",
-              options: SCOPES,
-            },
-            {
-              key: "status",
-              label: "Status",
-              allLabel: "All status",
-              options: [
-                { value: "active", label: "Active" },
-                { value: "inactive", label: "Inactive" },
-              ],
-            },
-          ]}
+          groups={GROUPS}
           value={filters}
-          onChange={setFilters}
+          onChange={(next) => setQ(buildQuery(next, text, GROUPS))}
         />
       </FilterBar>
 

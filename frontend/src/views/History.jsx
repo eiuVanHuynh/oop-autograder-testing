@@ -1,7 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { getRuns } from "../services/runService";
 import { getErrorMessage } from "../services/authService";
+import { ENVIRONMENTS } from "../models/options";
+import { parseQuery, buildQuery } from "../models/searchTags";
+import FilterBar from "../components/ui/FilterBar";
+import FilterMenu from "../components/ui/FilterMenu";
 import { useNavigate } from "react-router-dom";
 import {
   History as HistoryIcon,
@@ -22,6 +26,22 @@ const BADGE = {
   INTERRUPTED: "bg-orange-100 text-orange-700",
 };
 
+// Tag của riêng trang History: trạng thái run + môi trường. Không dùng chung với Test Cases.
+const GROUPS = [
+  {
+    key: "status",
+    label: "Status",
+    allLabel: "All status",
+    options: Object.keys(BADGE),
+  },
+  {
+    key: "env",
+    label: "Environment",
+    allLabel: "All environments",
+    options: ENVIRONMENTS,
+  },
+];
+
 export default function History() {
   const navigate = useNavigate();
 
@@ -29,8 +49,27 @@ export default function History() {
   const [testRuns, setTestRuns] = useState([]);
   const [selectedRun, setSelectedRun] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Ô search là nguồn sự thật duy nhất: tag nằm trong `q`, filter suy ra từ nó.
+  const { filters, text } = useMemo(() => parseQuery(q, GROUPS), [q]);
+
+  // GET /runs chỉ nhận 1 giá trị mỗi nhóm nên lọc hẳn ở client, như Templates đang làm.
+  const shown = useMemo(() => {
+    const k = text.trim().toLowerCase();
+    return testRuns.filter(
+      (r) =>
+        (filters.status.length === 0 || filters.status.includes(r.status)) &&
+        (filters.env.length === 0 || filters.env.includes(r.environment)) &&
+        (!k ||
+          r.name.toLowerCase().includes(k) ||
+          String(r.id).includes(k.replace(/^#/, ""))),
+    );
+  }, [testRuns, filters, text]);
 
   useEffect(() => {
+    setLoading(true);
     getRuns()
       .then((data) => {
         setTestRuns(data);
@@ -38,7 +77,7 @@ export default function History() {
       })
       .catch((e) => toast.error(getErrorMessage(e, "Cannot load test runs.")))
       .finally(() => setLoading(false));
-  }, []);
+  }, [reloadKey]);
 
   const badge = (status) => BADGE[status] ?? "bg-gray-100 text-gray-600";
 
@@ -56,6 +95,21 @@ export default function History() {
         </div>
       </div>
 
+      <FilterBar
+        value={q}
+        onChange={setQ}
+        placeholder="Search run name / #id, or pick a tag"
+        onRefresh={() => setReloadKey((k) => k + 1)}
+        loading={loading}
+        tagGroups={GROUPS}
+      >
+        <FilterMenu
+          groups={GROUPS}
+          value={filters}
+          onChange={(next) => setQ(buildQuery(next, text, GROUPS))}
+        />
+      </FilterBar>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT: Danh sách lịch sử chạy test */}
         <div className="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -65,7 +119,7 @@ export default function History() {
               Runs
             </h3>
             <span className="text-xs text-gray-400 font-medium">
-              {testRuns.length} runs recorded
+              {shown.length} / {testRuns.length} runs
             </span>
           </div>
 
@@ -74,10 +128,14 @@ export default function History() {
             {loading && (
               <p className="p-6 text-sm text-gray-500">Loading runs…</p>
             )}
-            {!loading && testRuns.length === 0 && (
-              <p className="p-6 text-sm text-gray-500">No test runs yet.</p>
+            {!loading && shown.length === 0 && (
+              <p className="p-6 text-sm text-gray-500">
+                {testRuns.length === 0
+                  ? "No test runs yet."
+                  : "No run matches this filter."}
+              </p>
             )}
-            {testRuns.map((run) => {
+            {shown.map((run) => {
               const isSelected = selectedRun?.id === run.id;
               return (
                 <div

@@ -11,6 +11,7 @@
     "  testSteps.js  — 4 action và ngữ pháp locator mà bộ chạy test thật sự hiểu",
     "  runLog.js     — khuôn dòng log, dùng để bóc pass/fail của từng test case",
     "  reportHtml.js — escaping cho file HTML mà nút Export sinh ra",
+    "  searchTags.js — luật biến chữ trong ô search thành tag filter",
     "Sửa một trong ba file đó, hoặc sửa câu log bên backend, thì chạy lại: npm run check"
   ],
   "scripts": {
@@ -18,7 +19,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "check": "node checks/steps.check.mjs && node checks/runlog.check.mjs && node checks/report.check.mjs"
+    "check": "node checks/steps.check.mjs && node checks/runlog.check.mjs && node checks/report.check.mjs && node checks/searchtags.check.mjs"
   },
   "dependencies": {
     "axios": "^1.20.0",

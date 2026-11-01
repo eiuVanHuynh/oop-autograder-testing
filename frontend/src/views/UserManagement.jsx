@@ -1,14 +1,31 @@
 // Trang Users (/users) – Admin xem danh sách thành viên, đổi vai trò, khoá/mở khoá.
 // Backend: GET /users, PATCH /users/:id/role, PATCH /users/:id/status (users.routes.js).
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Shield, Lock, UserCheck, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
 import { listUsers, changeUserRole, changeUserStatus } from "../services/userService";
 import { getErrorMessage } from "../services/authService";
+import { parseQuery, buildQuery } from "../models/searchTags";
 import FilterBar from "../components/ui/FilterBar";
+import FilterMenu from "../components/ui/FilterMenu";
 
 const ROLES = ["admin", "tester", "dev", "viewer"];
+
+// Tag của riêng trang Users. Backend chưa chắc nhận ?role=/?status= nên lọc hai nhóm này
+// ở client, chỉ gửi free text lên ?q=.
+const GROUPS = [
+  { key: "role", label: "Role", allLabel: "All roles", options: ROLES },
+  {
+    key: "status",
+    label: "Status",
+    allLabel: "All status",
+    options: [
+      { value: "active", label: "active" },
+      { value: "inactive", label: "inactive" },
+    ],
+  },
+];
 
 export default function UserManagement() {
   const { user: me } = useAuth();
@@ -18,13 +35,26 @@ export default function UserManagement() {
   const [reloadKey, setReloadKey] = useState(0);
   const [busyId, setBusyId] = useState(null);
 
+  // Ô search là nguồn sự thật duy nhất: tag nằm trong chuỗi `q`, filter suy ra từ nó.
+  const { filters, text } = useMemo(() => parseQuery(q, GROUPS), [q]);
+
+  const shown = useMemo(
+    () =>
+      users.filter(
+        (u) =>
+          (filters.role.length === 0 || filters.role.includes(u.role)) &&
+          (filters.status.length === 0 || filters.status.includes(u.status)),
+      ),
+    [users, filters],
+  );
+
   // GET /users?q= (tìm sau 300ms ngừng gõ)
   useEffect(() => {
     let cancelled = false;
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const list = await listUsers({ q: q.trim() || undefined });
+        const list = await listUsers({ q: text.trim() || undefined });
         if (!cancelled) setUsers(list);
       } catch (err) {
         if (!cancelled) toast.error(getErrorMessage(err, "Cannot load users."));
@@ -33,7 +63,7 @@ export default function UserManagement() {
       }
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [q, reloadKey]);
+  }, [text, reloadKey]);
 
   const refresh = () => setReloadKey((k) => k + 1);
 
@@ -72,10 +102,17 @@ export default function UserManagement() {
       <FilterBar
         value={q}
         onChange={setQ}
-        placeholder="Search name / email"
+        placeholder="Search name / email, or pick a tag"
         onRefresh={refresh}
         loading={loading}
-      />
+        tagGroups={GROUPS}
+      >
+        <FilterMenu
+          groups={GROUPS}
+          value={filters}
+          onChange={(next) => setQ(buildQuery(next, text, GROUPS))}
+        />
+      </FilterBar>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
@@ -83,7 +120,7 @@ export default function UserManagement() {
             <Users size={18} className="text-brand-600" /> System Users Control
           </h3>
           <span className="text-xs text-gray-400 font-medium">
-            {users.length} users registered
+            {shown.length} / {users.length} users
           </span>
         </div>
 
@@ -101,10 +138,10 @@ export default function UserManagement() {
               {loading && users.length === 0 && (
                 <tr><td colSpan={4} className="py-10 text-center text-gray-400">Loading…</td></tr>
               )}
-              {!loading && users.length === 0 && (
+              {!loading && shown.length === 0 && (
                 <tr><td colSpan={4} className="py-10 text-center text-gray-400">No users found.</td></tr>
               )}
-              {users.map((user) => (
+              {shown.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50/50 transition">
                   <td className="py-4 px-6">
                     <p className="font-semibold text-gray-900">{user.name}</p>

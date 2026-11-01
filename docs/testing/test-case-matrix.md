@@ -12,7 +12,7 @@
 | --- | --- | --- | --- | --- |
 | Xác thực & Quản lý người dùng | TC-01 → TC-12, TC-31 | `automation/tests/auth/auth.spec.js` | `db/migrations/002_auth_steps_data.sql` | Đã có spec |
 | Nộp bài & Chấm điểm | TC-13 → TC-22 | `automation/tests/submission/submission.spec.js` | ⚠️ thiếu `003_submission_steps_data.sql` | Spec còn hard-code dữ liệu |
-| Quản lý của Giảng viên | TC-23 → TC-30 | ⚠️ chưa có (`automation/tests/lecturer/` còn trống) | `db/migrations/004_lecturer_steps_data.sql` | Có dữ liệu, thiếu spec |
+| Quản lý của Giảng viên | TC-23 → TC-30 | ⚠️ chưa có (thư mục `automation/tests/lecturer/` chưa tạo) | `db/migrations/004_lecturer_steps_data.sql` | Có dữ liệu, thiếu spec |
 
 Selector, route và thông báo lỗi thật của SUT: [`sut-reference.md`](./sut-reference.md).
 
