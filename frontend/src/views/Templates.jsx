@@ -350,7 +350,7 @@ export default function Templates() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            TestCase Template Management
+            Test Case Template Management
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             {canEdit
@@ -519,7 +519,7 @@ export default function Templates() {
 
             <fieldset disabled={readOnly || saving} className="space-y-4">
               <div>
-                <label className={labelCls}>Template name *</label>
+                <label className={labelCls}>Template name <span className="text-red-500">*</span></label>
                 <input
                   className={inputCls}
                   value={form.name}
@@ -540,7 +540,7 @@ export default function Templates() {
               </div>
 
               <div>
-                <label className={labelCls}>Tests to run *</label>
+                <label className={labelCls}>Tests to run <span className="text-red-500">*</span></label>
                 <select
                   className={inputCls}
                   value={form.suiteId ?? ""}

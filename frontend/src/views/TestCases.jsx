@@ -399,14 +399,14 @@ export default function TestCases() {
                 <>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Suite *</label>
+                  <label className={labelCls}>Suite <span className="text-red-500">*</span></label>
                   <select className={inputCls} value={form.suiteId} onChange={(e) => pickSuite(e.target.value)}>
                     <option value="">— choose —</option>
                     {suites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>Spec *</label>
+                  <label className={labelCls}>Spec <span className="text-red-500">*</span></label>
                   <select className={inputCls} value={form.specId} onChange={(e) => setForm({ ...form, specId: e.target.value })} disabled={!form.suiteId}>
                     <option value="">— choose —</option>
                     {specs.map((s) => <option key={s.id} value={s.id}>{s.code}{s.screen ? ` – ${s.screen}` : ""}</option>)}
@@ -417,13 +417,13 @@ export default function TestCases() {
               )}
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-1">
-                  <label className={labelCls}>Test code *</label>
+                  <label className={labelCls}>Test code <span className="text-red-500">*</span></label>
                   {/* tc_code bất biến sau khi tạo (updateCaseSchema .omit) */}
                   <input className={inputCls} placeholder="TC-45" value={form.code} disabled={!!form.id}
                          onChange={(e) => setForm({ ...form, code: e.target.value })} />
                 </div>
                 <div className="col-span-2">
-                  <label className={labelCls}>Title *</label>
+                  <label className={labelCls}>Title <span className="text-red-500">*</span></label>
                   <input className={inputCls} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
                 </div>
               </div>
@@ -433,7 +433,7 @@ export default function TestCases() {
                   <textarea rows={2} className={inputCls} value={form.preconditions} onChange={(e) => setForm({ ...form, preconditions: e.target.value })} />
                 </div>
                 <div>
-                  <label className={labelCls}>Expected result *</label>
+                  <label className={labelCls}>Expected result <span className="text-red-500">*</span></label>
                   <textarea rows={2} className={inputCls} value={form.expectedResult} onChange={(e) => setForm({ ...form, expectedResult: e.target.value })} />
                 </div>
               </div>

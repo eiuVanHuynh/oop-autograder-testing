@@ -7,7 +7,7 @@ import MainLayout from "../components/MainLayout";
 import Dashboard from "../views/Dashboard";
 import Templates from "../views/Templates";
 import History from "../views/History";
-import TestCreation from "../views/TestCreation";
+import TestExecution from "../views/TestExecution";
 import TestReport from "../views/TestReport";
 import UserManagement from "../views/UserManagement";
 import Forbidden from "../views/Forbidden";
@@ -61,7 +61,7 @@ export default function AppRoutes() {
           path="tests/new"
           element={
             <ProtectedRoute allowedRoles={["Admin", "Tester"]}>
-              <TestCreation />
+              <TestExecution />
             </ProtectedRoute>
           }
         />
