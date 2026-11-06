@@ -1,5 +1,17 @@
 const BaseRepository = require("./BaseRepository");
 const { query } = require("../config/db");
+const AppError = require("../utils/AppError");
+
+// uq_users_email bắt ở DB, không ở tầng service: hai request đồng thời cùng email thì
+// chỉ một câu INSERT đi qua, request kia nhận 409 thay vì 500.
+// Chỉ nhận đúng ràng buộc email — 23505 của users_pkey (sequence lệch sau khi seed id cố định)
+// là lỗi khác, báo "email đã tồn tại" thì đi tìm sai chỗ.
+const rethrowEmailTaken = (err) => {
+  if (err.code === "23505" && err.constraint === "uq_users_email") {
+    throw new AppError(409, "EMAIL_TAKEN", "Email already exists");
+  }
+  throw err;
+};
 
 // Truy vấn bảng users.
 // Queries the users table.
@@ -104,8 +116,6 @@ class UserRepository extends BaseRepository {
   // Còn thiếu:
   //   - Tài khoản GOOGLE: auth_provider đang hardcode 'LOCAL'.
   //   - Admin tạo user hộ (chọn user_role khác viewer) chưa có đường vào.
-  //   - Email trùng: chỉ service chặn. Hai request đồng thời vẫn đụng
-  //     uq_users_email, lỗi 23505 thô chưa map sang 409.
   // Không RETURNING password_hash, theo ghi chú đầu file.
   async create({ full_name, email, password_hash, user_role, user_status }) {
     const res = await this.query(
@@ -120,7 +130,7 @@ class UserRepository extends BaseRepository {
         user_role || "viewer",
         user_status || "active",
       ],
-    );
+    ).catch(rethrowEmailTaken);
     return res.rows[0];
   }
 
@@ -145,6 +155,38 @@ class UserRepository extends BaseRepository {
       `UPDATE users SET user_status = $1
         WHERE user_id = $2 AND (user_role <> 'admin' OR $1 = 'active')`,
       [status, userId],
+    );
+    return res.rowCount > 0;
+  }
+
+  // Sửa hồ sơ: chỉ họ tên / email. Vai trò và trạng thái đi qua updateRole / updateStatus
+  // vì hai cột đó có luật riêng (không hạ quyền admin).
+  async updateProfile(userId, fields) {
+    const params = [];
+    const sets = [];
+    for (const col of ["full_name", "email"]) {
+      if (fields[col] !== undefined) {
+        params.push(fields[col]);
+        sets.push(`${col} = $${params.length}`);
+      }
+    }
+    if (!sets.length) return this.findPublicById(userId);
+
+    params.push(userId);
+    const res = await query(
+      `UPDATE users SET ${sets.join(", ")} WHERE user_id = $${params.length}
+       RETURNING user_id, full_name, email, auth_provider, user_role, user_status, created_at`,
+      params,
+    ).catch(rethrowEmailTaken);
+    return res.rows[0] || null;
+  }
+
+  // Xóa hẳn. Admin thì không (như updateRole/updateStatus) — khóa tài khoản là đường khuyến nghị.
+  // Các FK trỏ tới users đều ON DELETE SET NULL nên lịch sử chạy test không mất, chỉ mất tên người chạy.
+  async deleteNonAdmin(userId) {
+    const res = await query(
+      "DELETE FROM users WHERE user_id = $1 AND user_role <> 'admin'",
+      [userId],
     );
     return res.rowCount > 0;
   }

@@ -42,6 +42,68 @@ test('users: user không tồn tại → 404; UPDATE từ chối (là admin) →
   assert.equal((await ok.changeRole(3, 'tester', 1)).userRole, 'tester');
 });
 
+test('users: tạo / sửa / xóa', async () => {
+  const admin = { user_id: 2, user_role: 'admin' };
+  const svc = (repo) => new UsersService({ userRepository: repo });
+
+  // tạo: mật khẩu phải được băm trước khi tới repository
+  let saved;
+  const created = await svc({
+    create: async (row) => ((saved = row), { user_id: 9, ...row }),
+  }).createUser({ fullName: 'A B', email: 'a@b.co', password: 'secret1', role: 'tester' });
+  assert.notEqual(saved.password_hash, 'secret1');
+  assert.equal(saved.user_role, 'tester');
+  assert.equal(created.passwordHash, undefined); // toApi không để lọt
+  assert.equal(created.userId, 9);
+
+  // sửa: không có dòng → 404
+  await assert.rejects(
+    () => svc({ updateProfile: async () => null }).updateUser(9, { fullName: 'X Y' }),
+    { status: 404 },
+  );
+  assert.equal(
+    (await svc({ updateProfile: async (id, f) => ({ user_id: id, full_name: f.full_name }) })
+      .updateUser(9, { fullName: 'X Y' })).fullName,
+    'X Y',
+  );
+
+  // xóa: tự xóa mình → 400, admin → 409, không có → 404
+  await assert.rejects(
+    () => svc({ deleteNonAdmin: async () => assert.fail('không được xóa chính mình') }).deleteUser(2, 2),
+    { status: 400 },
+  );
+  const refused = { deleteNonAdmin: async () => false };
+  await assert.rejects(() => svc({ ...refused, findPublicById: async () => admin }).deleteUser(2, 1), {
+    status: 409,
+    code: 'ADMIN_PROTECTED',
+  });
+  await assert.rejects(() => svc({ ...refused, findPublicById: async () => null }).deleteUser(9, 1), {
+    status: 404,
+  });
+  assert.equal(await svc({ deleteNonAdmin: async () => true }).deleteUser(9, 1), undefined);
+});
+
+test('users: schema tạo/sửa', () => {
+  const { createUserSchema, updateUserSchema } = require('../src/validators/users.schema');
+  assert.equal(createUserSchema.safeParse({ fullName: 'A B', email: 'a@b.co', password: '12345' }).success, false); // < 6
+  assert.equal(createUserSchema.parse({ fullName: 'A B', email: 'a@b.co', password: '123456', role: 'TESTER' }).role, 'tester');
+  assert.equal(updateUserSchema.safeParse({}).success, false); // sửa mà không có gì để sửa
+  assert.equal(updateUserSchema.safeParse({ role: 'admin' }).success, false); // vai trò có endpoint riêng
+
+  // email hạ chữ ở MỌI schema ghi: uq_users_email ở DB là UNIQUE(email), không phải
+  // UNIQUE(lower(email)) — không chuẩn hóa thì 'A@b.co' lọt qua và login chọn sai dòng.
+  const { registerSchema } = require('../src/validators/auth.schema');
+  const bodies = [
+    [createUserSchema, { fullName: 'A B', password: '123456' }],
+    [updateUserSchema, {}],
+    [registerSchema, { fullName: 'A B', password: '123456' }],
+  ];
+  for (const [schema, rest] of bodies) {
+    assert.equal(schema.parse({ ...rest, email: '  ADMIN@EIU.edu.VN ' }).email, 'admin@eiu.edu.vn');
+    assert.equal(schema.safeParse({ ...rest, email: 'khong-phai-email' }).success, false);
+  }
+});
+
 test('enum phía ghi nhận cả chữ HOA mà toApi trả ra', () => {
   const { updateBugSchema, bugQuerySchema } = require('../src/validators/bugs.schema');
   const { changeRoleSchema } = require('../src/validators/users.schema');

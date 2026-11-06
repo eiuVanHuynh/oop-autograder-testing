@@ -95,9 +95,12 @@ Phục vụ trang: **User Management** (tab trong trang Lịch sử).
 | 🔴 | `GET /users?q=&role=&status=&page=` | Admin | `200`, `401`, `403` | **Xem danh sách thành viên.** Có thể tìm theo tên/email (`q`), lọc theo vai trò, theo trạng thái (đang hoạt động / bị khóa), và chia trang. |
 | 🔴 | `PATCH /users/:id/role` | Admin | `200`, `400`, `401`, `403`, `404` | **Đổi vai trò** cho một người: Admin / Tester / Viewer. Không cho Admin **tự hạ quyền chính mình** (tránh trường hợp hệ thống không còn Admin nào) → `400`. |
 | 🔴 | `PATCH /users/:id/status` | Admin | `200`, `400`, `401`, `403`, `404` | **Khóa / Mở khóa tài khoản.** Người bị khóa sẽ không đăng nhập được nữa. Không cho Admin tự khóa mình → `400`. |
+| 🔴 | `GET /users/:id` | Admin | `200`, `401`, `403`, `404` | **Xem chi tiết một thành viên.** |
+| 🔴 | `POST /users` | Admin | `201`, `400`, `401`, `403`, `409` | **Admin tạo tài khoản hộ** (`fullName`, `email`, `password`, tùy chọn `role` + `status`; mặc định Viewer / active). Email trùng → `409` (ràng buộc `uq_users_email`, không kiểm-rồi-ghi). |
+| 🔴 | `PATCH /users/:id` | Admin | `200`, `400`, `401`, `403`, `404`, `409` | **Sửa họ tên / email.** Vai trò và trạng thái đi qua hai endpoint riêng bên dưới. |
 | 🟡 | `PATCH /users/me` | Mọi user | `200`, `400`, `401` | **Tự sửa hồ sơ cá nhân** (họ tên, ảnh đại diện). |
 | 🟡 | `PATCH /users/me/password` | Mọi user | `200`, `400`, `401` | **Đổi mật khẩu** (phải nhập đúng mật khẩu cũ). Sai mật khẩu cũ → `400`. |
-| 🟡 | `DELETE /users/:id` | Admin | `204`, `401`, `403`, `404` | **Xóa hẳn tài khoản.** Khuyến nghị: nên **khóa** thay vì xóa, để lịch sử "ai đã chạy test nào" không bị mất. |
+| 🟡 | `DELETE /users/:id` | Admin | `204`, `400`, `401`, `403`, `404`, `409` | **Xóa hẳn tài khoản.** Không tự xóa mình → `400`; xóa một Admin → `409` (như đổi vai trò / khóa). Khuyến nghị: nên **khóa** thay vì xóa, để lịch sử "ai đã chạy test nào" không bị mất. |
 
 ---
 

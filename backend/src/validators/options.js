@@ -8,8 +8,15 @@ const { z } = require("zod");
 const lowerEnum = (values) =>
   z.preprocess((v) => (typeof v === "string" ? v.toLowerCase() : v), z.enum(values));
 
+// email LUÔN hạ chữ trước khi xuống DB: uq_users_email trên một số DB đang là UNIQUE(email)
+// chứ không phải UNIQUE(lower(email)), nên 'A@b.co' lẽ ra trùng lại chèn được, rồi findByEmail
+// (lower(email) … LIMIT 1) chọn một trong hai dòng — đăng nhập sai tài khoản.
+// Mọi schema GHI email (register, admin tạo/sửa user) phải dùng field này.
+const emailField = z.string().trim().toLowerCase().pipe(z.string().email());
+
 module.exports = {
   lowerEnum,
+  emailField,
   // Môi trường: mỗi giá trị cần một BASE_URL_<TÊN> ở phía backend và một secret cùng tên
   // bên GitHub Actions, nếu không thì POST /runs trả 400 (xem services/runner/TestRunner.js).
   ENVIRONMENTS: ["development", "testing", "staging", "production"],
