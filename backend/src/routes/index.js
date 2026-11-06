@@ -16,7 +16,7 @@ router.use('/templates', require('./templates.routes'));
 router.use('/runs', require('./runs.routes'));
 router.use('/reports', require('./reports.routes'));
 router.use('/ingest', require('./ingest.routes'));
-router.use('/catalog', require('./catalog.routes'));
+router.use('/catalog', require('./catalog.routes')); //Quản lý test suites, test cases và dữ liệu catalog
 // bugs.routes khai cả POST /results/:id/bugs nên cũng mount ở gốc.
 router.use('/', require('./bugs.routes'));
 // system.routes khai URL công khai GET /health (api-endpoints.md mục 11) nên mount ở gốc,

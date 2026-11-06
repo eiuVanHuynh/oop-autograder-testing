@@ -17,7 +17,7 @@ const caseQuerySchema = z
 const createCaseSchema = z
   .object({
     spec_id: z.coerce.number().int().positive(),
-    tc_code: z.string().trim().min(1).max(100),
+    tc_code: z.string().trim().min(1).max(30),
     title: z.string().trim().min(1).max(255),
     expected_result: z.string().trim().min(1, "expected_result is required"),
     preconditions: z.string().nullable().optional(),
@@ -26,6 +26,34 @@ const createCaseSchema = z
     test_status: z.enum(CASE_STATUSES).optional(),
   })
   .strict();
+const createSpecSchema = z
+  .object({
+    spec_code: z.string().trim().min(1).max(30),
+    suite_id: z.coerce.number().int().positive(),
+    source_reference: z.string().max(255).nullable().optional(),
+    screen_name: z.string().max(255).nullable().optional(),
+    spec_description: z.string().nullable().optional(),
+  })
+  .strict();
+const updateSpecSchema = createSpecSchema
+  .omit({ spec_code: true, suite_id: true })
+  .partial()
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "Cần ít nhất một trường để cập nhật",
+  });
+const createSuiteSchema = z
+  .object({
+    suite_name: z.string().trim().min(1).max(255),
+    suite_description: z.string().nullable().optional(),
+  })
+  .strict();
+const updateSuiteSchema = createSuiteSchema
+  .partial()
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "Cần ít nhất một trường để cập nhật",
+  });
 // Schema zod cho nhóm catalog; middleware validate() dùng các schema này.
 // zod schemas for the catalog group; the validate() middleware consumes them.
 //
@@ -38,6 +66,12 @@ const caseIdParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
+const updateCaseStatusSchema = z
+  .object({
+    test_status: z.enum(["ready", "draft", "deprecated"]),
+  })
+  .strict();
+//search steps 
 const replaceCaseStepsSchema = z
   .object({
     steps: z.array(
@@ -54,6 +88,32 @@ const replaceCaseStepsSchema = z
   })
   .strict();
 
+const addCaseStepSchema = z
+  .object({
+    step_action: z.string().trim().min(1),
+    step_target: z.string().max(255).nullable().optional(),
+    expected_result: z.string().nullable().optional(),
+    field_name: z.string().trim().max(100).nullable().optional(),
+  })
+  .strict();
+
+const stepIdParamsSchema = z.object({
+  stepId: z.coerce.number().int().positive(),
+});
+
+const reorderCaseStepsSchema = z
+  .object({
+    steps: z.array(
+      z
+        .object({
+          step_id: z.coerce.number().int().positive(),
+          step_order: z.coerce.number().int().nonnegative(),
+        })
+        .strict(),
+    ).min(1),
+  })
+  .strict();
+//search data
 const replaceCaseDataSchema = z
   .object({
     data: z.array(
@@ -107,4 +167,12 @@ module.exports = {
   caseIdParamsSchema,
   replaceCaseStepsSchema,
   createCaseSchema,
+  updateCaseStatusSchema,
+  addCaseStepSchema,
+  stepIdParamsSchema,
+  reorderCaseStepsSchema,
+  createSpecSchema,
+  updateSpecSchema,
+  createSuiteSchema,
+  updateSuiteSchema,
 };
