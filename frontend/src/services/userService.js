@@ -21,3 +21,18 @@ export const changeUserRole = async (id, role) =>
 // Khoá = 'inactive'.
 export const changeUserStatus = async (id, status) =>
   toRow((await API.patch(`/users/${id}/status`, { status })).data.data);
+
+// POST /users – Admin tạo tài khoản hộ. 409 EMAIL_TAKEN nếu email đã dùng
+// (backend hạ chữ email trước khi ghi nên 'A@b.co' cũng tính là trùng).
+export const createUser = async ({ name, email, password, role, status }) =>
+  toRow(
+    (await API.post('/users', { fullName: name, email, password, role, status }))
+      .data.data,
+  );
+
+// PATCH /users/:id – chỉ họ tên / email. Vai trò và trạng thái dùng hai hàm ở trên.
+export const updateUser = async (id, { name, email }) =>
+  toRow((await API.patch(`/users/${id}`, { fullName: name, email })).data.data);
+
+// DELETE /users/:id – 204, không có body. 400 nếu tự xoá mình, 409 nếu là admin.
+export const deleteUser = (id) => API.delete(`/users/${id}`);
