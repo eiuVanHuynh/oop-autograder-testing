@@ -19,13 +19,21 @@ const durationOf = (row) => {
   return Number.isFinite(ms) && ms >= 0 ? `${(ms / 1000).toFixed(1)}s` : null;
 };
 
+// Backend gắn Date.now() vào cuối tên run cho khỏi trùng (runs.service.js: `Run_${Date.now()}`,
+// `Rerun_...`). Con số đó chỉ có nghĩa với DB; History và báo cáo xuất ra không cần thấy.
+// Cắt xong mà rỗng (hoặc chỉ còn chữ "Run") thì quay về `Run #id` để không có dòng trống.
+const cleanName = (name, id) => {
+  const short = String(name ?? '').replace(/[_-]\d{10,}$/, '').trim();
+  return short && short.toLowerCase() !== 'run' ? short : `Run #${id}`;
+};
+
 // GET /runs trả { data, meta }; `status` do SQL tính: running | passed | failed | interrupted.
 // Backend đếm passed/failed/total trên bảng test_results (RunRepository.withStatus) và join
 // users để trả tên người chạy, nên không còn chỗ nào phải để trống hay bịa số.
 // Run chưa có kết quả nào thì cả ba số là 0 — nơi gọi phân biệt bằng total === 0.
 export const toRun = (row = {}) => ({
   id: String(row.run_id ?? row.id),
-  name: row.run_name || `Run #${row.run_id}`,
+  name: cleanName(row.run_name, row.run_id),
   status: String(row.status ?? 'running').toUpperCase(),
   duration: durationOf(row),
   environment: row.environment || '—',

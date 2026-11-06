@@ -2,6 +2,76 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================================
+   THEME — mỗi khối dưới đây là MỘT bộ token. Đổi theme = đặt data-theme trên <html>
+   (models/theme.js), không build lại gì cả. tailwind.config.js trỏ brand/ink/gray/
+   bo góc vào đúng các biến này, nên class trong view không phải đổi một chữ nào.
+
+   Màu ghi theo 3 kênh RGB rời vì Tailwind cần vậy mới dùng được opacity
+   (bg-brand-600/50, border-ink-900/10). Viết hex vào là hỏng im lặng.
+   ========================================================================== */
+:root {
+  /* Theme mặc định: indigo, bo góc — đúng giá trị cũ, không đổi gì về mặt nhìn. */
+  --brand-50: 238 242 255;
+  --brand-100: 224 231 255;
+  --brand-200: 199 210 254;
+  --brand-500: 99 102 241;
+  --brand-600: 79 70 229;
+  --brand-700: 67 56 202;
+
+  /* Ba mức đường kẻ / nền nhạt: bằng đúng gray-100/200/300 gốc của Tailwind. */
+  --line-50: 243 244 246;
+  --line-100: 229 231 235;
+  --line-200: 209 213 219;
+
+  --ink-700: 71 85 105;
+  --ink-800: 51 65 85;
+  --ink-900: 15 23 42;
+  --canvas: 248 250 252;
+  --paper: 255 255 255;
+
+  --r-md: 0.375rem;
+  --r-lg: 0.5rem;
+  --r-xl: 0.75rem;
+  --r-2xl: 1rem;
+}
+
+/* Theme thứ hai "Nature": xanh ngọc sâu, nền giấy ngả xám, vuông góc, tiêu đề serif. */
+:root[data-theme="nature"] {
+  --brand-50: 238 245 246;
+  --brand-100: 215 232 234;
+  --brand-200: 168 207 212;
+  --brand-500: 26 123 134;
+  --brand-600: 19 100 110;
+  --brand-700: 13 77 85;
+
+  /* Hairline ngả xanh thay cho xám trung tính (bản gốc viết border-ink-900/10). */
+  --line-50: 241 242 240;
+  --line-100: 226 230 231;
+  --line-200: 203 211 213;
+
+  --ink-700: 59 79 89;
+  --ink-800: 43 61 71;
+  --ink-900: 30 46 54;
+  --canvas: 233 235 234;
+  --paper: 246 246 244;
+
+  /* Vuông góc: đây là border-style của bộ Nature. */
+  --r-md: 0;
+  --r-lg: 0;
+  --r-xl: 0;
+  --r-2xl: 0;
+
+  --bg: #e9ebea;
+  --text: #5b6b71;
+  --text-h: #1e2e36;
+  --border: #d8dcdb;
+  --accent: #13646e;
+  --accent-bg: rgba(19, 100, 110, 0.1);
+  --accent-border: rgba(19, 100, 110, 0.5);
+  --heading: "Cormorant Garamond", Georgia, serif;
+}
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;

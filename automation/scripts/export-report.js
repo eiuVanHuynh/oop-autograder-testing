@@ -27,19 +27,19 @@ const { query, closeDb } = require("../tests/utils/db-client");
 
 const COLORS = {
   primary: "#1F3A5F",
-  secondary: "#52657A",
+  secondary: "#3D4F63",
   light: "#F2F5F9",
   border: "#D8E0E9",
   text: "#243247",
-  muted: "#667085",
+  muted: "#4A5565",
   white: "#FFFFFF",
 
   passed: "#16803D",
   failed: "#C62828",
   timedOut: "#B45309",
-  skipped: "#667085",
-  interrupted: "#7C3AED",
-  unknown: "#667085",
+  skipped: "#4A5565",
+  interrupted: "#6D28D9",
+  unknown: "#4A5565",
 };
 
 const STATUS_LABELS = {
@@ -155,6 +155,12 @@ function getPassRate(results) {
   return `${((passed / results.length) * 100).toFixed(1)}%`;
 }
 
+// Tên run do backend sinh có đuôi Date.now() để khỏi trùng; đuôi đó chỉ có nghĩa với DB.
+function cleanRunName(name) {
+  const short = String(name ?? "").replace(/[_-]\d{10,}$/, "").trim();
+  return short && short.toLowerCase() !== "run" ? short : null;
+}
+
 function getOutputPath(runId) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 
@@ -171,7 +177,7 @@ function getOutputPath(runId) {
  * - Absolute local file paths
  * - Relative paths resolved from the project directory
  *
- * The PDF contains a clickable link, not an embedded screenshot.
+ * Ảnh nhúng được thì trả thêm `path`; PDF vẫn giữ link để mở file gốc.
  */
 function resolveEvidence(filePath) {
   if (!filePath) return null;
@@ -206,7 +212,59 @@ function resolveEvidence(filePath) {
   return {
     label: absolutePath,
     url: pathToFileURL(absolutePath).href,
+    // Chỉ ảnh mới nhúng được vào PDF; trace là file zip nên chỉ còn cái link.
+    path: /\.(png|jpe?g)$/i.test(absolutePath) ? absolutePath : null,
   };
+}
+
+const EVIDENCE_BOX = { width: 300, height: 170 };
+
+// Khung ảnh trống: giữ đúng chỗ của ảnh để bố cục không nhảy khi thiếu bằng chứng.
+function drawEmptyEvidenceBox(doc, x, y, note) {
+  const { width, height } = EVIDENCE_BOX;
+
+  doc
+    .rect(x, y, width, height)
+    .fillColor(COLORS.light)
+    .fill()
+    .rect(x, y, width, height)
+    .lineWidth(0.7)
+    .dash(3, { space: 2 })
+    .strokeColor(COLORS.border)
+    .stroke()
+    .undash();
+
+  doc
+    .font(FONT_REGULAR)
+    .fontSize(8)
+    .fillColor(COLORS.muted)
+    .text(note, x + 8, y + height / 2 - 5, {
+      width: width - 16,
+      align: "center",
+      ellipsis: true,
+    });
+}
+
+// Ảnh hỏng/sai định dạng làm doc.image() throw -> bắt tại chỗ, đổi sang khung trống,
+// vì một trang báo cáo thiếu ảnh vẫn tốt hơn cả bản export thất bại.
+function drawEvidenceImage(doc, imagePath, missingNote) {
+  const { width, height } = EVIDENCE_BOX;
+  ensureSpace(doc, height + 10, "QA TEST EXECUTION REPORT");
+
+  const x = PAGE.margin + 118;
+  const y = doc.y;
+
+  if (imagePath) {
+    try {
+      doc.image(imagePath, x, y, { fit: [width, height] });
+    } catch {
+      drawEmptyEvidenceBox(doc, x, y, "Image could not be read.");
+    }
+  } else {
+    drawEmptyEvidenceBox(doc, x, y, missingNote);
+  }
+
+  doc.y = y + height + 8;
 }
 
 // ============================================================
@@ -218,6 +276,7 @@ async function getLatestRun() {
     `
     SELECT
       run.run_id,
+      run.run_name,
       run.started_at,
       run.finished_at,
       run.browser,
@@ -625,17 +684,18 @@ function drawOverview(doc, run, results) {
     .font(FONT_BOLD)
     .fontSize(22)
     .fillColor(COLORS.primary)
-    .text("Test Execution Report", PAGE.margin, doc.y, {
+    .text(cleanRunName(run.run_name) || "Test Execution Report", PAGE.margin, doc.y, {
       width: doc.page.width - PAGE.margin * 2,
     });
 
   doc.moveDown(0.4);
 
+  // Tiêu đề chỉ còn tên + ngày: mã run đã có trong "Test Run ID" ở phần Overview.
   doc
     .font(FONT_REGULAR)
     .fontSize(10)
     .fillColor(COLORS.muted)
-    .text(`Run ID: ${run.run_id}`);
+    .text(formatDate(run.started_at));
 
   doc.moveDown(1);
 
@@ -663,14 +723,17 @@ function drawOverview(doc, run, results) {
 
   drawSectionTitle(doc, "Execution Statistics");
 
+  // Ô bằng 0 bị ẩn: "Skipped 0" không nói gì mà vẫn chiếm một ô to.
+  // Total luôn hiện, kể cả 0, vì nó là câu trả lời cho "run này có chạy gì không".
   const statistics = [
-    ["Total Tests", counts.total, COLORS.primary],
     ["Passed", counts.passed, COLORS.passed],
     ["Failed", counts.failed, COLORS.failed],
     ["Timed Out", counts.timedOut, COLORS.timedOut],
     ["Skipped", counts.skipped, COLORS.skipped],
     ["Interrupted", counts.interrupted, COLORS.interrupted],
-  ];
+  ]
+    .filter(([, value]) => value > 0)
+    .concat([["Total Tests", counts.total, COLORS.primary]]);
 
   const gap = 8;
   const cardWidth = (doc.page.width - PAGE.margin * 2 - gap * 2) / 3;
@@ -830,7 +893,7 @@ function drawTestDetails(doc, result, steps, testData, evidences) {
   );
 
   if (resultEvidence.length === 0) {
-    drawField(doc, "Evidence", "No evidence recorded.");
+    drawEvidenceImage(doc, null, "No evidence recorded.");
   } else {
     resultEvidence.forEach((item, index) => {
       const evidence = resolveEvidence(item.file_path);
@@ -840,6 +903,10 @@ function drawTestDetails(doc, result, steps, testData, evidences) {
         `Evidence ${index + 1}`,
         `${item.evidence_type} — ${evidence.label}`,
       );
+
+      if (evidence.path || item.evidence_type === "screenshot") {
+        drawEvidenceImage(doc, evidence.path, "Screenshot file not found.");
+      }
 
       if (evidence.url) {
         const linkLabel = "Open evidence";

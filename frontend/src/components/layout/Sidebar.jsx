@@ -115,7 +115,7 @@ export default function Sidebar({ collapsed = false }) {
                           className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                             active
                               ? "bg-white/20 text-white"
-                              : "bg-brand-100 text-violet-600"
+                              : "bg-brand-100 text-brand-700"
                           }`}
                         >
                           {item.badge}
