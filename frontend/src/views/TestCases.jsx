@@ -1,7 +1,7 @@
 // Trang Test Cases (/testcases) – nơi duy nhất làm mọi việc với test case:
 // liệt kê, lọc, tạo, xem chi tiết, sửa, deprecate, xoá, và thêm case vào template (issue #41).
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Eye, X, Pencil, Archive, Copy, AlertTriangle, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
@@ -38,12 +38,6 @@ const PRIORITY_BADGE = {
 };
 // `field` chỉ dùng cho bước FILL: tên field trong test_data lấy giá trị để điền.
 const EMPTY_STEP = { action: "", target: "", expected: "", field: "" };
-const EMPTY = {
-  suiteId: "", specId: "", code: "", title: "", preconditions: "",
-  expectedResult: "", priority: "medium", type: "functional", status: "draft",
-  steps: [{ ...EMPTY_STEP }], testData: [],
-};
-
 // Case từ API -> giá trị form sửa (luôn để sẵn 1 dòng step trống cho dễ nhập).
 const toForm = (c) => ({
   ...c,
@@ -55,6 +49,7 @@ const toForm = (c) => ({
 
 export default function TestCases() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const canEdit = canManageCases(user?.role);
 
   const [cases, setCases] = useState([]);
@@ -291,7 +286,7 @@ export default function TestCases() {
           </p>
         </div>
         {canEdit && (
-          <CreateButton onClick={() => { setForm(EMPTY); setSpecs([]); }} />
+          <CreateButton onClick={() => navigate("/testcases/new")} />
         )}
       </div>
 
