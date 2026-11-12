@@ -29,8 +29,12 @@ export default {
         // bg-gray-100, divide-gray-100...). Ghi đè ngay trong bảng màu của Tailwind để
         // ~80 chỗ trong view không phải đổi tên class. Theme mặc định giữ nguyên giá trị
         // gray gốc của Tailwind, nên không có gì đổi màu ngoài ý muốn.
-        gray: { 100: v("line-50"), 200: v("line-100"), 300: v("line-200") },
-        slate: { 200: v("line-100") },
+        gray: { 50: v("canvas"), 100: v("line-50"), 200: v("line-100"), 300: v("line-200") },
+        slate: { 50: v("canvas"), 200: v("line-100") },
+        // Nền thẻ/panel: 61 chỗ viết bg-white, nên trắng CŨNG phải là token, nếu không đổi
+        // theme chỉ đổi được màu nhấn còn nền vẫn trắng. text-white đi theo luôn — ở theme
+        // nature chữ thành #F6F9F6 trên nền teal đậm, mắt không phân biệt được.
+        white: v("paper"),
       },
       // Bo góc cũng là token: theme nature vuông góc, nên rounded-lg/xl/2xl về 0.
       // rounded-full KHÔNG đụng tới — badge và avatar phải tròn ở cả hai theme.
@@ -39,6 +43,32 @@ export default {
         lg: "var(--r-lg)",
         xl: "var(--r-xl)",
         "2xl": "var(--r-2xl)",
+      },
+      // Đổ bóng cũng là token: theme nature nổi khối hơn một nhịp, mà 28 chỗ shadow-sm /
+      // shadow-lg trong view không phải đổi tên class. Giá trị :root chép đúng nguyên văn
+      // mặc định của Tailwind nên theme Indigo không đổi một pixel.
+      boxShadow: {
+        sm: "var(--shadow-sm)",
+        DEFAULT: "var(--shadow)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
+      },
+      // Hoạt ảnh chuyển trang / chuyển tab. Thời lượng là MỘT token (--anim ở src/index.css)
+      // để đổi một chỗ là đổi hết, và để prefers-reduced-motion tắt được bằng cách đặt lại nó.
+      keyframes: {
+        // Vào từ PHẢI sang TRÁI: bắt đầu lệch sang phải rồi trượt về chỗ.
+        "page-in": {
+          from: { opacity: "0", transform: "translateX(24px)" },
+          to: { opacity: "1", transform: "none" },
+        },
+        "panel-in": {
+          from: { opacity: "0", transform: "translateX(12px)" },
+          to: { opacity: "1", transform: "none" },
+        },
+      },
+      animation: {
+        "page-in": "page-in var(--anim) cubic-bezier(0.22, 1, 0.36, 1) both",
+        "panel-in": "panel-in var(--anim) cubic-bezier(0.22, 1, 0.36, 1) both",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],

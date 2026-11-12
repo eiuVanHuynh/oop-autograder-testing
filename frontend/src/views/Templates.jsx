@@ -30,7 +30,11 @@ import CreateButton from "../components/ui/CreateButton";
 import FilterBar from "../components/ui/FilterBar";
 import FilterMenu from "../components/ui/FilterMenu";
 import RowMenu from "../components/ui/RowMenu";
+import IconButton from "../components/ui/IconButton";
+import DataTable, { TableViewToggle } from "../components/ui/DataTable";
+import StatusBadge from "../components/ui/StatusBadge";
 import { parseQuery, buildQuery } from "../models/searchTags";
+import { getTableView, setTableView } from "../models/tableView";
 
 // Tag của riêng trang Templates, dùng chung cho ô search và panel Filter.
 const GROUPS = [
@@ -209,6 +213,12 @@ export default function Templates() {
 
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Bảng hay thẻ: trang giữ state vì nút nằm trên FilterBar, không nằm trong DataTable.
+  const [view, setView] = useState(() => getTableView("templates"));
+  const changeView = (v) => {
+    setView(v);
+    setTableView("templates", v);
+  };
   // Ô search là nguồn sự thật duy nhất: tag nằm trong chuỗi `q`, filter suy ra từ nó.
   const [q, setQ] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
@@ -368,6 +378,7 @@ export default function Templates() {
         onRefresh={refresh}
         loading={loading}
         tagGroups={GROUPS}
+        trailing={<TableViewToggle value={view} onChange={changeView} />}
       >
         <FilterMenu
           groups={GROUPS}
@@ -377,121 +388,74 @@ export default function Templates() {
       </FilterBar>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        {!loading && templates.length === 0 ? (
-          <div className="text-center py-14 text-gray-400">
-            <FileText size={40} className="mx-auto mb-2 opacity-40" />
-            <p className="text-sm">No templates found.</p>
-          </div>
-        ) : (
-          <div className="max-h-[450px] overflow-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead className="bg-gray-50 text-xs text-gray-500 uppercase sticky top-0 z-10 shadow-sm">
-                {" "}
-                <tr>
-                  <th className="text-left px-5 py-3">
-                    Template name & description
-                  </th>
-                  <th className="text-left px-5 py-3">Test scope</th>
-                  <th className="text-left px-5 py-3">Created by</th>
-                  <th className="text-left px-5 py-3">Last updated</th>
-                  <th className="px-5 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {loading && templates.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-5 py-8 text-center text-gray-400"
-                    >
-                      Loading...
-                    </td>
-                  </tr>
-                )}
-                {templates.map((t) => (
-                  <tr
-                    key={t.id}
-                    className={`hover:bg-gray-50 ${t.status === "inactive" ? "opacity-60" : ""}`}
-                  >
-                    <td className="px-5 py-3">
-                      <button
-                        onClick={() => setForm(toForm(t, !canEdit))}
-                        className="font-medium text-gray-900 hover:text-brand-600 text-left block"
-                      >
-                        {t.name}
-                      </button>
-                      <p className="text-xs text-gray-500 truncate max-w-md">
-                        {t.description || "No description"}
-                      </p>
-                      <p className="text-xs text-gray-400 font-mono">
-                        ID: {tplCode(t.id)}
-                        {t.status === "inactive" && (
-                          <span className="ml-2 px-2 py-0.5 bg-gray-200 text-gray-600 rounded font-sans">
-                            Inactive
-                          </span>
-                        )}
-                      </p>
-                    </td>
-                    <td className="px-5 py-3">
-                      <span className="px-2 py-0.5 bg-brand-50 text-brand-600 rounded text-xs font-medium">
-                        {t.scope}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-gray-600">
-                      User #{t.createdBy}
-                    </td>
-                    <td className="px-5 py-3 text-gray-600">{t.updatedAt}</td>
-                    <td className="px-5 py-3 text-right whitespace-nowrap">
-                      {canEdit ? (
-                        <>
-                          <button
-                            onClick={() => handleDuplicate(t)}
-                            className="p-2 text-gray-500 hover:text-brand-600"
-                            title="Duplicate"
-                          >
-                            <Copy size={16} />
-                          </button>
-                          <button
-                            onClick={() => setForm(toForm(t))}
-                            className="p-2 text-gray-500 hover:text-brand-600"
-                            title="Edit"
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          <RowMenu
-                            items={[
-                              {
-                                label: t.status === "inactive" ? "Activate" : "Deactivate",
-                                icon: t.status === "inactive" ? PowerOff : Power,
-                                onClick: () => handleToggleStatus(t),
-                              },
-                              {
-                                label: "Delete",
-                                icon: Trash2,
-                                onClick: () => setToDelete(t),
-                                danger: true,
-                              },
-                            ]}
-                          />
-                        </>
-                      ) : (
-                        <button
-                          onClick={() => setForm(toForm(t, true))}
-                          className="p-2 text-gray-500 hover:text-brand-600"
-                          title="View"
-                        >
-                          <Eye size={16} />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <DataTable
+        rows={templates}
+        loading={loading}
+        empty="No templates found."
+        emptyIcon={FileText}
+        maxHeight="450px"
+        cards
+        view={view}
+        onViewChange={changeView}
+        pageSize={10}
+        rowClassName={(t) => (t.status === "inactive" ? "opacity-60" : "")}
+        columns={[
+          {
+            key: "name",
+            header: "Template name & description",
+            card: "title",
+            render: (t) => (
+              <>
+                <button
+                  onClick={() => setForm(toForm(t, !canEdit))}
+                  className="font-medium text-gray-900 hover:text-brand-600 text-left block"
+                >
+                  {t.name}
+                </button>
+                <p className="text-xs text-gray-500 truncate max-w-md">
+                  {t.description || "No description"}
+                </p>
+                <p className="text-xs text-gray-400 font-mono">
+                  ID: {tplCode(t.id)}
+                  {t.status === "inactive" && (
+                    <span className="ml-2 px-2 py-0.5 bg-gray-200 text-gray-600 rounded font-sans">
+                      Inactive
+                    </span>
+                  )}
+                </p>
+              </>
+            ),
+          },
+          { key: "scope", header: "Test scope", card: "badge", render: (t) => <StatusBadge status={t.scope} tone="brand" /> },
+          { key: "createdBy", header: "Created by", className: "text-gray-600", render: (t) => `User #${t.createdBy}` },
+          { key: "updatedAt", header: "Last updated", className: "text-gray-600", render: (t) => t.updatedAt },
+          {
+            key: "actions",
+            header: "",
+            align: "right",
+            className: "whitespace-nowrap",
+            render: (t) =>
+              canEdit ? (
+                <>
+                  <IconButton icon={Copy} title="Duplicate" onClick={() => handleDuplicate(t)} />
+                  <IconButton icon={Pencil} title="Edit" onClick={() => setForm(toForm(t))} />
+                  <RowMenu
+                    items={[
+                      {
+                        label: t.status === "inactive" ? "Activate" : "Deactivate",
+                        icon: t.status === "inactive" ? PowerOff : Power,
+                        onClick: () => handleToggleStatus(t),
+                      },
+                      { label: "Delete", icon: Trash2, onClick: () => setToDelete(t), danger: true },
+                    ]}
+                  />
+                </>
+              ) : (
+                <IconButton icon={Eye} title="View" onClick={() => setForm(toForm(t, true))} />
+              ),
+          },
+        ]}
+      />
 
       {/* Modal: tạo / sửa / xem */}
       {form && (

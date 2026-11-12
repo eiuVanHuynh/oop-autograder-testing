@@ -71,8 +71,10 @@ export default function FilterMenu({ groups, value, onChange }) {
         <ChevronDown size={14} className="text-gray-400" />
       </button>
 
+      {/* Neo mép TRÁI của nút: nút Filter nằm đầu thanh lọc (ngay sau Refresh), dùng
+          right-0 thì panel 420px đổ ngược ra ngoài khung và đè lên sidebar. */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-[420px] max-w-[85vw] max-h-[70vh] overflow-y-auto bg-white rounded-2xl border border-gray-200 shadow-lg p-4 space-y-4 z-30">
+        <div className="absolute left-0 mt-2 w-[420px] max-w-[85vw] max-h-[70vh] overflow-y-auto bg-white rounded-2xl border border-gray-200 shadow-lg p-4 space-y-4 z-30">
           {groups.map((g) => {
             const picked = value[g.key] || [];
             return (

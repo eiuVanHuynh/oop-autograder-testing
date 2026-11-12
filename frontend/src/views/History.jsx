@@ -4,8 +4,12 @@ import { getRuns } from "../services/runService";
 import { getErrorMessage } from "../services/authService";
 import { ENVIRONMENTS } from "../models/options";
 import { parseQuery, buildQuery } from "../models/searchTags";
+import { getTableView, setTableView } from "../models/tableView";
 import FilterBar from "../components/ui/FilterBar";
 import FilterMenu from "../components/ui/FilterMenu";
+import DataTable, { TableViewToggle } from "../components/ui/DataTable";
+import StatusBadge from "../components/ui/StatusBadge";
+import IconButton from "../components/ui/IconButton";
 import { useNavigate } from "react-router-dom";
 import {
   History as HistoryIcon,
@@ -18,13 +22,8 @@ import {
   Calendar,
 } from "lucide-react";
 
-// Status do backend tính: running | passed | failed | interrupted.
-const BADGE = {
-  PASSED: "bg-emerald-100 text-emerald-700",
-  RUNNING: "bg-amber-100 text-amber-700",
-  FAILED: "bg-red-100 text-red-700",
-  INTERRUPTED: "bg-orange-100 text-orange-700",
-};
+// Status do backend tính: running | passed | failed | interrupted. Màu nằm ở StatusBadge.
+const RUN_STATUSES = ["PASSED", "RUNNING", "FAILED", "INTERRUPTED"];
 
 // Tag của riêng trang History: trạng thái run + môi trường. Không dùng chung với Test Cases.
 const GROUPS = [
@@ -32,7 +31,7 @@ const GROUPS = [
     key: "status",
     label: "Status",
     allLabel: "All status",
-    options: Object.keys(BADGE),
+    options: RUN_STATUSES,
   },
   {
     key: "env",
@@ -49,6 +48,12 @@ export default function History() {
   const [testRuns, setTestRuns] = useState([]);
   const [selectedRun, setSelectedRun] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Bảng hay thẻ: trang giữ state vì nút nằm trên FilterBar, không nằm trong DataTable.
+  const [view, setView] = useState(() => getTableView("history"));
+  const changeView = (v) => {
+    setView(v);
+    setTableView("history", v);
+  };
   const [q, setQ] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -79,8 +84,6 @@ export default function History() {
       .finally(() => setLoading(false));
   }, [reloadKey]);
 
-  const badge = (status) => BADGE[status] ?? "bg-gray-100 text-gray-600";
-
   return (
     <div className="max-w-screen-2xl mx-auto space-y-6">
       {/* Page Header */}
@@ -102,6 +105,7 @@ export default function History() {
         onRefresh={() => setReloadKey((k) => k + 1)}
         loading={loading}
         tagGroups={GROUPS}
+        trailing={<TableViewToggle value={view} onChange={changeView} />}
       >
         <FilterMenu
           groups={GROUPS}
@@ -111,96 +115,126 @@ export default function History() {
       </FilterBar>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* LEFT: Danh sách lịch sử chạy test */}
-        <div className="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
-              <HistoryIcon size={18} className="text-brand-600" /> Past Test
-              Runs
-            </h3>
-            <span className="text-xs text-gray-400 font-medium">
-              {shown.length} / {testRuns.length} runs
-            </span>
-          </div>
-
-          {/* Khung bọc danh sách có giới hạn chiều cao và bật thanh cuộn tự động */}
-          <div className="max-h-[500px] overflow-auto divide-y divide-gray-100">
-            {loading && (
-              <p className="p-6 text-sm text-gray-500">Loading runs…</p>
-            )}
-            {!loading && shown.length === 0 && (
-              <p className="p-6 text-sm text-gray-500">
-                {testRuns.length === 0
-                  ? "No test runs yet."
-                  : "No run matches this filter."}
-              </p>
-            )}
-            {shown.map((run) => {
-              const isSelected = selectedRun?.id === run.id;
-              return (
-                <div
-                  key={run.id}
-                  onClick={() => setSelectedRun(run)}
-                  className={`p-4 transition cursor-pointer flex items-center justify-between shrink-0 ${
-                    isSelected
-                      ? "bg-brand-50/60 border-l-4 border-brand-600"
-                      : "hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1 ${badge(
-                          run.status,
-                        )}`}
-                      >
-                        {run.status === "PASSED" ? (
-                          <CheckCircle2 size={12} />
-                        ) : (
-                          <AlertTriangle size={12} />
-                        )}
-                        {run.status}
-                      </span>
-                      <span className="text-xs text-gray-400 font-mono">
-                        #{run.id}
-                      </span>
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
-                        {run.environment}
-                      </span>
-                    </div>
-                    <h4 className="text-sm font-semibold text-gray-900">
-                      {run.name}
-                    </h4>
-                    <p className="text-xs text-gray-500 flex items-center gap-2">
-                      <span>
-                        <Calendar size={12} className="inline mr-1" />
-                        {run.executedAt}
-                      </span>
-                      <span>•</span>
-                      <span>
-                        <Clock size={12} className="inline mr-1" />
-                        {run.duration ?? "—"}
-                      </span>
-                    </p>
-                  </div>
-
-                  {/* Nút bấm xem Report chi tiết */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/runs/${run.id}`);
-                      }}
-                      className="px-3 py-1.5 bg-white border border-gray-200 hover:border-brand-600 text-gray-700 hover:text-brand-600 rounded-lg text-xs font-medium shadow-sm transition flex items-center gap-1 cursor-pointer"
-                    >
-                      <Eye size={14} /> Report
-                    </button>
-                  </div>
+        {/* LEFT: Danh sách lịch sử chạy test – xem dạng bảng hoặc dạng thẻ */}
+        <div className="lg:col-span-7">
+          <DataTable
+            rows={shown}
+            loading={loading}
+            empty={testRuns.length === 0 ? "No test runs yet." : "No run matches this filter."}
+            emptyIcon={HistoryIcon}
+            maxHeight="500px"
+            pageSize={8}
+            view={view}
+            onViewChange={changeView}
+            rowKey={(run) => run.id}
+            onRowClick={setSelectedRun}
+            rowClassName={(run) => (selectedRun?.id === run.id ? "bg-brand-50/60" : "")}
+            toolbar={
+              <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                <HistoryIcon size={18} className="text-brand-600" /> Past Test Runs
+              </h3>
+            }
+            columns={[
+              {
+                key: "status",
+                header: "Status",
+                render: (run) => (
+                  <StatusBadge
+                    status={run.status}
+                    icon={run.status === "PASSED" ? CheckCircle2 : AlertTriangle}
+                  />
+                ),
+              },
+              {
+                key: "name",
+                header: "Run",
+                render: (run) => (
+                  <>
+                    <p className="font-semibold text-gray-900">{run.name}</p>
+                    <p className="text-xs text-gray-400 font-mono">#{run.id}</p>
+                  </>
+                ),
+              },
+              {
+                key: "env",
+                header: "Env",
+                render: (run) => (
+                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
+                    {run.environment}
+                  </span>
+                ),
+              },
+              {
+                key: "executedAt",
+                header: "Executed at",
+                className: "text-xs text-gray-500 whitespace-nowrap",
+                render: (run) => run.executedAt,
+              },
+              {
+                key: "duration",
+                header: "Duration",
+                className: "text-xs text-gray-500",
+                render: (run) => run.duration ?? "—",
+              },
+              {
+                key: "actions",
+                header: "",
+                align: "right",
+                render: (run) => (
+                  <IconButton
+                    icon={Eye}
+                    title="Open full report"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/runs/${run.id}`);
+                    }}
+                  />
+                ),
+              },
+            ]}
+            renderCard={(run) => (
+              <div
+                className={`h-full rounded-xl border p-4 transition cursor-pointer ${
+                  selectedRun?.id === run.id
+                    ? "border-brand-600 bg-brand-50/60"
+                    : "border-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge
+                    status={run.status}
+                    icon={run.status === "PASSED" ? CheckCircle2 : AlertTriangle}
+                  />
+                  <span className="text-xs text-gray-400 font-mono">#{run.id}</span>
+                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
+                    {run.environment}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+                <h4 className="text-sm font-semibold text-gray-900 mt-2 break-words">{run.name}</h4>
+                <p className="text-xs text-gray-500 flex flex-wrap items-center gap-x-2 mt-1">
+                  <span>
+                    <Calendar size={12} className="inline mr-1" />
+                    {run.executedAt}
+                  </span>
+                  <span>•</span>
+                  <span>
+                    <Clock size={12} className="inline mr-1" />
+                    {run.duration ?? "—"}
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/runs/${run.id}`);
+                  }}
+                  className="mt-3 px-3 py-1.5 bg-white border border-gray-200 hover:border-brand-600 text-gray-700 hover:text-brand-600 rounded-lg text-xs font-medium shadow-sm transition flex items-center gap-1 cursor-pointer"
+                >
+                  <Eye size={14} /> Report
+                </button>
+              </div>
+            )}
+          />
         </div>
 
         {/* RIGHT: Bảng Preview Report nhanh ngay tại History */}
@@ -216,13 +250,7 @@ export default function History() {
                     Run #{selectedRun.id}
                   </h3>
                 </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${badge(
-                    selectedRun.status,
-                  )}`}
-                >
-                  {selectedRun.status}
-                </span>
+                <StatusBadge status={selectedRun.status} className="px-3 py-1" />
               </div>
 
               <div>

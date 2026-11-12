@@ -35,6 +35,7 @@ import { startRun, fetchRunLogs, cancelRun } from "../services/runService";
 import { getErrorMessage } from "../services/authService";
 import { ENVIRONMENTS } from "../models/options"; // BACKEND-TODO [2]: GET /meta/options
 import { logTone } from "../models/runLog";
+import StatusBadge from "../components/ui/StatusBadge";
 
 // Form dùng GIÂY; khi gửi POST /runs nhân 1000 (backend lưu mili-giây).
 const TIMEOUTS = ["15", "30", "60", "120"];
@@ -43,14 +44,8 @@ const POLL_MS = 1200; // BACKEND-TODO [4]: chu kỳ hỏi log mới (1-2 giây)
 const inputCls =
   "w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500";
 
-// Trạng thái hiển thị của khung log. Backend dùng: running / passed / failed / cancelled.
-const STATUS_STYLES = {
-  IDLE: "bg-gray-100 text-gray-500",
-  RUNNING: "bg-yellow-100 text-yellow-700 animate-pulse",
-  PASSED: "bg-green-100 text-green-700",
-  FAILED: "bg-red-100 text-red-700",
-  CANCELLED: "bg-orange-100 text-orange-700",
-};
+// Trạng thái hiển thị của khung log (backend dùng: running / passed / failed / cancelled)
+// lấy màu từ components/ui/StatusBadge.jsx.
 
 // Thông báo cho các mã lỗi của POST /runs (api-endpoints.md mục 6).
 const RUN_ERRORS = {
@@ -479,11 +474,10 @@ export default function TestCreation() {
               <Terminal size={20} className="text-brand-600" /> Real-time
               Execution Logs
             </h3>
-            <span
-              className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[testStatus]}`}
-            >
-              {testStatus}
-            </span>
+            <StatusBadge
+              status={testStatus}
+              className={`py-1 ${testStatus === "RUNNING" ? "animate-pulse" : ""}`}
+            />
           </div>
 
           <div className="flex items-center gap-2">

@@ -28,18 +28,12 @@ import { listCases } from "../services/catalogService";
 import { parseCaseResults, msLabel, logTone } from "../models/runLog";
 import { buildReportHtml } from "../models/reportHtml";
 import { getErrorMessage } from "../services/authService";
+import StatusBadge from "../components/ui/StatusBadge";
 
 // Trạng thái của RUN: running | passed | failed | interrupted (RunRepository tính ra).
 // Trạng thái của CASE: thêm timedOut | skipped (status của Playwright, xem models/runLog.js).
-// Thiếu một khoá ở đây thì badge rơi về màu xám, trông như "chưa chạy" — sai hẳn với timeout.
-const STATUS_STYLE = {
-  PASSED: "bg-emerald-100 text-emerald-700",
-  FAILED: "bg-red-100 text-red-700",
-  TIMEDOUT: "bg-red-100 text-red-700",
-  RUNNING: "bg-amber-100 text-amber-700",
-  INTERRUPTED: "bg-orange-100 text-orange-700",
-  SKIPPED: "bg-gray-100 text-gray-600",
-};
+// Màu nằm ở components/ui/StatusBadge.jsx — thiếu một khoá ở đó thì badge rơi về màu xám,
+// trông như "chưa chạy", sai hẳn với timeout.
 
 const StatusIcon = ({ status, size = 14 }) => {
   if (status === "PASSED") return <CheckCircle2 size={size} />;
@@ -230,12 +224,11 @@ export default function TestReport() {
           <div className="flex items-center gap-3 mb-2">
             <div className="flex flex-row items-center gap-3 border-b justify-between w-full">
               <h1 className="text-xl font-bold my-6 text-gray-900">{run.name}</h1>
-              <span
-                className={`px-3 py-1 rounded-full my-6 text-xs font-semibold flex items-center gap-1 ${STATUS_STYLE[run.status] ?? "bg-gray-100 text-gray-600"
-                  }`}
-              >
-                <StatusIcon status={run.status} /> {run.status}
-              </span>
+              <StatusBadge
+                status={run.status}
+                className="px-3 py-1 my-6"
+                label={<><StatusIcon status={run.status} /> {run.status}</>}
+              />
             </div>
           </div>
           <p className="text-sm text-gray-500 mt-1 flex justify-between">
@@ -317,12 +310,10 @@ export default function TestReport() {
                   </div>
                   <div className="shrink-0 text-right">
                     {c.status ? (
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[c.status] ?? "bg-gray-100 text-gray-600"
-                          }`}
-                      >
-                        <StatusIcon status={c.status} size={12} /> {c.status}
-                      </span>
+                      <StatusBadge
+                        status={c.status}
+                        label={<><StatusIcon status={c.status} size={12} /> {c.status}</>}
+                      />
                     ) : (
                       <span className="text-xs text-gray-400">—</span>
                     )}

@@ -4,6 +4,7 @@
 //   <RowMenu items={[{ label: "Delete", icon: Trash2, onClick: fn, danger: true }]} />
 import { useState, useEffect, useRef } from "react";
 import { MoreHorizontal } from "lucide-react";
+import IconButton from "./IconButton";
 
 export default function RowMenu({ items }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -19,14 +20,7 @@ export default function RowMenu({ items }) {
 
   return (
     <div className="relative inline-block" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setIsOpen((o) => !o)}
-        title="More actions"
-        className="p-2 text-gray-500 hover:text-brand-600"
-      >
-        <MoreHorizontal size={16} />
-      </button>
+      <IconButton icon={MoreHorizontal} title="More actions" onClick={() => setIsOpen((o) => !o)} />
 
       {isOpen && (
         <div className="absolute right-0 mt-1 w-44 bg-white rounded-xl border border-gray-200 shadow-lg py-1 z-30 text-left">

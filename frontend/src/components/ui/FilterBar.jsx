@@ -1,5 +1,7 @@
-// Thanh lọc: nút tải lại, ô tìm kiếm, filter riêng của từng trang truyền vào qua children.
-// Filter bar: refresh button, search box, page-specific filters passed in via children.
+// Thanh lọc: nút tải lại, filter riêng của từng trang (children), ô tìm kiếm, rồi `trailing`.
+// Filter bar: refresh, page filters (children), the search box, then `trailing`.
+// `trailing` dành cho thứ không phải bộ lọc — hiện là nút đổi bảng ↔ thẻ, để nó không phải
+// chiếm một dải riêng phía trên bảng.
 //
 // Truyền thêm `tagGroups` (CHÍNH mảng groups đang đưa cho FilterMenu bên cạnh) thì ô search
 // gợi ý tag của đúng panel Filter đó: chọn một tag = ghép label vào `value`, mà parseQuery
@@ -21,6 +23,7 @@ export default function FilterBar({
   onRefresh,
   loading = false,
   tagGroups,
+  trailing,
   children,
 }) {
   const [open, setOpen] = useState(false);
@@ -111,6 +114,8 @@ export default function FilterBar({
         </button>
       )}
 
+      {children}
+
       <div className="relative flex-1 min-w-[220px]" ref={boxRef}>
         {/* Viền và vòng focus nằm ở khung ngoài để chip ngồi chung một ô với chữ. */}
         <div className="w-full flex flex-wrap items-center gap-1.5 pl-9 pr-3 py-1.5 min-h-[42px] bg-white border border-gray-300 rounded-xl focus-within:ring-2 focus-within:ring-brand-500">
@@ -174,7 +179,7 @@ export default function FilterBar({
         )}
       </div>
 
-      {children}
+      {trailing}
     </div>
   );
 }

@@ -23,12 +23,31 @@ import { canRunTest } from "../models/permissions";
 import { getRuns, computeStats, dailyPassFail } from "../services/runService";
 import { getErrorMessage } from "../services/authService";
 import CreateButton from "../components/ui/CreateButton";
-const STATUS_STYLE = {
-  PASSED: "bg-emerald-100 text-emerald-700",
-  FAILED: "bg-red-100 text-red-700",
-  RUNNING: "bg-amber-100 text-amber-700",
-  INTERRUPTED: "bg-orange-100 text-orange-700",
-};
+import DataTable from "../components/ui/DataTable";
+import StatusBadge from "../components/ui/StatusBadge";
+
+// Cột của bảng "Recent test runs"; navigate truyền vào vì nút Report cần điều hướng.
+const RECENT_COLUMNS = (navigate) => [
+  { key: "id", header: "ID", className: "font-mono text-gray-500", render: (r) => `#${r.id}` },
+  { key: "name", header: "Name", card: "title", className: "font-medium text-gray-900", render: (r) => r.name },
+  { key: "runBy", header: "Run by", className: "text-gray-600", render: (r) => r.runBy },
+  { key: "executedAt", header: "Executed at", className: "text-gray-600", render: (r) => r.executedAt },
+  { key: "status", header: "Status", card: "badge", render: (r) => <StatusBadge status={r.status} /> },
+  {
+    key: "actions",
+    header: "",
+    align: "right",
+    render: (r) => (
+      <button
+        onClick={() => navigate(`/runs/${r.id}`)}
+        className="px-3 py-1.5 border border-gray-200 hover:border-brand-600 hover:text-brand-600 rounded-lg text-xs font-medium inline-flex items-center gap-1"
+      >
+        <Eye size={14} /> Report
+      </button>
+    ),
+  },
+];
+
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -137,60 +156,26 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-gray-800">
-            Recent test runs
-          </h3>
-          <button
-            onClick={() => navigate("/history")}
-            className="text-xs text-brand-600 font-medium hover:underline"
-          >
-            View all
-          </button>
-        </div>
-        <div className="max-h-[400px] overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500 uppercase sticky top-0 z-10 shadow-sm">
-              <tr>
-                <th className="text-left px-5 py-3">ID</th>
-                <th className="text-left px-5 py-3">Name</th>
-                <th className="text-left px-5 py-3">Run by</th>
-                <th className="text-left px-5 py-3">Executed at</th>
-                <th className="text-left px-5 py-3">Status</th>
-                <th className="px-5 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {recent.map((r) => (
-                <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-5 py-3 font-mono text-gray-500">#{r.id}</td>
-                  <td className="px-5 py-3 font-medium text-gray-900">
-                    {r.name}
-                  </td>
-                  <td className="px-5 py-3 text-gray-600">{r.runBy}</td>
-                  <td className="px-5 py-3 text-gray-600">{r.executedAt}</td>
-                  <td className="px-5 py-3">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLE[r.status] ?? "bg-gray-100 text-gray-600"}`}
-                    >
-                      {r.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <button
-                      onClick={() => navigate(`/runs/${r.id}`)}
-                      className="px-3 py-1.5 border border-gray-200 hover:border-brand-600 hover:text-brand-600 rounded-lg text-xs font-medium inline-flex items-center gap-1"
-                    >
-                      <Eye size={14} /> Report
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DataTable
+        columns={RECENT_COLUMNS(navigate)}
+        rows={recent}
+        loading={loading}
+        empty="No test runs yet."
+        cards
+        viewKey="dashboard"
+        maxHeight="400px"
+        toolbar={
+          <div className="flex items-center gap-3">
+            <h3 className="text-base font-semibold text-gray-800">Recent test runs</h3>
+            <button
+              onClick={() => navigate("/history")}
+              className="text-xs text-brand-600 font-medium hover:underline"
+            >
+              View all
+            </button>
+          </div>
+        }
+      />
     </div>
   );
 }

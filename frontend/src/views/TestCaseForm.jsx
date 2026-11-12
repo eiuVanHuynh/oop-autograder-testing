@@ -1,5 +1,8 @@
-// Trang Tạo Test Case (/testcases/new) – thay modal "Create" cũ trong TestCases.jsx.
-// Create Test Case page – replaces the old "Create" modal.
+// Trang Tạo / Sửa / Nhân bản Test Case – một giao diện duy nhất cho cả ba việc:
+//   /testcases/new            tạo mới
+//   /testcases/:id/edit       sửa (thay modal "Edit" cũ trong TestCases.jsx)
+//   /testcases/new?from=:id   nhân bản: mang steps của case nguồn sang case mới
+// Create / Edit / Clone Test Case – one page for all three.
 //
 // Thiết kế lại để dễ dùng:
 //  - Một trang, 3 phần đánh số theo đúng thứ tự làm: 1 Thông tin -> 2 Các bước -> 3 Dữ liệu.
@@ -13,7 +16,7 @@
 // Hợp đồng với backend KHÔNG đổi: vẫn POST /catalog/cases (draft) -> PUT steps -> PUT data
 // -> PUT /catalog/cases/:id đặt 'ready' (thứ tự bắt buộc, xem handleSave ở TestCases.jsx cũ).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowDown, ArrowUp, CheckCircle2, Circle, Copy, Plus, Trash2, X,
 } from "lucide-react";
@@ -24,7 +27,7 @@ import {
   requiredDataFields, stepProblems,
 } from "../models/testSteps";
 import {
-  listSuites, listSpecs, listCases, createCase, updateCase, saveSteps, saveCaseData,
+  listSuites, listSpecs, listCases, getCase, createCase, updateCase, saveSteps, saveCaseData,
 } from "../services/catalogService";
 import { getErrorMessage } from "../services/authService";
 import PageHeader from "../components/ui/PageHeader";
@@ -139,8 +142,14 @@ function Field({ label, required, hint, error, children, className = "" }) {
   );
 }
 
-export default function TestCaseCreate() {
+export default function TestCaseForm() {
   const navigate = useNavigate();
+  const { id } = useParams();                       // có id = đang SỬA
+  const [params] = useSearchParams();
+  const from = params.get("from");                  // có from = đang NHÂN BẢN
+  const editing = !!id;
+  const srcId = id ?? from;
+
   const [form, setForm] = useState(EMPTY);
   const [steps, setSteps] = useState(() => [newStep()]);
   const [testData, setTestData] = useState([]); // [{ field, value, isValid }]
@@ -149,12 +158,50 @@ export default function TestCaseCreate() {
   const [existing, setExisting] = useState([]); // mã đã dùng, để báo trùng ngay khi gõ
   const [touched, setTouched] = useState(false); // chỉ hiện lỗi đỏ sau lần bấm Lưu đầu tiên
   const [saving, setSaving] = useState(false);
+  const [loadingCase, setLoadingCase] = useState(!!srcId);
+  const [status, setStatus] = useState("draft");    // trạng thái hiện tại của case đang sửa
+  // GET /catalog/cases/:id không trả suite_id (cột đó ở test_specs) nên không dựng lại được
+  // 2 ô Suite/Spec; mà tc_code lẫn spec_id đều bất biến sau khi tạo (updateCaseSchema bỏ cả
+  // hai). Vì vậy sửa / nhân bản đều hiện spec ở dạng chỉ đọc.
+  const [specLabel, setSpecLabel] = useState("");
   const specsReq = useRef(0);
 
   useEffect(() => {
     listSuites().then(setSuites).catch((e) => toast.error(getErrorMessage(e, "Cannot load suites.")));
     listCases().then(setExisting).catch(() => setExisting([]));
   }, []);
+
+  // Sửa / nhân bản: nạp case nguồn rồi đổ vào đúng form này.
+  useEffect(() => {
+    if (!srcId) return;
+    let off = false;
+    getCase(srcId)
+      .then((c) => {
+        if (off) return;
+        setForm({
+          suiteId: c.suiteId ? String(c.suiteId) : "",
+          specId: c.specId ? String(c.specId) : "",
+          code: id ? c.code : "",              // nhân bản: mã phải gõ mới
+          title: c.title,
+          type: c.type,
+          priority: c.priority,
+          preconditions: c.preconditions,
+          expectedResult: c.expectedResult,
+        });
+        setSteps(c.steps.length ? c.steps.map((st) => newStep(st)) : [newStep()]);
+        setTestData(id ? c.testData : []);     // test_data KHÔNG theo sang bản sao
+        setStatus(id ? c.status : "draft");
+        // Không có specId thì ĐỪNG đặt nhãn: nhãn rỗng mới cho 2 ô Suite/Spec hiện ra,
+        // nếu không form kẹt ở "Finish section 1 first" mà không có chỗ nào chọn spec.
+        setSpecLabel(c.specId ? c.specCode || `spec #${c.specId}` : "");
+      })
+      .catch((e) => {
+        toast.error(getErrorMessage(e, "Cannot load the test case."));
+        navigate("/testcases");
+      })
+      .finally(() => !off && setLoadingCase(false));
+    return () => { off = true; };
+  }, [srcId, id, navigate]);
 
   const set = (key, v) => setForm((f) => ({ ...f, [key]: v }));
 
@@ -185,14 +232,16 @@ export default function TestCaseCreate() {
   }, [existing]);
 
   const code = form.code.trim();
-  const codeTaken = existing.some((c) => c.code.toLowerCase() === code.toLowerCase());
-  const codeError = !code
-    ? "Test code is required."
-    : code.length > CODE_MAX
-      ? `At most ${CODE_MAX} characters.`
-      : codeTaken
-        ? `${code} already exists.`
-        : "";
+  const codeTaken = !editing && existing.some((c) => c.code.toLowerCase() === code.toLowerCase());
+  const codeError = editing
+    ? ""
+    : !code
+      ? "Test code is required."
+      : code.length > CODE_MAX
+        ? `At most ${CODE_MAX} characters.`
+        : codeTaken
+          ? `${code} already exists.`
+          : "";
 
   // ---- steps -------------------------------------------------------------
   const setStep = (key, patch) => setSteps((l) => l.map((s) => (s.key === key ? { ...s, ...patch } : s)));
@@ -249,7 +298,7 @@ export default function TestCaseCreate() {
     !!form.specId && !codeError && !!form.title.trim() && !!form.expectedResult.trim();
   const checks = [
     { ok: !!form.specId, text: "Suite and spec chosen" },
-    { ok: !codeError, text: "Test code is valid and unused" },
+    { ok: !codeError, text: editing ? "Test code set" : "Test code is valid and unused" },
     { ok: !!form.title.trim() && !!form.expectedResult.trim(), text: "Title and expected result filled" },
     { ok: filled.length > 0 && stepErrors.length === 0, text: "Steps complete, no errors" },
     { ok: filled.length > 0 && missingData.length === 0, text: "Every data field has a value" },
@@ -257,29 +306,50 @@ export default function TestCaseCreate() {
   const readyOk = checks.every((c) => c.ok);
 
   // ---- lưu ---------------------------------------------------------------
+  // Thứ tự bắt buộc với backend: (tạo draft ->) steps -> data -> mới đặt test_status.
+  // Backend kiểm "chạy được chưa" ngay lúc PUT case, nên đặt 'ready' sớm là chắc chắn 409.
   const handleSave = async (markReady) => {
     setTouched(true);
     if (!basicsOk) return toast.error("Finish section 1 first (fields marked *).");
     if (markReady && !readyOk) return toast.error("Cannot mark ready yet: see the checklist on the right.");
 
     setSaving(true);
-    let id;
+    let caseId = id;
     try {
-      // Thứ tự bắt buộc: tạo draft -> steps -> data -> mới nâng lên ready.
-      const saved = await createCase({ ...form, code, status: "draft" }); // POST /catalog/cases
-      id = saved.id;
-      const keep = filled;
+      if (!caseId) {
+        const saved = await createCase({ ...form, code, status: "draft" }); // POST /catalog/cases
+        caseId = saved.id;
+      }
+      // Khi SỬA phải gọi cả hai kể cả khi rỗng: đó là cách duy nhất để xoá bước /
+      // xoá giá trị data đã có trong DB. Case mới thì không có gì để xoá, bỏ qua cho nhanh.
       const demoted = [
-        keep.length ? await saveSteps(id, keep) : "",
-        dataRows.some((d) => d.value) ? await saveCaseData(id, dataRows) : "",
+        editing || filled.length ? await saveSteps(caseId, filled) : "",
+        editing || dataRows.some((d) => d.value) ? await saveCaseData(caseId, dataRows) : "",
       ].filter(Boolean);
-      if (markReady) await updateCase(id, { ...form, status: "ready" }); // PUT /catalog/cases/:id
-      toast.success(`Created ${code}${markReady ? " — ready to run" : " as draft"}.`);
-      if (demoted.length && markReady) toast.error(demoted[0], { duration: 8000 });
+
+      // Giữ 'ready' cho case đang sửa, nhưng chỉ khi nó vẫn chạy được — không thì 409.
+      // Sửa một case đang 'deprecated' thì GIỮ nguyên deprecated: chỉ "Save & mark ready"
+      // mới được mở lại nó. Case 'ready' mà checklist còn thiếu thì hạ về draft.
+      const nextStatus = markReady
+        ? "ready"
+        : editing
+          ? (status === "ready" && !readyOk ? "draft" : status)
+          : "draft";
+      if (markReady || editing) await updateCase(caseId, { ...form, status: nextStatus }); // PUT /catalog/cases/:id
+      toast.success(
+        editing
+          ? `Updated ${code}${nextStatus === "ready" ? "" : ` — ${nextStatus}`}.`
+          : `Created ${code}${markReady ? " — ready to run" : " as draft"}.`,
+      );
+      // Lời nhắn "backend đã hạ case về draft" chỉ ĐÚNG khi case kết thúc ở trạng thái không
+      // phải ready — nếu ngay sau đó ta PUT lên 'ready' thành công thì việc hạ đã bị đảo
+      // ngược, báo ra là nói sai. Ngược lại, lúc lưu nháp thì đây chính là lý do case chưa
+      // chạy được, phải nói cho người dùng biết.
+      if (demoted.length && nextStatus !== "ready") toast.error(demoted[0], { duration: 8000 });
       navigate("/testcases");
     } catch (err) {
       toast.error(getErrorMessage(err, "Cannot save the test case."));
-      if (id) {
+      if (!editing && caseId) {
         // Case đã được tạo (draft) nhưng bước sau hỏng: nói rõ, kẻo bấm lại sẽ nhận 409.
         toast.error(`${code} was created as a draft — reopen it to finish.`, { duration: 8000 });
         navigate("/testcases");
@@ -291,37 +361,51 @@ export default function TestCaseCreate() {
 
   const showErr = (cond, msg) => (touched && cond ? msg : "");
 
+  if (loadingCase) {
+    return <p className="p-6 text-sm text-gray-500">Loading test case…</p>;
+  }
+
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
-        breadcrumb={["Test Cases", "New"]}
-        title="Create Test Case"
-        description="Declare a test case: what it is, which steps it runs, and which data it uses."
+        breadcrumb={["Test Cases", editing ? form.code || "Edit" : from ? "Duplicate" : "New"]}
+        title={editing ? "Edit Test Case" : from ? "Duplicate Test Case" : "Create Test Case"}
+        description={
+          editing
+            ? "Change what this case checks, which steps it runs, and which data it uses."
+            : "Declare a test case: what it is, which steps it runs, and which data it uses."
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
         {/* ------------------------------- cột trái ------------------------------- */}
         <div className="space-y-5">
           <Section n={1} title="Basic information" hint="Where the case belongs and what it is for." done={basicsOk}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Suite" required error={showErr(!form.suiteId, "Choose a suite.")}>
-                <select className={inputCls} value={form.suiteId} onChange={(e) => pickSuite(e.target.value)}>
-                  <option value="">Choose a suite…</option>
-                  {suites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
+            {specLabel ? (
+              <Field label="Spec" hint={editing ? "Cannot be changed after creation." : "The copy stays in the source case's spec."}>
+                <input className={inputCls} value={specLabel} disabled readOnly />
               </Field>
-              <Field
-                label="Spec"
-                required
-                hint={form.suiteId && specs.length === 0 ? "This suite has no specs yet." : "The screen or feature under test."}
-                error={showErr(form.suiteId && !form.specId, "Choose a spec.")}
-              >
-                <select className={inputCls} value={form.specId} disabled={!form.suiteId} onChange={(e) => set("specId", e.target.value)}>
-                  <option value="">{form.suiteId ? "Choose a spec…" : "Choose a suite first"}</option>
-                  {specs.map((s) => <option key={s.id} value={s.id}>{s.code}{s.screen ? ` – ${s.screen}` : ""}</option>)}
-                </select>
-              </Field>
-            </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Suite" required error={showErr(!form.suiteId, "Choose a suite.")}>
+                  <select className={inputCls} value={form.suiteId} onChange={(e) => pickSuite(e.target.value)}>
+                    <option value="">Choose a suite…</option>
+                    {suites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </Field>
+                <Field
+                  label="Spec"
+                  required
+                  hint={form.suiteId && specs.length === 0 ? "This suite has no specs yet." : "The screen or feature under test."}
+                  error={showErr(form.suiteId && !form.specId, "Choose a spec.")}
+                >
+                  <select className={inputCls} value={form.specId} disabled={!form.suiteId} onChange={(e) => set("specId", e.target.value)}>
+                    <option value="">{form.suiteId ? "Choose a spec…" : "Choose a suite first"}</option>
+                    {specs.map((s) => <option key={s.id} value={s.id}>{s.code}{s.screen ? ` – ${s.screen}` : ""}</option>)}
+                  </select>
+                </Field>
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-[180px_minmax(0,1fr)]">
               <Field
@@ -331,8 +415,9 @@ export default function TestCaseCreate() {
                 hint="Cannot be changed after creation."
               >
                 <input className={inputCls} value={form.code} maxLength={CODE_MAX + 10}
-                       placeholder={suggestedCode} onChange={(e) => set("code", e.target.value)} />
-                {!form.code && (
+                       disabled={editing} placeholder={suggestedCode}
+                       onChange={(e) => set("code", e.target.value)} />
+                {!editing && !form.code && (
                   <button type="button" onClick={() => set("code", suggestedCode)}
                           className="mt-1 text-xs text-brand-600 hover:underline">
                     Use {suggestedCode}
@@ -560,7 +645,7 @@ export default function TestCaseCreate() {
             </button>
             <button type="button" disabled={saving} onClick={() => handleSave(false)}
                     className="h-10 w-full rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:opacity-50">
-              Save as draft
+              {editing ? "Save changes" : "Save as draft"}
             </button>
             <button type="button" disabled={saving} onClick={() => navigate("/testcases")}
                     className="h-9 w-full text-sm text-gray-500 hover:text-gray-800">
@@ -568,7 +653,9 @@ export default function TestCaseCreate() {
             </button>
           </div>
           <p className="m-0 text-xs text-gray-400">
-            A draft can be saved any time. Only “ready” cases can be included in a run.
+            {editing && status === "ready"
+              ? "This case is ready to run. Saving it while the checklist has gaps puts it back to draft."
+              : "A draft can be saved any time. Only “ready” cases can be included in a run."}
           </p>
         </aside>
       </div>

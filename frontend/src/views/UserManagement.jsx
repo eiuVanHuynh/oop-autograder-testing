@@ -14,10 +14,14 @@ import {
 } from "../services/userService";
 import { getErrorMessage } from "../services/authService";
 import { parseQuery, buildQuery } from "../models/searchTags";
+import { getTableView, setTableView } from "../models/tableView";
 import CreateButton from "../components/ui/CreateButton";
 import FilterBar from "../components/ui/FilterBar";
 import FilterMenu from "../components/ui/FilterMenu";
 import RowMenu from "../components/ui/RowMenu";
+import IconButton from "../components/ui/IconButton";
+import DataTable, { TableViewToggle } from "../components/ui/DataTable";
+import StatusBadge from "../components/ui/StatusBadge";
 
 const ROLES = ["admin", "tester", "dev", "viewer"];
 
@@ -45,6 +49,12 @@ export default function UserManagement() {
   const { user: me } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Bảng hay thẻ: trang giữ state vì nút nằm trên FilterBar, không nằm trong DataTable.
+  const [view, setView] = useState(() => getTableView("users"));
+  const changeView = (v) => {
+    setView(v);
+    setTableView("users", v);
+  };
   const [q, setQ] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
   const [busyId, setBusyId] = useState(null);
@@ -169,6 +179,7 @@ export default function UserManagement() {
         onRefresh={refresh}
         loading={loading}
         tagGroups={GROUPS}
+        trailing={<TableViewToggle value={view} onChange={changeView} />}
       >
         <FilterMenu
           groups={GROUPS}
@@ -177,115 +188,107 @@ export default function UserManagement() {
         />
       </FilterBar>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+      <DataTable
+        rows={shown}
+        loading={loading}
+        empty="No users found."
+        maxHeight="450px"
+        cards
+        view={view}
+        onViewChange={changeView}
+        pageSize={10}
+        toolbar={
           <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
             <Users size={18} className="text-brand-600" /> System Users Control
           </h3>
-          <span className="text-xs text-gray-400 font-medium">
-            {shown.length} / {users.length} users
-          </span>
-        </div>
+        }
+        columns={[
+          {
+            key: "name",
+            header: "Name & Email",
+            card: "title",
+            render: (user) => (
+              <>
+                <p className="font-semibold text-gray-900">{user.name}</p>
+                <p className="text-xs text-gray-500">{user.email}</p>
+              </>
+            ),
+          },
+          {
+            key: "role",
+            header: "Role Assignment",
+            render: (user) => (
+              <div className="inline-flex items-center gap-1.5">
+                <Shield size={14} className="text-brand-600" />
+                {locked(user) ? (
+                  <span className="px-3 py-1.5 text-xs font-semibold text-gray-700 capitalize">{user.role}</span>
+                ) : (
+                  <select
+                    value={user.role}
+                    disabled={busyId === user.id}
+                    onChange={(e) => handleRoleChange(user, e.target.value)}
+                    className="px-3 py-1.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-semibold text-gray-700 capitalize focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 disabled:opacity-60"
+                  >
+                    {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                )}
+              </div>
+            ),
+          },
+          {
+            key: "status",
+            header: "Status",
+            card: "badge",
+            render: (user) =>
+              user.status === "active" ? (
+                <StatusBadge status="ACTIVE" label="Active" icon={UserCheck} />
+              ) : (
+                <StatusBadge status="LOCKED" label="Locked" icon={Lock} />
+              ),
+          },
+          {
+            key: "actions",
+            header: "Actions",
+            card: "footer",
+            align: "right",
+            render: (user) => (
+              <div className="flex items-center justify-end gap-1">
+                {locked(user) ? (
+                  <span className="text-xs text-gray-400 mr-1">
+                    {user.role === "admin" ? "" : "This is you"}
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleToggleLock(user)}
+                    disabled={busyId === user.id}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition duration-200 border shadow-sm disabled:opacity-60 ${
+                      user.status === "active"
+                        ? "bg-white hover:bg-red-50 text-red-600 border-gray-200 hover:border-red-200"
+                        : "bg-white hover:bg-emerald-50 text-emerald-600 border-gray-200 hover:border-emerald-200"
+                    }`}
+                  >
+                    {user.status === "active" ? "Lock Account" : "Unlock Account"}
+                  </button>
+                )}
 
-        <div className="max-h-[450px] overflow-auto">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
-              <tr className="bg-gray-50 text-gray-500 text-xs font-semibold uppercase tracking-wider border-b border-gray-100">
-                <th className="py-3.5 px-6">Name &amp; Email</th>
-                <th className="py-3.5 px-6">Role Assignment</th>
-                <th className="py-3.5 px-6">Status</th>
-                <th className="py-3.5 px-6 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading && users.length === 0 && (
-                <tr><td colSpan={4} className="py-10 text-center text-gray-400">Loading…</td></tr>
-              )}
-              {!loading && shown.length === 0 && (
-                <tr><td colSpan={4} className="py-10 text-center text-gray-400">No users found.</td></tr>
-              )}
-              {shown.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50/50 transition">
-                  <td className="py-4 px-6">
-                    <p className="font-semibold text-gray-900">{user.name}</p>
-                    <p className="text-xs text-gray-500">{user.email}</p>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="inline-flex items-center gap-1.5">
-                      <Shield size={14} className="text-brand-600" />
-                      {locked(user) ? (
-                        <span className="px-3 py-1.5 text-xs font-semibold text-gray-700 capitalize">
-                          {user.role}
-                        </span>
-                      ) : (
-                        <select
-                          value={user.role}
-                          disabled={busyId === user.id}
-                          onChange={(e) => handleRoleChange(user, e.target.value)}
-                          className="px-3 py-1.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-semibold text-gray-700 capitalize focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 disabled:opacity-60"
-                        >
-                          {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-                        </select>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        user.status === "active"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {user.status === "active" ? <UserCheck size={12} /> : <Lock size={12} />}
-                      {user.status === "active" ? "Active" : "Locked"}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center justify-end gap-1">
-                      {locked(user) ? (
-                        <span className="text-xs text-gray-400 mr-1">
-                          {user.role === "admin" ? "" : "This is you"}
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => handleToggleLock(user)}
-                          disabled={busyId === user.id}
-                          className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition duration-200 border shadow-sm disabled:opacity-60 ${
-                            user.status === "active"
-                              ? "bg-white hover:bg-red-50 text-red-600 border-gray-200 hover:border-red-200"
-                              : "bg-white hover:bg-emerald-50 text-emerald-600 border-gray-200 hover:border-emerald-200"
-                          }`}
-                        >
-                          {user.status === "active" ? "Lock Account" : "Unlock Account"}
-                        </button>
-                      )}
+                {/* Sửa tên / email: backend cho sửa cả admin và chính mình */}
+                <IconButton
+                  icon={Pencil}
+                  title="Edit name / email"
+                  onClick={() => setForm({ ...EMPTY, id: user.id, name: user.name, email: user.email })}
+                />
 
-                      {/* Sửa tên / email: backend cho sửa cả admin và chính mình */}
-                      <button
-                        onClick={() => setForm({ ...EMPTY, id: user.id, name: user.name, email: user.email })}
-                        title="Edit name / email"
-                        className="p-2 text-gray-500 hover:text-brand-600"
-                      >
-                        <Pencil size={16} />
-                      </button>
-
-                      {/* Xoá: backend từ chối tài khoản admin (409) và tự xoá mình (400) */}
-                      {!locked(user) && (
-                        <RowMenu
-                          items={[
-                            { label: "Delete", icon: Trash2, onClick: () => setToDelete(user), danger: true },
-                          ]}
-                        />
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                {/* Xoá: backend từ chối tài khoản admin (409) và tự xoá mình (400) */}
+                {!locked(user) && (
+                  <RowMenu
+                    items={[{ label: "Delete", icon: Trash2, onClick: () => setToDelete(user), danger: true }]}
+                  />
+                )}
+              </div>
+            ),
+          },
+        ]}
+      />
 
       {/* Modal: tạo / sửa */}
       {form && (

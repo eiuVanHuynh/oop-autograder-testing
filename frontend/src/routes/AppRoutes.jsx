@@ -12,7 +12,7 @@ import TestReport from "../views/TestReport";
 import UserManagement from "../views/UserManagement";
 import Forbidden from "../views/Forbidden";
 import TestCases from "../views/TestCases";
-import TestCaseCreate from "../views/TestCaseCreate";
+import TestCaseForm from "../views/TestCaseForm";
 
 const ALL_ROLES = ["Admin", "Tester", "Dev", "Viewer"]; // Check tên với back-end
 
@@ -59,7 +59,15 @@ export default function AppRoutes() {
           path="testcases/new"
           element={
             <ProtectedRoute allowedRoles={["Admin", "Tester"]}>
-              <TestCaseCreate />
+              <TestCaseForm />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="testcases/:id/edit"
+          element={
+            <ProtectedRoute allowedRoles={["Admin", "Tester"]}>
+              <TestCaseForm />
             </ProtectedRoute>
           }
         />

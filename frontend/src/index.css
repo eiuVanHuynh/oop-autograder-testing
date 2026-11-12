@@ -27,63 +27,31 @@
   --ink-700: 71 85 105;
   --ink-800: 51 65 85;
   --ink-900: 15 23 42;
+  /* canvas = nền trang và <thead>; paper = nền thẻ/panel/modal. */
   --canvas: 248 250 252;
   --paper: 255 255 255;
+
+  /* Đổ bóng: chép ĐÚNG NGUYÊN VĂN mặc định của Tailwind, để theme này không đổi gì. */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  /* Thời lượng chung của mọi hoạt ảnh chuyển trang / chuyển tab. */
+  --anim: 0.6s;
 
   --r-md: 0.375rem;
   --r-lg: 0.5rem;
   --r-xl: 0.75rem;
   --r-2xl: 1rem;
-}
 
-/* Theme thứ hai "Nature": xanh ngọc sâu, nền giấy ngả xám, vuông góc, tiêu đề serif. */
-:root[data-theme="nature"] {
-  --brand-50: 238 245 246;
-  --brand-100: 215 232 234;
-  --brand-200: 168 207 212;
-  --brand-500: 26 123 134;
-  --brand-600: 19 100 110;
-  --brand-700: 13 77 85;
-
-  /* Hairline ngả xanh thay cho xám trung tính (bản gốc viết border-ink-900/10). */
-  --line-50: 241 242 240;
-  --line-100: 226 230 231;
-  --line-200: 203 211 213;
-
-  --ink-700: 59 79 89;
-  --ink-800: 43 61 71;
-  --ink-900: 30 46 54;
-  --canvas: 233 235 234;
-  --paper: 246 246 244;
-
-  /* Vuông góc: đây là border-style của bộ Nature. */
-  --r-md: 0;
-  --r-lg: 0;
-  --r-xl: 0;
-  --r-2xl: 0;
-
-  --bg: #e9ebea;
-  --text: #5b6b71;
-  --text-h: #1e2e36;
-  --border: #d8dcdb;
-  --accent: #13646e;
-  --accent-bg: rgba(19, 100, 110, 0.1);
-  --accent-border: rgba(19, 100, 110, 0.5);
-  --heading: "Cormorant Garamond", Georgia, serif;
-}
-
-:root {
+  /* Chữ và nền của <body>, và bộ font. Nằm chung một khối với token ở trên: trước đây
+     khai báo ở một khối :root THỨ HAI đặt sau khối nature, chỉ không đè nhầm nhờ độ ưu
+     tiên selector — thêm theme thứ ba là vỡ. */
   --text: #6b6375;
   --text-h: #08060d;
   --bg: #fff;
-  --border: #e5e4e7;
   --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
   --sans: "Inter", system-ui, sans-serif;
   --heading: "Inter", system-ui, sans-serif;
@@ -97,25 +65,45 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
-/* Hỗ trợ chuyển đổi dark mode thông qua class "dark" trên thẻ html */
-.dark {
-  --text: #9ca3af;
-  --text-h: #f3f4f6;
-  --bg: #16171d;
-  --border: #2e303a;
-  --code-bg: #1f2028;
-  --accent: #c084fc;
-  --accent-bg: rgba(192, 132, 252, 0.15);
-  --accent-border: rgba(192, 132, 252, 0.5);
-  --social-bg: rgba(47, 48, 58, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+/* Theme thứ hai "Nature": xanh ngọc sâu, NỀN LỤC NHẠT, vuông góc, tiêu đề serif.
+   Viền nhạt hơn và bóng nổi hơn Indigo một nhịp — chỉ bằng token, view không đổi chữ nào. */
+:root[data-theme="nature"] {
+  --brand-50: 238 245 246;
+  --brand-100: 215 232 234;
+  --brand-200: 168 207 212;
+  --brand-500: 26 123 134;
+  --brand-600: 19 100 110;
+  --brand-700: 13 77 85;
+
+  /* Hairline ngả lục, nhạt hơn bộ xám của Indigo. */
+  --line-50: 232 239 233;
+  --line-100: 220 229 221;
+  --line-200: 203 216 205;
+
+  --ink-700: 59 79 89;
+  --ink-800: 43 61 71;
+  --ink-900: 30 46 54;
+  --canvas: 230 239 232; /* #E6EFE8 nền trang + <thead> */
+  --paper: 246 249 246; /* #F6F9F6 nền thẻ, sáng hơn nền trang để khối nổi lên */
+
+  /* Bóng ngả lục, mềm: đậm hơn Indigo đủ để thấy khối, không thành vệt xám. */
+  --shadow-sm: 0 1px 2px 0 rgb(30 46 54 / 0.06);
+  --shadow: 0 1px 3px 0 rgb(30 46 54 / 0.08), 0 1px 2px -1px rgb(30 46 54 / 0.06);
+  --shadow-md: 0 4px 8px -2px rgb(30 46 54 / 0.08), 0 2px 4px -2px rgb(30 46 54 / 0.06);
+  --shadow-lg: 0 12px 20px -6px rgb(30 46 54 / 0.12), 0 4px 8px -4px rgb(30 46 54 / 0.08);
+
+  /* Vuông góc: đây là border-style của bộ Nature. */
+  --r-md: 0;
+  --r-lg: 0;
+  --r-xl: 0;
+  --r-2xl: 0;
+
+  --bg: #e6efe8;
+  --text: #5b6b71;
+  --text-h: #1e2e36;
+  --heading: "Cormorant Garamond", Georgia, serif;
 }
 
 body {
@@ -141,13 +129,15 @@ h2 {
   color: var(--text-h);
 }
 
+/* margin-top nhỏ lại: khung trang (main) đã có sẵn 32px đệm, cộng thêm 32px nữa là tiêu đề
+   trôi hẳn xuống. 6 trang tự viết header đều ăn rule này (PageHeader thì đặt m-0 để né). */
 h1 {
   font-size: 56px;
   letter-spacing: -1.68px;
-  margin: 32px 0;
+  margin: 16px 0 32px;
   @media (max-width: 1024px) {
     font-size: 36px;
-    margin: 20px 0;
+    margin: 12px 0 20px;
   }
 }
 
@@ -180,7 +170,9 @@ code {
   background: var(--code-bg);
 }
 
-
-* {
-  border-style: double;
+/* Người dùng tắt hiệu ứng ở hệ điều hành thì tôn trọng: giữ nguyên bố cục, bỏ chuyển động. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --anim: 1ms;
+  }
 }
