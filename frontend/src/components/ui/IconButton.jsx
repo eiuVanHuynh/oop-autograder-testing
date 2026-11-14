@@ -6,7 +6,10 @@ export default function IconButton({ icon: Icon, title, onClick, danger, disable
   return (
     <button
       type={type}
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.(e);
+      }}
       disabled={disabled}
       title={title}
       aria-label={title}

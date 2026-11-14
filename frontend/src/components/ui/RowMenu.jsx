@@ -19,7 +19,7 @@ export default function RowMenu({ items }) {
   }, []);
 
   return (
-    <div className="relative inline-block" ref={ref}>
+    <div className="relative inline-block" ref={ref} onClick={(e) => e.stopPropagation()}>
       <IconButton icon={MoreHorizontal} title="More actions" onClick={() => setIsOpen((o) => !o)} />
 
       {isOpen && (

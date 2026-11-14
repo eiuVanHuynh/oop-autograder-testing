@@ -55,6 +55,7 @@ export default function AppRoutes() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="templates" element={<Templates />} />
         <Route path="testcases" element={<TestCases />} />
+        <Route path="testcases/:id" element={<TestCaseForm mode="view" />} />
         <Route
           path="testcases/new"
           element={

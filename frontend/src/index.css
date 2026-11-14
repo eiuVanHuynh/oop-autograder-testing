@@ -176,3 +176,11 @@ code {
     --anim: 1ms;
   }
 }
+
+/* Trang xem Test Case (/testcases/:id): ô nhập bị disabled nhưng vẫn phải đọc rõ. */
+.form-readonly :is(input, textarea, select):disabled {
+  color: rgb(var(--ink-900));
+  -webkit-text-fill-color: rgb(var(--ink-900));
+  opacity: 1;
+  cursor: default;
+}

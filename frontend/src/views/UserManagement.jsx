@@ -1,4 +1,6 @@
 // Trang Users (/users) – Admin xem danh sách thành viên, tạo / sửa / xoá, đổi vai trò, khoá/mở khoá.
+// Bấm vào BẤT KỲ chỗ nào trên dòng / thẻ = mở modal xem chi tiết (chỉ đọc), trong đó có nút Edit.
+// Các điều khiển riêng trong dòng (đổi role, khoá, ✏️, ⋯) chặn click nổi bọt nên không mở modal xem.
 // Backend: GET|POST /users, GET|PATCH|DELETE /users/:id, PATCH /users/:id/role|status (users.routes.js).
 import { useState, useEffect, useMemo } from "react";
 import {
@@ -72,7 +74,7 @@ export default function UserManagement() {
   const [q, setQ] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
   const [busyId, setBusyId] = useState(null);
-  const [form, setForm] = useState(null); // null = modal đóng; có .id = đang sửa
+  const [form, setForm] = useState(null); // null = modal đóng; .id = đang sửa; .view = chỉ xem
   const [toDelete, setToDelete] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -139,6 +141,7 @@ export default function UserManagement() {
   // Tạo: POST /users (vai trò + trạng thái chọn được). Sửa: PATCH /users/:id (chỉ tên + email).
   const handleSave = async (e) => {
     e.preventDefault();
+    if (form.view) return;
     const name = form.name.trim();
     const email = form.email.trim();
     if (name.length < 2) return toast.error("Full name is too short.");
@@ -216,7 +219,17 @@ export default function UserManagement() {
         view={view}
         onViewChange={changeView}
         pageSize={10}
-        // ❌ Xóa bỏ hoàn toàn onRowClick ở đây để không bị lỗi nhạy sự kiện toàn hàng
+        onRowClick={(u) =>
+          setForm({
+            ...EMPTY,
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role,
+            status: u.status,
+            view: true,
+          })
+        }
         rowKey={(u) => u.id}
         toolbar={
           <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
@@ -230,19 +243,7 @@ export default function UserManagement() {
             sortable: true,
             card: "title",
             render: (user) => (
-              /* 🌟 Bấm trực tiếp vào vùng tên/email này để mở form chỉnh sửa */
-              <div
-                onClick={() =>
-                  setForm({
-                    ...EMPTY,
-                    id: user.id,
-                    name: user.name,
-                    email: user.email,
-                  })
-                }
-                className="cursor-pointer group"
-                title="Click to edit name / email"
-              >
+              <div className="cursor-pointer group">
                 <p className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors">
                   {user.name}
                 </p>
@@ -265,6 +266,7 @@ export default function UserManagement() {
                   <select
                     value={user.role}
                     disabled={busyId === user.id}
+                    onClick={(e) => e.stopPropagation()}
                     onChange={(e) => handleRoleChange(user, e.target.value)}
                     className="px-3 py-1.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-semibold text-gray-700 capitalize focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 disabled:opacity-60"
                   >
@@ -303,7 +305,10 @@ export default function UserManagement() {
                   </span>
                 ) : (
                   <button
-                    onClick={() => handleToggleLock(user)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleLock(user);
+                    }}
                     disabled={busyId === user.id}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition duration-200 border shadow-sm disabled:opacity-60 ${
                       user.status === "active"
@@ -359,7 +364,7 @@ export default function UserManagement() {
           >
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">
-                {form.id ? "Edit User" : "Create User"}
+                {form.view ? "User Details" : form.id ? "Edit User" : "Create User"}
               </h3>
               <button
                 type="button"
@@ -370,7 +375,10 @@ export default function UserManagement() {
               </button>
             </div>
 
-            <fieldset disabled={saving} className="space-y-4">
+            <fieldset
+              disabled={saving || form.view}
+              className={`space-y-4 ${form.view ? "form-readonly" : ""}`}
+            >
               <div>
                 <label className={labelCls}>
                   Full name <span className="text-red-500">*</span>
@@ -395,6 +403,19 @@ export default function UserManagement() {
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
               </div>
+
+              {form.view && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelCls}>Role</label>
+                    <input className={`${inputCls} capitalize`} value={form.role} disabled readOnly />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Status</label>
+                    <input className={`${inputCls} capitalize`} value={form.status === "active" ? "active" : "locked"} disabled readOnly />
+                  </div>
+                </div>
+              )}
 
               {/* Mật khẩu chỉ đặt lúc tạo; chưa có endpoint đổi mật khẩu cho người khác. */}
               {!form.id && (
@@ -462,23 +483,60 @@ export default function UserManagement() {
               )}
             </fieldset>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setForm(null)}
-                disabled={saving}
-                className="px-4 py-2 border border-gray-200 rounded-xl text-sm disabled:opacity-60"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold disabled:opacity-60"
-              >
-                {saving ? "Saving…" : form.id ? "Save" : "Create"}
-              </button>
-            </div>
+            {/* key bắt buộc: không có key, React tái dùng đúng DOM <button> của "Edit" (type=button)
+                cho "Save" (type=submit) -> trình duyệt thấy nút đã thành submit ngay trong lúc click
+                và gửi form luôn => bấm Edit là lưu ngay. */}
+            {form.view ? (
+              <div key="footer-view" className="flex justify-end gap-2 pt-2">
+                <button
+                  key="btn-close"
+                  type="button"
+                  onClick={() => setForm(null)}
+                  className="px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 rounded-xl text-sm font-medium"
+                >
+                  Close
+                </button>
+                <button
+                  key="btn-edit"
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      view: false,
+                      orig: { name: form.name, email: form.email },
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 rounded-xl text-sm font-semibold"
+                >
+                  <Pencil size={14} /> Edit
+                </button>
+              </div>
+            ) : (
+              <div key="footer-edit" className="flex justify-end gap-2 pt-2">
+                <button
+                  key="btn-cancel"
+                  type="button"
+                  /* Sửa từ chế độ xem -> Cancel quay lại xem (bỏ thay đổi); tạo mới -> đóng. */
+                  onClick={() =>
+                    form.orig
+                      ? setForm({ ...form, ...form.orig, view: true })
+                      : setForm(null)
+                  }
+                  disabled={saving}
+                  className="px-4 py-2 border border-gray-300 bg-white text-gray-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600 rounded-xl text-sm font-medium disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  key="btn-save"
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold disabled:opacity-60"
+                >
+                  {saving ? "Saving…" : form.id ? "Save" : "Create"}
+                </button>
+              </div>
+            )}
           </form>
         </div>
       )}

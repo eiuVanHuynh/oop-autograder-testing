@@ -2,6 +2,7 @@
 //   /testcases/new            tạo mới
 //   /testcases/:id/edit       sửa (thay modal "Edit" cũ trong TestCases.jsx)
 //   /testcases/new?from=:id   nhân bản: mang steps của case nguồn sang case mới
+//   /testcases/:id            XEM (chỉ đọc, mọi vai trò): đúng bố cục 3 phần như form, bỏ nút sửa
 // Create / Edit / Clone Test Case – one page for all three.
 //
 // Thiết kế lại để dễ dùng:
@@ -16,9 +17,9 @@
 // Hợp đồng với backend KHÔNG đổi: vẫn POST /catalog/cases (draft) -> PUT steps -> PUT data
 // -> PUT /catalog/cases/:id đặt 'ready' (thứ tự bắt buộc, xem handleSave ở TestCases.jsx cũ).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  ArrowDown, ArrowUp, CheckCircle2, Circle, Copy, Plus, Trash2, X,
+  ArrowDown, ArrowLeft, ArrowUp, CheckCircle2, Circle, Copy, Pencil, Plus, Trash2, X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { CASE_TYPES, CASE_PRIORITIES } from "../models/options";
@@ -31,6 +32,10 @@ import {
 } from "../services/catalogService";
 import { getErrorMessage } from "../services/authService";
 import PageHeader from "../components/ui/PageHeader";
+import StatusBadge from "../components/ui/StatusBadge";
+import { useAuth } from "../controllers/AuthContext";
+import { canManageCases } from "../models/permissions";
+import { listTemplates } from "../services/templateService";
 
 const inputCls =
   "w-full h-10 px-3 bg-white border border-gray-300 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-50 disabled:text-gray-400";
@@ -142,8 +147,25 @@ function Field({ label, required, hint, error, children, className = "" }) {
   );
 }
 
-export default function TestCaseForm() {
+// Edit / New / Duplicate dùng chung một component và React Router không remount khi đổi
+// giữa các route này (vd nút Back) -> state cũ bị giữ lại. Đặt key theo id/from để mỗi
+// chế độ luôn bắt đầu từ form sạch.
+// mode="view" (route /testcases/:id) = cùng giao diện nhưng chỉ đọc.
+export default function TestCaseForm({ mode }) {
+  const { id } = useParams();
+  const [params] = useSearchParams();
+  return (
+    <TestCaseFormInner
+      key={`${mode ?? ""}|${id ?? ""}|${params.get("from") ?? ""}`}
+      viewing={mode === "view"}
+    />
+  );
+}
+
+function TestCaseFormInner({ viewing }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canEdit = canManageCases(user?.role);
   const { id } = useParams();                       // có id = đang SỬA
   const [params] = useSearchParams();
   const from = params.get("from");                  // có from = đang NHÂN BẢN
@@ -167,9 +189,17 @@ export default function TestCaseForm() {
   const specsReq = useRef(0);
 
   useEffect(() => {
+    if (viewing) return; // chế độ xem không cần danh sách suite / mã đã dùng
     listSuites().then(setSuites).catch((e) => toast.error(getErrorMessage(e, "Cannot load suites.")));
     listCases().then(setExisting).catch(() => setExisting([]));
-  }, []);
+  }, [viewing]);
+
+  // Chế độ xem: liệt kê template đang dùng case này (lọc ở client, API chưa có endpoint riêng).
+  const [templates, setTemplates] = useState([]);
+  useEffect(() => {
+    if (!viewing) return;
+    listTemplates().then(setTemplates).catch(() => setTemplates([]));
+  }, [viewing]);
 
   // Sửa / nhân bản: nạp case nguồn rồi đổ vào đúng form này.
   useEffect(() => {
@@ -368,22 +398,48 @@ export default function TestCaseForm() {
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
-        breadcrumb={["Test Cases", editing ? form.code || "Edit" : from ? "Duplicate" : "New"]}
-        title={editing ? "Edit Test Case" : from ? "Duplicate Test Case" : "Create Test Case"}
+        breadcrumb={["Test Cases", viewing ? form.code || "Details" : editing ? form.code || "Edit" : from ? "Duplicate" : "New"]}
+        title={viewing ? "Test Case Details" : editing ? "Edit Test Case" : from ? "Duplicate Test Case" : "Create Test Case"}
         description={
-          editing
-            ? "Change what this case checks, which steps it runs, and which data it uses."
-            : "Declare a test case: what it is, which steps it runs, and which data it uses."
+          viewing
+            ? canEdit
+              ? "Read-only. Use Edit to change this case, or Duplicate to start a new one from it."
+              : "You have read-only access to this test case."
+            : editing
+              ? "Change what this case checks, which steps it runs, and which data it uses."
+              : "Declare a test case: what it is, which steps it runs, and which data it uses."
+        }
+        actions={
+          viewing && (
+            <>
+              <button type="button" onClick={() => navigate("/testcases")}
+                      className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+                <ArrowLeft size={15} /> Back to list
+              </button>
+              {canEdit && (
+                <>
+                  <button type="button" onClick={() => navigate(`/testcases/new?from=${id}`)}
+                          className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-4 text-sm font-semibold text-brand-700 transition hover:bg-brand-100">
+                    <Copy size={15} /> Duplicate
+                  </button>
+                  <button type="button" onClick={() => navigate(`/testcases/${id}/edit`)}
+                          className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-700">
+                    <Pencil size={15} /> Edit
+                  </button>
+                </>
+              )}
+            </>
+          )
         }
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
         {/* ------------------------------- cột trái ------------------------------- */}
-        <div className="space-y-5">
+        <fieldset disabled={viewing} className={`m-0 min-w-0 space-y-5 border-0 p-0 ${viewing ? "form-readonly" : ""}`}>
           <Section n={1} title="Basic information" hint="Where the case belongs and what it is for." done={basicsOk}>
-            {specLabel ? (
-              <Field label="Spec" hint={editing ? "Cannot be changed after creation." : "The copy stays in the source case's spec."}>
-                <input className={inputCls} value={specLabel} disabled readOnly />
+            {specLabel || viewing ? (
+              <Field label="Spec" hint={viewing ? undefined : editing ? "Cannot be changed after creation." : "The copy stays in the source case's spec."}>
+                <input className={inputCls} value={specLabel || "—"} disabled readOnly />
               </Field>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
@@ -412,7 +468,7 @@ export default function TestCaseForm() {
                 label="Test code"
                 required
                 error={showErr(!!codeError, codeError) || (code && codeTaken ? codeError : "")}
-                hint="Cannot be changed after creation."
+                hint={viewing ? undefined : "Cannot be changed after creation."}
               >
                 <input className={inputCls} value={form.code} maxLength={CODE_MAX + 10}
                        disabled={editing} placeholder={suggestedCode}
@@ -438,7 +494,7 @@ export default function TestCaseForm() {
               </Field>
               <Field label="Priority">
                 <div className="flex gap-1">
-                  {CASE_PRIORITIES.map((p) => (
+                  {CASE_PRIORITIES.filter((p) => !viewing || p === form.priority).map((p) => (
                     <button key={p} type="button" onClick={() => set("priority", p)}
                             className={`h-10 flex-1 rounded-lg border text-xs font-medium capitalize transition ${
                               form.priority === p
@@ -453,11 +509,11 @@ export default function TestCaseForm() {
             </div>
 
             <Field label="Expected result" required error={showErr(!form.expectedResult.trim(), "Describe the correct outcome.")}
-                   hint="What the user sees when this test PASSES.">
+                   hint={viewing ? undefined : "What the user sees when this test PASSES."}>
               <textarea rows={2} className={areaCls} value={form.expectedResult}
                         onChange={(e) => set("expectedResult", e.target.value)} />
             </Field>
-            <Field label="Preconditions" hint="Optional. State required before the test runs.">
+            <Field label="Preconditions" hint={viewing ? undefined : "Optional. State required before the test runs."}>
               <textarea rows={2} className={areaCls} value={form.preconditions}
                         onChange={(e) => set("preconditions", e.target.value)} />
             </Field>
@@ -466,10 +522,10 @@ export default function TestCaseForm() {
           <Section
             n={2}
             title="Steps"
-            hint="What the user does, in order. Pick an action, then point at the element."
+            hint={viewing ? "What the user does, in order." : "What the user does, in order. Pick an action, then point at the element."}
             done={filled.length > 0 && stepErrors.length === 0}
           >
-            {steps.length === 1 && !steps[0].action && (
+            {!viewing && steps.length === 1 && !steps[0].action && (
               <div className="flex flex-wrap items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-700">
                 <span>Quick start:</span>
                 <button type="button" onClick={() => setSteps(LOGIN_TEMPLATE())}
@@ -480,8 +536,9 @@ export default function TestCaseForm() {
               </div>
             )}
 
+            {viewing && filled.length === 0 && <p className="m-0 text-sm text-gray-500">No steps.</p>}
             <ol className="m-0 list-none space-y-3 p-0">
-              {steps.map((s, i) => {
+              {(viewing ? filled : steps).map((s, i) => {
                 const loc = splitTarget(s.target);
                 const probs = explain(s);
                 return (
@@ -491,7 +548,7 @@ export default function TestCaseForm() {
                         {i + 1}
                       </span>
                       <div className="flex flex-1 flex-wrap gap-1">
-                        {ACTIONS.map((a) => (
+                        {ACTIONS.filter((a) => !viewing || a.value === s.action).map((a) => (
                           <button key={a.value} type="button" title={a.hint} onClick={() => changeAction(s, a.value)}
                                   className={`h-8 rounded-lg border px-3 text-xs font-medium transition ${
                                     s.action === a.value
@@ -502,12 +559,12 @@ export default function TestCaseForm() {
                           </button>
                         ))}
                       </div>
-                      <div className="flex items-center text-gray-400">
+                      {!viewing && (<div className="flex items-center text-gray-400">
                         <button type="button" title="Move up" disabled={i === 0} onClick={() => move(i, -1)} className="p-1.5 hover:text-gray-700 disabled:opacity-30"><ArrowUp size={15} /></button>
                         <button type="button" title="Move down" disabled={i === steps.length - 1} onClick={() => move(i, 1)} className="p-1.5 hover:text-gray-700 disabled:opacity-30"><ArrowDown size={15} /></button>
                         <button type="button" title="Duplicate step" onClick={() => dup(i)} className="p-1.5 hover:text-gray-700"><Copy size={15} /></button>
                         <button type="button" title="Delete step" onClick={() => drop(s.key)} className="p-1.5 hover:text-red-600"><Trash2 size={15} /></button>
-                      </div>
+                      </div>)}
                     </div>
 
                     {!s.action && <p className="mt-2 pl-8 text-xs text-gray-400">Choose what this step does.</p>}
@@ -543,14 +600,14 @@ export default function TestCaseForm() {
                     {s.action && (
                       <div className="mt-2 pl-8">
                         <p className="m-0 text-xs text-gray-500">→ {describeStep(s)}</p>
-                        {(s.expected || s.noteOpen) ? (
+                        {viewing ? (s.expected ? <p className="m-0 mt-1 text-xs text-gray-600">Note: {s.expected}</p> : null) : (s.expected || s.noteOpen) ? (
                           <input className={`${inputCls} mt-2`} placeholder="Note / expected result for this step (optional)"
                                  value={s.expected} onChange={(e) => setStep(s.key, { expected: e.target.value })} />
                         ) : (
                           <button type="button" onClick={() => setStep(s.key, { noteOpen: true })}
                                   className="mt-1 text-xs text-brand-600 hover:underline">+ Add note</button>
                         )}
-                        {probs.map((p, k) => (
+                        {!viewing && probs.map((p, k) => (
                           <p key={k} className={`m-0 mt-1 text-xs ${p.level === "error" ? "text-red-600" : "text-amber-600"}`}>
                             {p.text}
                           </p>
@@ -565,10 +622,12 @@ export default function TestCaseForm() {
               <option value="username" /><option value="password" /><option value="email" />
             </datalist>
 
-            <button type="button" onClick={() => setSteps((l) => [...l, newStep()])}
-                    className="flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
-              <Plus size={15} /> Add step
-            </button>
+            {!viewing && (
+              <button type="button" onClick={() => setSteps((l) => [...l, newStep()])}
+                      className="flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
+                <Plus size={15} /> Add step
+              </button>
+            )}
             {touched && filled.length === 0 && (
               <p className="m-0 text-xs text-gray-500">No steps yet: you can still save a draft, but it cannot run.</p>
             )}
@@ -582,7 +641,7 @@ export default function TestCaseForm() {
           >
             {dataRows.length === 0 ? (
               <p className="m-0 text-sm text-gray-500">
-                No data needed yet. When you add a “Type text” step, its field appears here.
+                {viewing ? "No test data." : "No data needed yet. When you add a “Type text” step, its field appears here."}
               </p>
             ) : (
               <div className="space-y-2">
@@ -600,7 +659,7 @@ export default function TestCaseForm() {
                                  onChange={(e) => setData(row.field, { isValid: !e.target.checked })} />
                           Wrong on purpose
                         </label>
-                        {!required.includes(row.field) && (
+                        {!viewing && !required.includes(row.field) && (
                           <button type="button" title="Remove field" className="text-gray-400 hover:text-red-600"
                                   onClick={() => setTestData((l) => l.filter((d) => d.field !== row.field))}>
                             <X size={14} />
@@ -616,7 +675,7 @@ export default function TestCaseForm() {
               </div>
             )}
           </Section>
-        </div>
+        </fieldset>
 
         {/* ------------------------------- cột phải ------------------------------- */}
         <aside className="space-y-4 lg:sticky lg:top-0">
@@ -637,18 +696,44 @@ export default function TestCaseForm() {
             )}
           </div>
 
+          {viewing && (
+            <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5">
+              <div className="flex items-center justify-between">
+                <h3 className="m-0 text-sm font-semibold text-gray-900">Status</h3>
+                <StatusBadge status={status} />
+              </div>
+              <div className="border-t border-gray-100 pt-3">
+                <h3 className="m-0 mb-2 text-sm font-semibold text-gray-900">Used in templates</h3>
+                {templates.filter((t) => t.targetTestIds?.includes(form.code)).length === 0 ? (
+                  <p className="m-0 text-sm text-gray-400">Not used by any template yet.</p>
+                ) : (
+                  <ul className="m-0 list-none space-y-1 p-0 text-sm">
+                    {templates.filter((t) => t.targetTestIds?.includes(form.code)).map((t) => (
+                      <li key={t.id}>
+                        <Link to="/templates" className="text-brand-600 hover:underline">{t.name}</Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!viewing && (<>
           <div className="space-y-2">
             <button type="button" disabled={saving || !readyOk} onClick={() => handleSave(true)}
                     title={readyOk ? "" : "Complete every item above to mark ready"}
                     className="h-10 w-full rounded-lg bg-brand-600 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50">
               {saving ? "Saving…" : "Save & mark ready"}
             </button>
+            {/* Edit: lưu giữ nguyên trạng thái hiện tại (ready / draft / deprecated) nên gọi là
+                "Save changes". New / Duplicate: luôn tạo bản nháp nên gọi là "Save as draft". */}
             <button type="button" disabled={saving} onClick={() => handleSave(false)}
-                    className="h-10 w-full rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:opacity-50">
+                    className="h-10 w-full rounded-lg border border-brand-200 bg-brand-50 text-sm font-semibold text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50">
               {editing ? "Save changes" : "Save as draft"}
             </button>
             <button type="button" disabled={saving} onClick={() => navigate("/testcases")}
-                    className="h-9 w-full text-sm text-gray-500 hover:text-gray-800">
+                    className="h-10 w-full rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50">
               Cancel
             </button>
           </div>
@@ -657,6 +742,7 @@ export default function TestCaseForm() {
               ? "This case is ready to run. Saving it while the checklist has gaps puts it back to draft."
               : "A draft can be saved any time. Only “ready” cases can be included in a run."}
           </p>
+          </>)}
         </aside>
       </div>
     </div>
