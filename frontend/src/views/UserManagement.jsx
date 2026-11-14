@@ -1,7 +1,15 @@
 // Trang Users (/users) – Admin xem danh sách thành viên, tạo / sửa / xoá, đổi vai trò, khoá/mở khoá.
 // Backend: GET|POST /users, GET|PATCH|DELETE /users/:id, PATCH /users/:id/role|status (users.routes.js).
 import { useState, useEffect, useMemo } from "react";
-import { Shield, Lock, UserCheck, Users, Pencil, Trash2, X } from "lucide-react";
+import {
+  Shield,
+  Lock,
+  UserCheck,
+  Users,
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
 import {
@@ -25,7 +33,13 @@ import StatusBadge from "../components/ui/StatusBadge";
 
 const ROLES = ["admin", "tester", "dev", "viewer"];
 
-const EMPTY = { name: "", email: "", password: "", role: "viewer", status: "active" };
+const EMPTY = {
+  name: "",
+  email: "",
+  password: "",
+  role: "viewer",
+  status: "active",
+};
 const inputCls =
   "w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-50";
 const labelCls = "block text-xs font-semibold text-gray-600 mb-1";
@@ -89,7 +103,10 @@ export default function UserManagement() {
         if (!cancelled) setLoading(false);
       }
     }, 300);
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [text, reloadKey]);
 
   const refresh = () => setReloadKey((k) => k + 1);
@@ -115,7 +132,9 @@ export default function UserManagement() {
     apply(u, () => changeUserRole(u.id, role));
 
   const handleToggleLock = (u) =>
-    apply(u, () => changeUserStatus(u.id, u.status === "active" ? "inactive" : "active"));
+    apply(u, () =>
+      changeUserStatus(u.id, u.status === "active" ? "inactive" : "active"),
+    );
 
   // Tạo: POST /users (vai trò + trạng thái chọn được). Sửa: PATCH /users/:id (chỉ tên + email).
   const handleSave = async (e) => {
@@ -197,6 +216,8 @@ export default function UserManagement() {
         view={view}
         onViewChange={changeView}
         pageSize={10}
+        // ❌ Xóa bỏ hoàn toàn onRowClick ở đây để không bị lỗi nhạy sự kiện toàn hàng
+        rowKey={(u) => u.id}
         toolbar={
           <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
             <Users size={18} className="text-brand-600" /> System Users Control
@@ -206,22 +227,40 @@ export default function UserManagement() {
           {
             key: "name",
             header: "Name & Email",
+            sortable: true,
             card: "title",
             render: (user) => (
-              <>
-                <p className="font-semibold text-gray-900">{user.name}</p>
+              /* 🌟 Bấm trực tiếp vào vùng tên/email này để mở form chỉnh sửa */
+              <div
+                onClick={() =>
+                  setForm({
+                    ...EMPTY,
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                  })
+                }
+                className="cursor-pointer group"
+                title="Click to edit name / email"
+              >
+                <p className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors">
+                  {user.name}
+                </p>
                 <p className="text-xs text-gray-500">{user.email}</p>
-              </>
+              </div>
             ),
           },
           {
             key: "role",
             header: "Role Assignment",
+            sortable: true,
             render: (user) => (
               <div className="inline-flex items-center gap-1.5">
                 <Shield size={14} className="text-brand-600" />
                 {locked(user) ? (
-                  <span className="px-3 py-1.5 text-xs font-semibold text-gray-700 capitalize">{user.role}</span>
+                  <span className="px-3 py-1.5 text-xs font-semibold text-gray-700 capitalize">
+                    {user.role}
+                  </span>
                 ) : (
                   <select
                     value={user.role}
@@ -229,7 +268,11 @@ export default function UserManagement() {
                     onChange={(e) => handleRoleChange(user, e.target.value)}
                     className="px-3 py-1.5 bg-gray-50 border border-gray-300 rounded-xl text-xs font-semibold text-gray-700 capitalize focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 disabled:opacity-60"
                   >
-                    {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
                   </select>
                 )}
               </div>
@@ -239,6 +282,7 @@ export default function UserManagement() {
             key: "status",
             header: "Status",
             card: "badge",
+            sortable: true,
             render: (user) =>
               user.status === "active" ? (
                 <StatusBadge status="ACTIVE" label="Active" icon={UserCheck} />
@@ -267,7 +311,9 @@ export default function UserManagement() {
                         : "bg-white hover:bg-emerald-50 text-emerald-600 border-gray-200 hover:border-emerald-200"
                     }`}
                   >
-                    {user.status === "active" ? "Lock Account" : "Unlock Account"}
+                    {user.status === "active"
+                      ? "Lock Account"
+                      : "Unlock Account"}
                   </button>
                 )}
 
@@ -275,13 +321,27 @@ export default function UserManagement() {
                 <IconButton
                   icon={Pencil}
                   title="Edit name / email"
-                  onClick={() => setForm({ ...EMPTY, id: user.id, name: user.name, email: user.email })}
+                  onClick={() =>
+                    setForm({
+                      ...EMPTY,
+                      id: user.id,
+                      name: user.name,
+                      email: user.email,
+                    })
+                  }
                 />
 
                 {/* Xoá: backend từ chối tài khoản admin (409) và tự xoá mình (400) */}
                 {!locked(user) && (
                   <RowMenu
-                    items={[{ label: "Delete", icon: Trash2, onClick: () => setToDelete(user), danger: true }]}
+                    items={[
+                      {
+                        label: "Delete",
+                        icon: Trash2,
+                        onClick: () => setToDelete(user),
+                        danger: true,
+                      },
+                    ]}
                   />
                 )}
               </div>
@@ -298,15 +358,23 @@ export default function UserManagement() {
             className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold">{form.id ? "Edit User" : "Create User"}</h3>
-              <button type="button" onClick={() => setForm(null)} className="text-gray-400 hover:text-gray-700">
+              <h3 className="text-lg font-bold">
+                {form.id ? "Edit User" : "Create User"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setForm(null)}
+                className="text-gray-400 hover:text-gray-700"
+              >
                 <X size={18} />
               </button>
             </div>
 
             <fieldset disabled={saving} className="space-y-4">
               <div>
-                <label className={labelCls}>Full name <span className="text-red-500">*</span></label>
+                <label className={labelCls}>
+                  Full name <span className="text-red-500">*</span>
+                </label>
                 <input
                   aria-label="Full name"
                   className={inputCls}
@@ -316,7 +384,9 @@ export default function UserManagement() {
               </div>
 
               <div>
-                <label className={labelCls}>Email <span className="text-red-500">*</span></label>
+                <label className={labelCls}>
+                  Email <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="email"
                   aria-label="Email"
@@ -330,17 +400,22 @@ export default function UserManagement() {
               {!form.id && (
                 <>
                   <div>
-                    <label className={labelCls}>Password <span className="text-red-500">*</span></label>
+                    <label className={labelCls}>
+                      Password <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="password"
                       aria-label="Password"
                       autoComplete="new-password"
                       className={inputCls}
                       value={form.password}
-                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, password: e.target.value })
+                      }
                     />
                     <p className="text-xs text-gray-400 mt-1">
-                      At least 6 characters. Share it with the user — they cannot reset it yet.
+                      At least 6 characters. Share it with the user — they
+                      cannot reset it yet.
                     </p>
                   </div>
 
@@ -351,9 +426,15 @@ export default function UserManagement() {
                         aria-label="Role"
                         className={inputCls}
                         value={form.role}
-                        onChange={(e) => setForm({ ...form, role: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, role: e.target.value })
+                        }
                       >
-                        {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                        {ROLES.map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -362,7 +443,9 @@ export default function UserManagement() {
                         aria-label="Status"
                         className={inputCls}
                         value={form.status}
-                        onChange={(e) => setForm({ ...form, status: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, status: e.target.value })
+                        }
                       >
                         <option value="active">active</option>
                         <option value="inactive">inactive</option>
@@ -371,7 +454,8 @@ export default function UserManagement() {
                   </div>
                   {form.role === "admin" && (
                     <p className="text-xs text-amber-600">
-                      An admin account cannot be demoted, locked or deleted from this page afterwards.
+                      An admin account cannot be demoted, locked or deleted from
+                      this page afterwards.
                     </p>
                   )}
                 </>
@@ -405,8 +489,9 @@ export default function UserManagement() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
             <h3 className="text-lg font-bold">Delete user?</h3>
             <p className="text-sm text-gray-600">
-              <strong>{toDelete.email}</strong> will be removed for good. Past runs keep their
-              history but lose the tester name. Locking the account instead keeps it intact.
+              <strong>{toDelete.email}</strong> will be removed for good. Past
+              runs keep their history but lose the tester name. Locking the
+              account instead keeps it intact.
             </p>
             <div className="flex justify-end gap-2">
               <button

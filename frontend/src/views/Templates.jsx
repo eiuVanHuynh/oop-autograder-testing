@@ -38,7 +38,12 @@ import { getTableView, setTableView } from "../models/tableView";
 
 // Tag của riêng trang Templates, dùng chung cho ô search và panel Filter.
 const GROUPS = [
-  { key: "scope", label: "Test scope", allLabel: "All scopes", options: SCOPES },
+  {
+    key: "scope",
+    label: "Test scope",
+    allLabel: "All scopes",
+    options: SCOPES,
+  },
   {
     key: "status",
     label: "Status",
@@ -334,7 +339,9 @@ export default function Templates() {
     const next = t.status === "inactive" ? "active" : "inactive";
     try {
       await updateTemplate(t.id, { ...t, status: next }); // PUT /templates/:id
-      toast.success(next === "inactive" ? "Template deactivated." : "Template activated.");
+      toast.success(
+        next === "inactive" ? "Template deactivated." : "Template activated.",
+      );
       refresh();
     } catch (err) {
       toast.error(getErrorMessage(err, "Cannot change the template status."));
@@ -388,6 +395,7 @@ export default function Templates() {
       </FilterBar>
 
       {/* Table */}
+      {/* Table */}
       <DataTable
         rows={templates}
         loading={loading}
@@ -399,23 +407,24 @@ export default function Templates() {
         onViewChange={changeView}
         pageSize={10}
         rowClassName={(t) => (t.status === "inactive" ? "opacity-60" : "")}
+        onRowClick={(t) => setForm(toForm(t, !canEdit))}
+        rowKey={(t) => t.id}
         columns={[
           {
             key: "name",
             header: "Template name & description",
             card: "title",
+            sortable: true,
             render: (t) => (
-              <>
-                <button
-                  onClick={() => setForm(toForm(t, !canEdit))}
-                  className="font-medium text-gray-900 hover:text-brand-600 text-left block"
-                >
+              <div className="group cursor-pointer">
+                {/* 🌟 Dùng font-bold (hoặc font-semibold) và giữ group-hover để đổi màu tím */}
+                <span className="font-bold text-gray-900 block group-hover:text-brand-600 transition-colors">
                   {t.name}
-                </button>
-                <p className="text-xs text-gray-500 truncate max-w-md">
+                </span>
+                <p className="text-xs text-gray-500 truncate max-w-md mt-0.5">
                   {t.description || "No description"}
                 </p>
-                <p className="text-xs text-gray-400 font-mono">
+                <p className="text-xs text-gray-400 font-mono mt-1">
                   ID: {tplCode(t.id)}
                   {t.status === "inactive" && (
                     <span className="ml-2 px-2 py-0.5 bg-gray-200 text-gray-600 rounded font-sans">
@@ -423,12 +432,30 @@ export default function Templates() {
                     </span>
                   )}
                 </p>
-              </>
+              </div>
             ),
           },
-          { key: "scope", header: "Test scope", card: "badge", render: (t) => <StatusBadge status={t.scope} tone="brand" /> },
-          { key: "createdBy", header: "Created by", className: "text-gray-600", render: (t) => `User #${t.createdBy}` },
-          { key: "updatedAt", header: "Last updated", className: "text-gray-600", render: (t) => t.updatedAt },
+          {
+            key: "scope",
+            header: "Test scope",
+            sortable: true,
+            card: "badge",
+            render: (t) => <StatusBadge status={t.scope} tone="brand" />,
+          },
+          {
+            key: "createdBy",
+            header: "Created by",
+            sortable: true,
+            className: "text-gray-600",
+            render: (t) => `User #${t.createdBy}`,
+          },
+          {
+            key: "updatedAt",
+            header: "Last updated",
+            sortable: true,
+            className: "text-gray-600",
+            render: (t) => t.updatedAt,
+          },
           {
             key: "actions",
             header: "",
@@ -436,22 +463,45 @@ export default function Templates() {
             className: "whitespace-nowrap",
             render: (t) =>
               canEdit ? (
-                <>
-                  <IconButton icon={Copy} title="Duplicate" onClick={() => handleDuplicate(t)} />
-                  <IconButton icon={Pencil} title="Edit" onClick={() => setForm(toForm(t))} />
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1"
+                >
+                  <IconButton
+                    icon={Copy}
+                    title="Duplicate"
+                    onClick={() => handleDuplicate(t)}
+                  />
+                  <IconButton
+                    icon={Pencil}
+                    title="Edit"
+                    onClick={() => setForm(toForm(t))}
+                  />
                   <RowMenu
                     items={[
                       {
-                        label: t.status === "inactive" ? "Activate" : "Deactivate",
+                        label:
+                          t.status === "inactive" ? "Activate" : "Deactivate",
                         icon: t.status === "inactive" ? PowerOff : Power,
                         onClick: () => handleToggleStatus(t),
                       },
-                      { label: "Delete", icon: Trash2, onClick: () => setToDelete(t), danger: true },
+                      {
+                        label: "Delete",
+                        icon: Trash2,
+                        onClick: () => setToDelete(t),
+                        danger: true,
+                      },
                     ]}
                   />
-                </>
+                </div>
               ) : (
-                <IconButton icon={Eye} title="View" onClick={() => setForm(toForm(t, true))} />
+                <div onClick={(e) => e.stopPropagation()}>
+                  <IconButton
+                    icon={Eye}
+                    title="View"
+                    onClick={() => setForm(toForm(t, true))}
+                  />
+                </div>
               ),
           },
         ]}
@@ -483,7 +533,9 @@ export default function Templates() {
 
             <fieldset disabled={readOnly || saving} className="space-y-4">
               <div>
-                <label className={labelCls}>Template name <span className="text-red-500">*</span></label>
+                <label className={labelCls}>
+                  Template name <span className="text-red-500">*</span>
+                </label>
                 <input
                   className={inputCls}
                   value={form.name}
@@ -504,7 +556,9 @@ export default function Templates() {
               </div>
 
               <div>
-                <label className={labelCls}>Tests to run <span className="text-red-500">*</span></label>
+                <label className={labelCls}>
+                  Tests to run <span className="text-red-500">*</span>
+                </label>
                 <select
                   className={inputCls}
                   value={form.suiteId ?? ""}

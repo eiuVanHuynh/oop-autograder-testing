@@ -10,13 +10,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import {
-  Activity,
-  CheckCircle2,
-  Loader2,
-  XCircle,
-  Eye,
-} from "lucide-react";
+import { Activity, CheckCircle2, Loader2, XCircle, Eye } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
 import { canRunTest } from "../models/permissions";
@@ -28,11 +22,46 @@ import StatusBadge from "../components/ui/StatusBadge";
 
 // Cột của bảng "Recent test runs"; navigate truyền vào vì nút Report cần điều hướng.
 const RECENT_COLUMNS = (navigate) => [
-  { key: "id", header: "ID", className: "font-mono text-gray-500", render: (r) => `#${r.id}` },
-  { key: "name", header: "Name", card: "title", className: "font-medium text-gray-900", render: (r) => r.name },
-  { key: "runBy", header: "Run by", className: "text-gray-600", render: (r) => r.runBy },
-  { key: "executedAt", header: "Executed at", className: "text-gray-600", render: (r) => r.executedAt },
-  { key: "status", header: "Status", card: "badge", render: (r) => <StatusBadge status={r.status} /> },
+  {
+    key: "id",
+    header: "ID",
+    sortable: true,
+    className: "font-mono text-gray-500",
+    render: (r) => `#${r.id}`,
+  },
+  {
+    key: "name",
+    header: "Name",
+    sortable: true,
+    card: "title",
+    className: "font-medium text-gray-900",
+    render: (r) => (
+      <span className="group-hover:text-brand-600 transition-colors">
+        {r.name}
+      </span>
+    ),
+  },
+  {
+    key: "runBy",
+    header: "Run by",
+    sortable: true,
+    className: "text-gray-600",
+    render: (r) => r.runBy,
+  },
+  {
+    key: "executedAt",
+    header: "Executed at",
+    sortable: true,
+    className: "text-gray-600",
+    render: (r) => r.executedAt,
+  },
+  {
+    key: "status",
+    header: "Status",
+    sortable: true,
+    card: "badge",
+    render: (r) => <StatusBadge status={r.status} />,
+  },
   {
     key: "actions",
     header: "",
@@ -139,7 +168,7 @@ export default function Dashboard() {
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
         <h3 className="text-base font-semibold text-gray-800 mb-4">
-          Pass / Fail theo ngày
+          Pass / Fail by day (last 7 days)
         </h3>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
@@ -164,9 +193,13 @@ export default function Dashboard() {
         cards
         viewKey="dashboard"
         maxHeight="400px"
+        onRowClick={(r) => navigate(`/runs/${r.id}`)}
+        rowKey={(r) => r.id}
         toolbar={
           <div className="flex items-center gap-3">
-            <h3 className="text-base font-semibold text-gray-800">Recent test runs</h3>
+            <h3 className="text-base font-semibold text-gray-800">
+              Recent test runs
+            </h3>
             <button
               onClick={() => navigate("/history")}
               className="text-xs text-brand-600 font-medium hover:underline"

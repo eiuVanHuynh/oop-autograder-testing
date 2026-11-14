@@ -78,7 +78,6 @@ export default function History() {
     getRuns()
       .then((data) => {
         setTestRuns(data);
-        setSelectedRun(data[0] || null);
       })
       .catch((e) => toast.error(getErrorMessage(e, "Cannot load test runs.")))
       .finally(() => setLoading(false));
@@ -116,48 +115,62 @@ export default function History() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT: Danh sách lịch sử chạy test – xem dạng bảng hoặc dạng thẻ */}
-        <div className="lg:col-span-7">
+        <div className="lg:col-span-12">
           <DataTable
             rows={shown}
             loading={loading}
-            empty={testRuns.length === 0 ? "No test runs yet." : "No run matches this filter."}
+            empty={
+              testRuns.length === 0
+                ? "No test runs yet."
+                : "No run matches this filter."
+            }
             emptyIcon={HistoryIcon}
             maxHeight="500px"
             pageSize={8}
             view={view}
             onViewChange={changeView}
             rowKey={(run) => run.id}
-            onRowClick={setSelectedRun}
-            rowClassName={(run) => (selectedRun?.id === run.id ? "bg-brand-50/60" : "")}
+            onRowClick={(run) => navigate(`/runs/${run.id}`)}
+            rowClassName={(run) =>
+              selectedRun?.id === run.id ? "bg-brand-50/60" : ""
+            }
             toolbar={
               <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
-                <HistoryIcon size={18} className="text-brand-600" /> Past Test Runs
+                <HistoryIcon size={18} className="text-brand-600" /> Past Test
+                Runs
               </h3>
             }
             columns={[
               {
                 key: "status",
                 header: "Status",
+                sortable: true,
                 render: (run) => (
                   <StatusBadge
                     status={run.status}
-                    icon={run.status === "PASSED" ? CheckCircle2 : AlertTriangle}
+                    icon={
+                      run.status === "PASSED" ? CheckCircle2 : AlertTriangle
+                    }
                   />
                 ),
               },
               {
                 key: "name",
                 header: "Run",
+                sortable: true,
                 render: (run) => (
-                  <>
-                    <p className="font-semibold text-gray-900">{run.name}</p>
+                  <div className="group cursor-pointer">
+                    <p className="font-semibold text-gray-900 group-hover:text-brand-600 transition">
+                      {run.name}
+                    </p>
                     <p className="text-xs text-gray-400 font-mono">#{run.id}</p>
-                  </>
+                  </div>
                 ),
               },
               {
                 key: "env",
                 header: "Env",
+                sortable: true,
                 render: (run) => (
                   <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
                     {run.environment}
@@ -166,12 +179,14 @@ export default function History() {
               },
               {
                 key: "executedAt",
+                sortable: true,
                 header: "Executed at",
                 className: "text-xs text-gray-500 whitespace-nowrap",
                 render: (run) => run.executedAt,
               },
               {
                 key: "duration",
+                sortable: true,
                 header: "Duration",
                 className: "text-xs text-gray-500",
                 render: (run) => run.duration ?? "—",
@@ -181,14 +196,13 @@ export default function History() {
                 header: "",
                 align: "right",
                 render: (run) => (
-                  <IconButton
-                    icon={Eye}
-                    title="Open full report"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/runs/${run.id}`);
-                    }}
-                  />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <IconButton
+                      icon={Eye}
+                      title="Open full report"
+                      onClick={() => navigate(`/runs/${run.id}`)}
+                    />
+                  </div>
                 ),
               },
             ]}
@@ -203,14 +217,20 @@ export default function History() {
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge
                     status={run.status}
-                    icon={run.status === "PASSED" ? CheckCircle2 : AlertTriangle}
+                    icon={
+                      run.status === "PASSED" ? CheckCircle2 : AlertTriangle
+                    }
                   />
-                  <span className="text-xs text-gray-400 font-mono">#{run.id}</span>
+                  <span className="text-xs text-gray-400 font-mono">
+                    #{run.id}
+                  </span>
                   <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
                     {run.environment}
                   </span>
                 </div>
-                <h4 className="text-sm font-semibold text-gray-900 mt-2 break-words">{run.name}</h4>
+                <h4 className="text-sm font-semibold text-gray-900 mt-2 break-words">
+                  {run.name}
+                </h4>
                 <p className="text-xs text-gray-500 flex flex-wrap items-center gap-x-2 mt-1">
                   <span>
                     <Calendar size={12} className="inline mr-1" />
@@ -238,7 +258,7 @@ export default function History() {
         </div>
 
         {/* RIGHT: Bảng Preview Report nhanh ngay tại History */}
-        <div className="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between">
+        {/* <div className="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between">
           {selectedRun ? (
             <div className="space-y-6">
               <div className="flex items-center justify-between pb-4 border-b border-gray-100">
@@ -250,7 +270,10 @@ export default function History() {
                     Run #{selectedRun.id}
                   </h3>
                 </div>
-                <StatusBadge status={selectedRun.status} className="px-3 py-1" />
+                <StatusBadge
+                  status={selectedRun.status}
+                  className="px-3 py-1"
+                />
               </div>
 
               <div>
@@ -266,11 +289,11 @@ export default function History() {
                 <p className="text-xs text-gray-500 mt-0.5">
                   Executed at: {selectedRun.executedAt}
                 </p>
-              </div>
+              </div> */}
 
-              {/* Chỉ các trường GET /runs thật sự trả về. Số case passed/failed nằm ở
+        {/* Chỉ các trường GET /runs thật sự trả về. Số case passed/failed nằm ở
                   bảng test_results nhưng chưa có endpoint nào đọc -> không hiển thị. */}
-              <div className="grid grid-cols-3 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">
+        {/* <div className="grid grid-cols-3 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">
                 <div>
                   <p className="text-xs text-gray-500">Planned</p>
                   <p className="text-base font-bold text-gray-900">
@@ -289,15 +312,14 @@ export default function History() {
                     {selectedRun.runBy}
                   </p>
                 </div>
-              </div>
+              </div> */}
 
-              {/* Nút hành động chuyển đến trang chi tiết Report đầy đủ */}
-              <button
+        {/* Nút hành động chuyển đến trang chi tiết Report đầy đủ */}
+        {/* <button
                 onClick={() => navigate(`/runs/${selectedRun.id}`)}
                 className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-brand-500/25 flex items-center justify-center gap-2 transition cursor-pointer"
               >
-                <span>View Full Report</span>{" "}
-                <ArrowRight size={16} />
+                <span>View Full Report</span> <ArrowRight size={16} />
               </button>
             </div>
           ) : (
@@ -308,7 +330,7 @@ export default function History() {
               </p>
             </div>
           )}
-        </div>
+        </div> */}
       </div>
     </div>
   );
