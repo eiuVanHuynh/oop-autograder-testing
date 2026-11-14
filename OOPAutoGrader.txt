@@ -1,0 +1,1128 @@
+CREATE SCHEMA "public";
+CREATE SCHEMA "neon_auth";
+CREATE TYPE "assertion_kind" AS ENUM('RETURN_VALUE', 'FIELD_STATE', 'STDOUT', 'EXCEPTION');
+CREATE TYPE "comparison_mode" AS ENUM('EXACT', 'TRIMMED', 'NORMALIZED_WHITESPACE', 'VALUE_ONLY', 'NUMERIC_VALUE');
+CREATE TYPE "invocation_kind" AS ENUM('CONSTRUCTOR', 'METHOD');
+CREATE TYPE "testcase_result_status" AS ENUM('PASSED', 'FAILED', 'ERROR', 'SKIPPED');
+CREATE TYPE "testcase_type" AS ENUM('UNIT', 'COMPOSITION');
+CREATE ROLE "cloud_admin" WITH SUPERUSER CREATEDB CREATEROLE LOGIN REPLICATION BYPASSRLS;
+CREATE ROLE "neon_auth" WITH NOINHERIT LOGIN;
+CREATE ROLE "neon_service" WITH CREATEDB CREATEROLE LOGIN REPLICATION BYPASSRLS;
+CREATE ROLE "neon_superuser" WITH CREATEDB CREATEROLE REPLICATION BYPASSRLS;
+CREATE ROLE "neondb_owner" WITH CREATEDB CREATEROLE LOGIN REPLICATION BYPASSRLS;
+CREATE ROLE "pg_checkpoint";
+CREATE ROLE "pg_create_subscription";
+CREATE ROLE "pg_database_owner";
+CREATE ROLE "pg_execute_server_program";
+CREATE ROLE "pg_maintain";
+CREATE ROLE "pg_monitor";
+CREATE ROLE "pg_read_all_data";
+CREATE ROLE "pg_read_all_settings";
+CREATE ROLE "pg_read_all_stats";
+CREATE ROLE "pg_read_server_files";
+CREATE ROLE "pg_signal_autovacuum_worker";
+CREATE ROLE "pg_signal_backend";
+CREATE ROLE "pg_stat_scan_tables";
+CREATE ROLE "pg_use_reserved_connections";
+CREATE ROLE "pg_write_all_data";
+CREATE ROLE "pg_write_server_files";
+CREATE ROLE "token_roles";
+GRANT REFERENCES ON "neon_auth"."account" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "neon_auth"."account" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "neon_auth"."invitation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "neon_auth"."invitation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "neon_auth"."jwks" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "neon_auth"."jwks" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "neon_auth"."member" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "neon_auth"."member" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "neon_auth"."organization" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "neon_auth"."organization" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "neon_auth"."project_config" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "neon_auth"."project_config" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "neon_auth"."session" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "neon_auth"."session" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "neon_auth"."user" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "neon_auth"."user" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "neon_auth"."verification" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "neon_auth"."verification" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "academic_years" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "academic_years" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "academic_years" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "academic_years" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "academic_years" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "academic_years" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "academic_years" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "challenge" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "challenge" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "challenge" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "challenge" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "challenge" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "challenge" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "challenge" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "class_entity" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "class_entity" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "class_entity" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "class_entity" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "class_entity" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "class_entity" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "class_entity" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "class_relation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "class_relation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "class_relation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "class_relation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "class_relation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "class_relation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "class_relation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "constructor" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "constructor" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "constructor" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "constructor" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "constructor" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "constructor" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "constructor" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "constructor_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "constructor_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "constructor_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "constructor_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "constructor_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "constructor_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "constructor_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "feedback_attachment" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "feedback_attachment" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "feedback_attachment" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "feedback_attachment" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "feedback_attachment" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "feedback_attachment" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "feedback_attachment" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "feedback_item" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "feedback_item" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "feedback_item" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "feedback_item" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "feedback_item" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "feedback_item" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "feedback_item" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "field" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "field" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "field" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "field" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "field" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "field" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "field" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "field_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "field_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "field_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "field_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "field_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "field_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "field_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "field_declaration_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "field_declaration_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "field_declaration_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "field_declaration_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "field_declaration_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "field_declaration_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "field_declaration_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "field_declaration_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "field_declaration_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "field_declaration_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "field_declaration_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "field_declaration_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "field_declaration_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "field_declaration_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "lab" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "lab" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "lab" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "lab" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "lab" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "lab" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "lab" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "lab_deadline_email_sent" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "lab_deadline_email_sent" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "lab_deadline_email_sent" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "lab_deadline_email_sent" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "lab_deadline_email_sent" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "lab_deadline_email_sent" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "lab_deadline_email_sent" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "lab_submission" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "lab_submission" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "lab_submission" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "lab_submission" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "lab_submission" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "lab_submission" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "lab_submission" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "master_data" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "master_data" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "master_data" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "master_data" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "master_data" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "master_data" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "master_data" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "method" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "method" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "method" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "method" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "method" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "method" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "method" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "method_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "method_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "method_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "method_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "method_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "method_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "method_declaration" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "method_declaration_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "method_declaration_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "method_declaration_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "method_declaration_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "method_declaration_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "method_declaration_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "method_declaration_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "method_declaration_return_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "method_declaration_return_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "method_declaration_return_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "method_declaration_return_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "method_declaration_return_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "method_declaration_return_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "method_declaration_return_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "parameter" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "parameter" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "parameter" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "parameter" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "parameter" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "parameter" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "parameter" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "parameter_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "parameter_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "parameter_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "parameter_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "parameter_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "parameter_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "parameter_name_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "parameter_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "parameter_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "parameter_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "parameter_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "parameter_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "parameter_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "parameter_type_alias" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "password_reset_token" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "password_reset_token" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "password_reset_token" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "password_reset_token" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "password_reset_token" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "password_reset_token" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "password_reset_token" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "role" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "role" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "role" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "role" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "role" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "role" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "role" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "student_daily_streak" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "student_daily_streak" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "student_daily_streak" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "student_daily_streak" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "student_daily_streak" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "student_daily_streak" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "student_daily_streak" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "student_lab_progress" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "student_lab_progress" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "student_lab_progress" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "student_lab_progress" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "student_lab_progress" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "student_lab_progress" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "student_lab_progress" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "student_mascot_practice_revoked_jti" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "student_mascot_practice_revoked_jti" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "student_mascot_practice_revoked_jti" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "student_mascot_practice_revoked_jti" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "student_mascot_practice_revoked_jti" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "student_mascot_practice_revoked_jti" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "student_mascot_practice_revoked_jti" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "student_mascot_practice_token" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "student_mascot_practice_token" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "student_mascot_practice_token" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "student_mascot_practice_token" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "student_mascot_practice_token" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "student_mascot_practice_token" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "student_mascot_practice_token" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "student_mascot_purchase" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "student_mascot_purchase" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "student_mascot_purchase" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "student_mascot_purchase" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "student_mascot_purchase" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "student_mascot_purchase" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "student_mascot_purchase" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "submission_challenge_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "submission_challenge_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "submission_challenge_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "submission_challenge_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "submission_challenge_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "submission_challenge_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "submission_challenge_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "submission_constructor_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "submission_constructor_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "submission_constructor_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "submission_constructor_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "submission_constructor_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "submission_constructor_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "submission_constructor_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "submission_field_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "submission_field_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "submission_field_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "submission_field_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "submission_field_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "submission_field_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "submission_field_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "submission_method_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "submission_method_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "submission_method_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "submission_method_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "submission_method_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "submission_method_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "submission_method_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "submission_plagiarism_fingerprint" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "submission_plagiarism_fingerprint" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "submission_plagiarism_fingerprint" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "submission_plagiarism_fingerprint" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "submission_plagiarism_fingerprint" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "submission_plagiarism_fingerprint" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "submission_plagiarism_fingerprint" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "submission_plagiarism_match" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "submission_plagiarism_match" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "submission_plagiarism_match" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "submission_plagiarism_match" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "submission_plagiarism_match" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "submission_plagiarism_match" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "submission_plagiarism_match" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "submission_relation_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "submission_relation_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "submission_relation_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "submission_relation_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "submission_relation_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "submission_relation_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "submission_relation_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "submission_testcase_assertion_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "submission_testcase_assertion_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "submission_testcase_assertion_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "submission_testcase_assertion_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "submission_testcase_assertion_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "submission_testcase_assertion_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "submission_testcase_assertion_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "submission_testcase_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "submission_testcase_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "submission_testcase_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "submission_testcase_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "submission_testcase_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "submission_testcase_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "submission_testcase_result" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "term" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "term" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "term" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "term" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "term" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "term" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "term" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "term_enrollment" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "term_enrollment" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "term_enrollment" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "term_enrollment" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "term_enrollment" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "term_enrollment" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "term_enrollment" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "testcase" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "testcase" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "testcase" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "testcase" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "testcase" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "testcase" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "testcase" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "testcase_assertion" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "testcase_assertion" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "testcase_assertion" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "testcase_assertion" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "testcase_assertion" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "testcase_assertion" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "testcase_assertion" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "testcase_invocation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "testcase_invocation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "testcase_invocation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "testcase_invocation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "testcase_invocation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "testcase_invocation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "testcase_invocation" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "user_account" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "user_account" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "user_account" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "user_account" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "user_account" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "user_account" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "user_account" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "user_role" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "user_role" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "user_role" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "user_role" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "user_role" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "user_role" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "user_role" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "weekly_ranking_entry" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "weekly_ranking_entry" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "weekly_ranking_entry" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "weekly_ranking_entry" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "weekly_ranking_entry" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "weekly_ranking_entry" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "weekly_ranking_entry" TO "neondb_owner" WITH GRANT OPTION;
+GRANT SELECT ON "weekly_ranking_week" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRIGGER ON "weekly_ranking_week" TO "neondb_owner" WITH GRANT OPTION;
+GRANT REFERENCES ON "weekly_ranking_week" TO "neondb_owner" WITH GRANT OPTION;
+GRANT TRUNCATE ON "weekly_ranking_week" TO "neondb_owner" WITH GRANT OPTION;
+GRANT DELETE ON "weekly_ranking_week" TO "neondb_owner" WITH GRANT OPTION;
+GRANT UPDATE ON "weekly_ranking_week" TO "neondb_owner" WITH GRANT OPTION;
+GRANT INSERT ON "weekly_ranking_week" TO "neondb_owner" WITH GRANT OPTION;
+CREATE TABLE "academic_years" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"year_label" text NOT NULL CONSTRAINT "academic_years_year_label_key" UNIQUE,
+	"start_date" date,
+	"end_date" date
+);
+ALTER TABLE "academic_years" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "challenge" (
+	"id" uuid PRIMARY KEY,
+	"name" text NOT NULL,
+	"lab_id" uuid NOT NULL,
+	"challenge_number" integer NOT NULL,
+	"has_mmd" boolean DEFAULT true NOT NULL,
+	"weight" integer DEFAULT 1 NOT NULL,
+	"class_weight" integer DEFAULT 1 NOT NULL,
+	"mmd_weight" integer DEFAULT 1 NOT NULL,
+	"testcase_weight" integer DEFAULT 1 NOT NULL,
+	"has_class" boolean DEFAULT true NOT NULL,
+	CONSTRAINT "challenge_lab_id_challenge_number_key" UNIQUE("lab_id","challenge_number"),
+	CONSTRAINT "challenge_class_weight_positive" CHECK ((class_weight >= 1)),
+	CONSTRAINT "challenge_mmd_weight_positive" CHECK ((mmd_weight >= 1)),
+	CONSTRAINT "challenge_testcase_weight_positive" CHECK ((testcase_weight >= 1)),
+	CONSTRAINT "challenge_weight_positive" CHECK ((weight >= 1))
+);
+ALTER TABLE "challenge" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "class_entity" (
+	"id" uuid PRIMARY KEY,
+	"name" text NOT NULL,
+	"challenge_id" uuid NOT NULL,
+	"scope" integer NOT NULL,
+	"declaring_type" integer NOT NULL,
+	"outer_class_id" uuid,
+	"is_abstract" boolean DEFAULT false NOT NULL,
+	"is_static" boolean DEFAULT false NOT NULL,
+	"weight" integer DEFAULT 1 NOT NULL,
+	CONSTRAINT "class_entity_weight_positive" CHECK ((weight >= 1))
+);
+ALTER TABLE "class_entity" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "class_relation" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"class_id" uuid NOT NULL,
+	"target_class_id" uuid NOT NULL,
+	"relation_type" integer NOT NULL
+);
+ALTER TABLE "class_relation" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "constructor" (
+	"id" uuid PRIMARY KEY,
+	"class_id" uuid NOT NULL,
+	"constructor_declaration_id" uuid NOT NULL,
+	"name" text NOT NULL
+);
+ALTER TABLE "constructor" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "constructor_declaration" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"name" text NOT NULL,
+	"scope" integer NOT NULL,
+	"is_default" boolean DEFAULT false NOT NULL
+);
+ALTER TABLE "constructor_declaration" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "feedback_attachment" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"feedback_item_id" uuid NOT NULL,
+	"original_filename" text NOT NULL,
+	"stored_content_type" text NOT NULL,
+	"byte_size" integer NOT NULL,
+	"content" bytea NOT NULL
+);
+ALTER TABLE "feedback_attachment" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "feedback_item" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"user_id" uuid NOT NULL,
+	"author_irn" text NOT NULL,
+	"author_name" text NOT NULL,
+	"item_type" text NOT NULL,
+	"message" text NOT NULL,
+	"status" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"resolved_at" timestamp with time zone,
+	"lecturer_response" text,
+	"response_at" timestamp with time zone,
+	"archived_at" timestamp with time zone,
+	CONSTRAINT "feedback_item_status_chk" CHECK ((status = ANY (ARRAY['OPEN'::text, 'RESOLVED'::text]))),
+	CONSTRAINT "feedback_item_type_chk" CHECK ((item_type = ANY (ARRAY['BUG'::text, 'CONTRIBUTION'::text])))
+);
+ALTER TABLE "feedback_item" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "field" (
+	"id" uuid PRIMARY KEY,
+	"class_id" uuid NOT NULL,
+	"field_declaration_id" uuid NOT NULL,
+	"name" text NOT NULL
+);
+ALTER TABLE "field" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "field_declaration" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"name" text NOT NULL,
+	"data_type" text,
+	"scope" integer,
+	"is_static" boolean DEFAULT false NOT NULL,
+	"is_final" boolean DEFAULT false NOT NULL
+);
+ALTER TABLE "field_declaration" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "field_declaration_name_alias" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"field_declaration_id" uuid NOT NULL,
+	"value" text NOT NULL,
+	"order_index" integer NOT NULL,
+	CONSTRAINT "field_declaration_name_alias_field_declaration_id_order_ind_key" UNIQUE("field_declaration_id","order_index")
+);
+CREATE TABLE "field_declaration_type_alias" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"field_declaration_id" uuid NOT NULL,
+	"value" text,
+	"order_index" integer NOT NULL,
+	CONSTRAINT "field_declaration_type_alias_field_declaration_id_order_ind_key" UNIQUE("field_declaration_id","order_index")
+);
+CREATE TABLE "lab" (
+	"id" uuid PRIMARY KEY,
+	"name" text NOT NULL,
+	"term_id" uuid NOT NULL,
+	"deadline_date" date,
+	"student_visible" boolean DEFAULT true NOT NULL,
+	"release_date" date,
+	"prefix" varchar(16) DEFAULT 'Official' NOT NULL
+);
+ALTER TABLE "lab" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "lab_deadline_email_sent" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"lab_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"threshold_hours" smallint NOT NULL,
+	"sent_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "lab_deadline_email_sent_lab_id_user_id_threshold_hours_key" UNIQUE("lab_id","user_id","threshold_hours"),
+	CONSTRAINT "lab_deadline_email_sent_threshold_hours_check" CHECK ((threshold_hours = ANY (ARRAY[72, 24])))
+);
+ALTER TABLE "lab_deadline_email_sent" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "lab_submission" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"user_id" uuid NOT NULL,
+	"lab_id" uuid NOT NULL,
+	"attempt_number" integer NOT NULL,
+	"score" numeric(6, 2) DEFAULT '0' NOT NULL,
+	"submitted_at" timestamp with time zone NOT NULL,
+	"desktop_pack_version" varchar(255),
+	"mmd_score" numeric(6, 2),
+	"declaration_score" numeric(6, 2),
+	"operational_score" numeric(6, 2),
+	CONSTRAINT "lab_submission_user_lab_attempt_key" UNIQUE("user_id","lab_id","attempt_number")
+);
+ALTER TABLE "lab_submission" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "master_data" (
+	"id" integer PRIMARY KEY,
+	"name" text NOT NULL,
+	"category" text DEFAULT 'UNSPECIFIED' NOT NULL
+);
+ALTER TABLE "master_data" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "method" (
+	"id" uuid PRIMARY KEY,
+	"class_id" uuid NOT NULL,
+	"method_declaration_id" uuid NOT NULL,
+	"name" text NOT NULL
+);
+ALTER TABLE "method" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "method_declaration" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"name" text NOT NULL,
+	"scope" integer NOT NULL,
+	"return_type" text NOT NULL,
+	"is_static" boolean DEFAULT false NOT NULL,
+	"is_abstract" boolean DEFAULT false NOT NULL,
+	"is_final" boolean DEFAULT false NOT NULL
+);
+ALTER TABLE "method_declaration" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "method_declaration_name_alias" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"method_declaration_id" uuid NOT NULL,
+	"value" text NOT NULL,
+	"order_index" integer NOT NULL,
+	CONSTRAINT "method_declaration_name_alias_method_declaration_id_order_i_key" UNIQUE("method_declaration_id","order_index")
+);
+CREATE TABLE "method_declaration_return_type_alias" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"method_declaration_id" uuid NOT NULL,
+	"value" text NOT NULL,
+	"order_index" integer NOT NULL,
+	CONSTRAINT "method_declaration_return_typ_method_declaration_id_order_i_key" UNIQUE("method_declaration_id","order_index")
+);
+CREATE TABLE "parameter" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"method_id" uuid,
+	"constructor_id" uuid,
+	"name" text NOT NULL,
+	"data_type" text NOT NULL,
+	"order_index" integer NOT NULL,
+	"is_final" boolean DEFAULT false NOT NULL
+);
+ALTER TABLE "parameter" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "parameter_name_alias" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"parameter_id" uuid NOT NULL,
+	"value" text NOT NULL,
+	"order_index" integer NOT NULL,
+	CONSTRAINT "parameter_name_alias_parameter_id_order_index_key" UNIQUE("parameter_id","order_index")
+);
+CREATE TABLE "parameter_type_alias" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"parameter_id" uuid NOT NULL,
+	"value" text NOT NULL,
+	"order_index" integer NOT NULL,
+	CONSTRAINT "parameter_type_alias_parameter_id_order_index_key" UNIQUE("parameter_id","order_index")
+);
+CREATE TABLE "password_reset_token" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"user_id" uuid NOT NULL,
+	"token_hash" varchar(64) NOT NULL CONSTRAINT "password_reset_token_token_hash_key" UNIQUE,
+	"expires_at" timestamp with time zone NOT NULL,
+	"used_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE "password_reset_token" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "role" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"name" text NOT NULL CONSTRAINT "role_name_key" UNIQUE
+);
+ALTER TABLE "role" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "student_daily_streak" (
+	"user_id" uuid PRIMARY KEY,
+	"streak_count" integer DEFAULT 0 NOT NULL,
+	"points" integer DEFAULT 0 NOT NULL,
+	"last_completed_on" date,
+	"mission_date" date,
+	"logged_in" boolean DEFAULT false NOT NULL,
+	"submit_count" integer DEFAULT 0 NOT NULL,
+	"pet_count" integer DEFAULT 0 NOT NULL,
+	"awarded_today" boolean DEFAULT false NOT NULL,
+	"streak_broken" boolean DEFAULT false NOT NULL,
+	"saved_streak" integer DEFAULT 0 NOT NULL,
+	"restore_year_month" varchar(7),
+	"equipped_mascot" varchar(32) DEFAULT 'fox' NOT NULL,
+	"gacha_tickets" integer DEFAULT 0 NOT NULL,
+	"mission_tickets_awarded" integer DEFAULT 0 NOT NULL,
+	"gacha_launch_gift" boolean DEFAULT false NOT NULL,
+	"crystals" integer DEFAULT 0 NOT NULL
+);
+ALTER TABLE "student_daily_streak" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "student_lab_progress" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"user_id" uuid NOT NULL,
+	"lab_id" uuid NOT NULL,
+	"highest_score" numeric(6, 2) DEFAULT '0' NOT NULL,
+	"attempts_count" integer DEFAULT 0 NOT NULL,
+	"best_submission_id" uuid,
+	"first_submitted_at" timestamp with time zone,
+	"last_submitted_at" timestamp with time zone,
+	CONSTRAINT "student_lab_progress_user_lab_key" UNIQUE("user_id","lab_id")
+);
+ALTER TABLE "student_lab_progress" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "student_mascot_practice_revoked_jti" (
+	"jti" varchar(64) PRIMARY KEY,
+	"revoked_at" timestamp with time zone NOT NULL
+);
+CREATE TABLE "student_mascot_practice_token" (
+	"user_id" uuid PRIMARY KEY,
+	"jti" varchar(64) NOT NULL,
+	"compact_token" varchar(2048) NOT NULL,
+	"expires_at" timestamp with time zone NOT NULL,
+	"created_at" timestamp with time zone NOT NULL,
+	"used_at" timestamp with time zone
+);
+CREATE TABLE "student_mascot_purchase" (
+	"user_id" uuid,
+	"mascot_id" varchar(32),
+	"price_paid" integer NOT NULL,
+	"purchased_at" timestamp with time zone NOT NULL,
+	CONSTRAINT "student_mascot_purchase_pkey" PRIMARY KEY("user_id","mascot_id")
+);
+ALTER TABLE "student_mascot_purchase" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "submission_challenge_result" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"submission_id" uuid NOT NULL,
+	"challenge_id" uuid NOT NULL,
+	"is_correct" boolean DEFAULT false NOT NULL,
+	"score" numeric(6, 2) DEFAULT '0' NOT NULL,
+	"mmd_outcomes" jsonb,
+	"mmd_score" numeric(6, 2),
+	"declaration_score" numeric(6, 2),
+	"operational_score" numeric(6, 2),
+	CONSTRAINT "submission_challenge_result_key" UNIQUE("submission_id","challenge_id")
+);
+ALTER TABLE "submission_challenge_result" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "submission_constructor_result" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"submission_id" uuid NOT NULL,
+	"constructor_id" uuid NOT NULL,
+	"is_correct" boolean DEFAULT false NOT NULL,
+	CONSTRAINT "submission_constructor_result_key" UNIQUE("submission_id","constructor_id")
+);
+ALTER TABLE "submission_constructor_result" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "submission_field_result" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"submission_id" uuid NOT NULL,
+	"field_id" uuid NOT NULL,
+	"is_correct" boolean DEFAULT false NOT NULL,
+	CONSTRAINT "submission_field_result_key" UNIQUE("submission_id","field_id")
+);
+ALTER TABLE "submission_field_result" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "submission_method_result" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"submission_id" uuid NOT NULL,
+	"method_id" uuid NOT NULL,
+	"is_correct" boolean DEFAULT false NOT NULL,
+	CONSTRAINT "submission_method_result_key" UNIQUE("submission_id","method_id")
+);
+ALTER TABLE "submission_method_result" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "submission_plagiarism_fingerprint" (
+	"submission_id" uuid PRIMARY KEY,
+	"lab_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"git_commit_hashes" text,
+	"metadata_canonical" text,
+	"file_hashes" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE "submission_plagiarism_fingerprint" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "submission_plagiarism_match" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"lab_id" uuid NOT NULL,
+	"submission_id" uuid NOT NULL,
+	"other_submission_id" uuid NOT NULL,
+	"git_match" boolean DEFAULT false NOT NULL,
+	"metadata_match" boolean DEFAULT false NOT NULL,
+	"hash_similarity" numeric(5, 2) DEFAULT '0' NOT NULL,
+	"flagged" boolean DEFAULT false NOT NULL,
+	CONSTRAINT "submission_plagiarism_match_submission_id_other_submission__key" UNIQUE("submission_id","other_submission_id")
+);
+ALTER TABLE "submission_plagiarism_match" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "submission_relation_result" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"submission_id" uuid NOT NULL,
+	"class_relation_id" uuid NOT NULL,
+	"is_correct" boolean DEFAULT false NOT NULL,
+	CONSTRAINT "submission_relation_result_key" UNIQUE("submission_id","class_relation_id")
+);
+ALTER TABLE "submission_relation_result" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "submission_testcase_assertion_result" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"submission_testcase_result_id" uuid NOT NULL,
+	"testcase_assertion_id" uuid NOT NULL,
+	"result" testcase_result_status NOT NULL,
+	"actual_value" jsonb,
+	"feedback" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "submission_testcase_assertion_result_key" UNIQUE("submission_testcase_result_id","testcase_assertion_id")
+);
+ALTER TABLE "submission_testcase_assertion_result" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "submission_testcase_result" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"submission_id" uuid NOT NULL,
+	"testcase_id" uuid NOT NULL,
+	"result" testcase_result_status NOT NULL,
+	"feedback" text,
+	"input_display" text,
+	"expected_display" text,
+	"actual_display" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "submission_testcase_result_key" UNIQUE("submission_id","testcase_id")
+);
+ALTER TABLE "submission_testcase_result" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "term" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"academic_year_id" uuid NOT NULL,
+	"term_number" integer NOT NULL,
+	"start_date" date,
+	"end_date" date,
+	"is_current" boolean DEFAULT false NOT NULL
+);
+ALTER TABLE "term" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "term_enrollment" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"user_id" uuid NOT NULL,
+	"term_id" uuid NOT NULL,
+	CONSTRAINT "term_enrollment_user_term_key" UNIQUE("user_id","term_id")
+);
+ALTER TABLE "term_enrollment" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "testcase" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"challenge_id" uuid NOT NULL,
+	"testcase_type" testcase_type NOT NULL,
+	"name" text NOT NULL,
+	"order_index" integer DEFAULT 0 NOT NULL,
+	"is_hidden" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE "testcase" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "testcase_assertion" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"testcase_id" uuid NOT NULL,
+	"invocation_id" uuid,
+	"assertion_kind" assertion_kind NOT NULL,
+	"field_id" uuid,
+	"expected_value" jsonb NOT NULL,
+	"comparison_mode" comparison_mode DEFAULT 'EXACT' NOT NULL,
+	"order_index" integer DEFAULT 0 NOT NULL,
+	CONSTRAINT "testcase_assertion_field_check" CHECK ((((assertion_kind = 'FIELD_STATE'::assertion_kind) AND (field_id IS NOT NULL)) OR ((assertion_kind <> 'FIELD_STATE'::assertion_kind) AND (field_id IS NULL))))
+);
+ALTER TABLE "testcase_assertion" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "testcase_invocation" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"testcase_id" uuid NOT NULL,
+	"invocation_kind" invocation_kind NOT NULL,
+	"constructor_id" uuid,
+	"method_id" uuid,
+	"params" jsonb DEFAULT '[]' NOT NULL,
+	"receiver_constructor_id" uuid,
+	"receiver_params" jsonb DEFAULT '[]' NOT NULL,
+	"order_index" integer DEFAULT 0 NOT NULL,
+	"instance_name" text,
+	"dispatch_class_id" uuid,
+	"repeat_count" integer NOT NULL,
+	CONSTRAINT "testcase_invocation_testcase_id_order_index_key" UNIQUE("testcase_id","order_index"),
+	CONSTRAINT "testcase_invocation_kind_check" CHECK ((((invocation_kind = 'CONSTRUCTOR'::invocation_kind) AND (method_id IS NULL) AND ((constructor_id IS NOT NULL) OR ((constructor_id IS NULL) AND (dispatch_class_id IS NOT NULL)))) OR ((invocation_kind = 'METHOD'::invocation_kind) AND (method_id IS NOT NULL) AND (constructor_id IS NULL))))
+);
+ALTER TABLE "testcase_invocation" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "user_account" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"student_code" text CONSTRAINT "user_account_student_code_key" UNIQUE,
+	"teacher_code" text CONSTRAINT "user_account_teacher_code_key" UNIQUE,
+	"full_name" text NOT NULL,
+	"email" text NOT NULL CONSTRAINT "user_account_email_key" UNIQUE,
+	"password_hash" text NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"session_version" integer DEFAULT 0 NOT NULL,
+	"create_at" timestamp with time zone
+);
+ALTER TABLE "user_account" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "user_role" (
+	"user_id" uuid,
+	"role_id" uuid,
+	CONSTRAINT "user_role_pkey" PRIMARY KEY("user_id","role_id")
+);
+ALTER TABLE "user_role" ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "weekly_ranking_entry" (
+	"week_end" timestamp with time zone,
+	"user_id" uuid,
+	"rank" integer NOT NULL,
+	"total" numeric(10, 2) NOT NULL,
+	"gift_points" integer NOT NULL,
+	"gift_tickets" integer DEFAULT 0 NOT NULL,
+	CONSTRAINT "weekly_ranking_entry_pkey" PRIMARY KEY("week_end","user_id")
+);
+CREATE TABLE "weekly_ranking_week" (
+	"week_end" timestamp with time zone PRIMARY KEY,
+	"paid_at" timestamp with time zone
+);
+CREATE TABLE "neon_auth"."account" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"accountId" text NOT NULL,
+	"providerId" text NOT NULL,
+	"userId" uuid NOT NULL,
+	"accessToken" text,
+	"refreshToken" text,
+	"idToken" text,
+	"accessTokenExpiresAt" timestamp with time zone,
+	"refreshTokenExpiresAt" timestamp with time zone,
+	"scope" text,
+	"password" text,
+	"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	"updatedAt" timestamp with time zone NOT NULL
+);
+CREATE TABLE "neon_auth"."invitation" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"organizationId" uuid NOT NULL,
+	"email" text NOT NULL,
+	"role" text,
+	"status" text NOT NULL,
+	"expiresAt" timestamp with time zone NOT NULL,
+	"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	"inviterId" uuid NOT NULL
+);
+CREATE TABLE "neon_auth"."jwks" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"publicKey" text NOT NULL,
+	"privateKey" text NOT NULL,
+	"createdAt" timestamp with time zone NOT NULL,
+	"expiresAt" timestamp with time zone,
+	"alg" text,
+	"crv" text
+);
+CREATE TABLE "neon_auth"."member" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"organizationId" uuid NOT NULL,
+	"userId" uuid NOT NULL,
+	"role" text NOT NULL,
+	"createdAt" timestamp with time zone NOT NULL
+);
+CREATE TABLE "neon_auth"."organization" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"name" text NOT NULL,
+	"slug" text NOT NULL CONSTRAINT "organization_slug_key" UNIQUE,
+	"logo" text,
+	"createdAt" timestamp with time zone NOT NULL,
+	"metadata" text
+);
+CREATE TABLE "neon_auth"."project_config" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"name" text NOT NULL,
+	"endpoint_id" text NOT NULL CONSTRAINT "project_config_endpoint_id_key" UNIQUE,
+	"created_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	"trusted_origins" jsonb NOT NULL,
+	"social_providers" jsonb NOT NULL,
+	"email_provider" jsonb,
+	"email_and_password" jsonb,
+	"allow_localhost" boolean NOT NULL,
+	"plugin_configs" jsonb,
+	"webhook_config" jsonb,
+	"auth_logs_export_enabled" boolean
+);
+CREATE TABLE "neon_auth"."session" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"expiresAt" timestamp with time zone NOT NULL,
+	"token" text NOT NULL CONSTRAINT "session_token_key" UNIQUE,
+	"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	"updatedAt" timestamp with time zone NOT NULL,
+	"ipAddress" text,
+	"userAgent" text,
+	"userId" uuid NOT NULL,
+	"impersonatedBy" text,
+	"activeOrganizationId" text
+);
+CREATE TABLE "neon_auth"."user" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"name" text NOT NULL,
+	"email" text NOT NULL CONSTRAINT "user_email_key" UNIQUE,
+	"emailVerified" boolean NOT NULL,
+	"image" text,
+	"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	"updatedAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	"role" text,
+	"banned" boolean,
+	"banReason" text,
+	"banExpires" timestamp with time zone
+);
+CREATE TABLE "neon_auth"."verification" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"identifier" text NOT NULL,
+	"value" text NOT NULL,
+	"expiresAt" timestamp with time zone NOT NULL,
+	"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	"updatedAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+CREATE UNIQUE INDEX "academic_years_pkey" ON "academic_years" ("id");
+CREATE UNIQUE INDEX "academic_years_year_label_key" ON "academic_years" ("year_label");
+CREATE UNIQUE INDEX "challenge_lab_id_challenge_number_key" ON "challenge" ("lab_id","challenge_number");
+CREATE UNIQUE INDEX "challenge_pkey" ON "challenge" ("id");
+CREATE UNIQUE INDEX "class_entity_pkey" ON "class_entity" ("id");
+CREATE UNIQUE INDEX "class_relation_pkey" ON "class_relation" ("id");
+CREATE UNIQUE INDEX "constructor_pkey" ON "constructor" ("id");
+CREATE UNIQUE INDEX "constructor_declaration_pkey" ON "constructor_declaration" ("id");
+CREATE UNIQUE INDEX "feedback_attachment_pkey" ON "feedback_attachment" ("id");
+CREATE INDEX "idx_feedback_attachment_item" ON "feedback_attachment" ("feedback_item_id");
+CREATE UNIQUE INDEX "feedback_item_pkey" ON "feedback_item" ("id");
+CREATE INDEX "idx_feedback_item_status_created" ON "feedback_item" ("status","created_at");
+CREATE UNIQUE INDEX "field_pkey" ON "field" ("id");
+CREATE UNIQUE INDEX "field_declaration_pkey" ON "field_declaration" ("id");
+CREATE UNIQUE INDEX "field_declaration_name_alias_field_declaration_id_order_ind_key" ON "field_declaration_name_alias" ("field_declaration_id","order_index");
+CREATE UNIQUE INDEX "field_declaration_name_alias_pkey" ON "field_declaration_name_alias" ("id");
+CREATE UNIQUE INDEX "field_declaration_type_alias_field_declaration_id_order_ind_key" ON "field_declaration_type_alias" ("field_declaration_id","order_index");
+CREATE UNIQUE INDEX "field_declaration_type_alias_pkey" ON "field_declaration_type_alias" ("id");
+CREATE UNIQUE INDEX "lab_pkey" ON "lab" ("id");
+CREATE INDEX "idx_lab_deadline_email_sent_lab_threshold" ON "lab_deadline_email_sent" ("lab_id","threshold_hours");
+CREATE UNIQUE INDEX "lab_deadline_email_sent_lab_id_user_id_threshold_hours_key" ON "lab_deadline_email_sent" ("lab_id","user_id","threshold_hours");
+CREATE UNIQUE INDEX "lab_deadline_email_sent_pkey" ON "lab_deadline_email_sent" ("id");
+CREATE INDEX "idx_lab_submission_submitted_at_desc" ON "lab_submission" ("submitted_at");
+CREATE UNIQUE INDEX "lab_submission_pkey" ON "lab_submission" ("id");
+CREATE UNIQUE INDEX "lab_submission_user_lab_attempt_key" ON "lab_submission" ("user_id","lab_id","attempt_number");
+CREATE INDEX "idx_master_data_category" ON "master_data" ("category");
+CREATE UNIQUE INDEX "master_data_pkey" ON "master_data" ("id");
+CREATE UNIQUE INDEX "method_pkey" ON "method" ("id");
+CREATE UNIQUE INDEX "method_declaration_pkey" ON "method_declaration" ("id");
+CREATE UNIQUE INDEX "method_declaration_name_alias_method_declaration_id_order_i_key" ON "method_declaration_name_alias" ("method_declaration_id","order_index");
+CREATE UNIQUE INDEX "method_declaration_name_alias_pkey" ON "method_declaration_name_alias" ("id");
+CREATE UNIQUE INDEX "method_declaration_return_typ_method_declaration_id_order_i_key" ON "method_declaration_return_type_alias" ("method_declaration_id","order_index");
+CREATE UNIQUE INDEX "method_declaration_return_type_alias_pkey" ON "method_declaration_return_type_alias" ("id");
+CREATE UNIQUE INDEX "parameter_pkey" ON "parameter" ("id");
+CREATE UNIQUE INDEX "parameter_name_alias_parameter_id_order_index_key" ON "parameter_name_alias" ("parameter_id","order_index");
+CREATE UNIQUE INDEX "parameter_name_alias_pkey" ON "parameter_name_alias" ("id");
+CREATE UNIQUE INDEX "parameter_type_alias_parameter_id_order_index_key" ON "parameter_type_alias" ("parameter_id","order_index");
+CREATE UNIQUE INDEX "parameter_type_alias_pkey" ON "parameter_type_alias" ("id");
+CREATE INDEX "idx_password_reset_token_expires_at" ON "password_reset_token" ("expires_at");
+CREATE INDEX "idx_password_reset_token_user_id" ON "password_reset_token" ("user_id");
+CREATE UNIQUE INDEX "password_reset_token_pkey" ON "password_reset_token" ("id");
+CREATE UNIQUE INDEX "password_reset_token_token_hash_key" ON "password_reset_token" ("token_hash");
+CREATE UNIQUE INDEX "role_name_key" ON "role" ("name");
+CREATE UNIQUE INDEX "role_pkey" ON "role" ("id");
+CREATE UNIQUE INDEX "student_daily_streak_pkey" ON "student_daily_streak" ("user_id");
+CREATE INDEX "idx_slp_active_submitters" ON "student_lab_progress" ("user_id");
+CREATE UNIQUE INDEX "student_lab_progress_pkey" ON "student_lab_progress" ("id");
+CREATE UNIQUE INDEX "student_lab_progress_user_lab_key" ON "student_lab_progress" ("user_id","lab_id");
+CREATE UNIQUE INDEX "student_mascot_practice_revoked_jti_pkey" ON "student_mascot_practice_revoked_jti" ("jti");
+CREATE UNIQUE INDEX "student_mascot_practice_token_jti_idx" ON "student_mascot_practice_token" ("jti");
+CREATE UNIQUE INDEX "student_mascot_practice_token_pkey" ON "student_mascot_practice_token" ("user_id");
+CREATE UNIQUE INDEX "student_mascot_purchase_pkey" ON "student_mascot_purchase" ("user_id","mascot_id");
+CREATE UNIQUE INDEX "submission_challenge_result_key" ON "submission_challenge_result" ("submission_id","challenge_id");
+CREATE UNIQUE INDEX "submission_challenge_result_pkey" ON "submission_challenge_result" ("id");
+CREATE UNIQUE INDEX "submission_constructor_result_key" ON "submission_constructor_result" ("submission_id","constructor_id");
+CREATE UNIQUE INDEX "submission_constructor_result_pkey" ON "submission_constructor_result" ("id");
+CREATE UNIQUE INDEX "submission_field_result_key" ON "submission_field_result" ("submission_id","field_id");
+CREATE UNIQUE INDEX "submission_field_result_pkey" ON "submission_field_result" ("id");
+CREATE UNIQUE INDEX "submission_method_result_key" ON "submission_method_result" ("submission_id","method_id");
+CREATE UNIQUE INDEX "submission_method_result_pkey" ON "submission_method_result" ("id");
+CREATE INDEX "idx_plagiarism_fingerprint_lab_user" ON "submission_plagiarism_fingerprint" ("lab_id","user_id");
+CREATE UNIQUE INDEX "submission_plagiarism_fingerprint_pkey" ON "submission_plagiarism_fingerprint" ("submission_id");
+CREATE INDEX "idx_plagiarism_match_lab_flagged" ON "submission_plagiarism_match" ("lab_id","flagged");
+CREATE INDEX "idx_plagiarism_match_other" ON "submission_plagiarism_match" ("other_submission_id");
+CREATE INDEX "idx_plagiarism_match_submission" ON "submission_plagiarism_match" ("submission_id");
+CREATE UNIQUE INDEX "submission_plagiarism_match_pkey" ON "submission_plagiarism_match" ("id");
+CREATE UNIQUE INDEX "submission_plagiarism_match_submission_id_other_submission__key" ON "submission_plagiarism_match" ("submission_id","other_submission_id");
+CREATE UNIQUE INDEX "submission_relation_result_key" ON "submission_relation_result" ("submission_id","class_relation_id");
+CREATE UNIQUE INDEX "submission_relation_result_pkey" ON "submission_relation_result" ("id");
+CREATE INDEX "idx_staresult_str_id" ON "submission_testcase_assertion_result" ("submission_testcase_result_id");
+CREATE UNIQUE INDEX "submission_testcase_assertion_result_key" ON "submission_testcase_assertion_result" ("submission_testcase_result_id","testcase_assertion_id");
+CREATE UNIQUE INDEX "submission_testcase_assertion_result_pkey" ON "submission_testcase_assertion_result" ("id");
+CREATE INDEX "idx_str_submission_id" ON "submission_testcase_result" ("submission_id");
+CREATE INDEX "idx_str_testcase_id" ON "submission_testcase_result" ("testcase_id");
+CREATE UNIQUE INDEX "submission_testcase_result_key" ON "submission_testcase_result" ("submission_id","testcase_id");
+CREATE UNIQUE INDEX "submission_testcase_result_pkey" ON "submission_testcase_result" ("id");
+CREATE INDEX "idx_term_is_current" ON "term" ("is_current");
+CREATE UNIQUE INDEX "term_pkey" ON "term" ("id");
+CREATE INDEX "idx_term_enrollment_term_id" ON "term_enrollment" ("term_id");
+CREATE UNIQUE INDEX "term_enrollment_pkey" ON "term_enrollment" ("id");
+CREATE UNIQUE INDEX "term_enrollment_user_term_key" ON "term_enrollment" ("user_id","term_id");
+CREATE INDEX "idx_testcase_challenge_id" ON "testcase" ("challenge_id");
+CREATE UNIQUE INDEX "testcase_pkey" ON "testcase" ("id");
+CREATE INDEX "idx_testcase_assertion_testcase_id" ON "testcase_assertion" ("testcase_id");
+CREATE UNIQUE INDEX "testcase_assertion_pkey" ON "testcase_assertion" ("id");
+CREATE INDEX "idx_testcase_invocation_testcase_id" ON "testcase_invocation" ("testcase_id");
+CREATE UNIQUE INDEX "testcase_invocation_pkey" ON "testcase_invocation" ("id");
+CREATE UNIQUE INDEX "testcase_invocation_testcase_id_order_index_key" ON "testcase_invocation" ("testcase_id","order_index");
+CREATE UNIQUE INDEX "user_account_email_key" ON "user_account" ("email");
+CREATE UNIQUE INDEX "user_account_pkey" ON "user_account" ("id");
+CREATE UNIQUE INDEX "user_account_student_code_key" ON "user_account" ("student_code");
+CREATE UNIQUE INDEX "user_account_teacher_code_key" ON "user_account" ("teacher_code");
+CREATE UNIQUE INDEX "user_role_pkey" ON "user_role" ("user_id","role_id");
+CREATE UNIQUE INDEX "weekly_ranking_entry_pkey" ON "weekly_ranking_entry" ("week_end","user_id");
+CREATE UNIQUE INDEX "weekly_ranking_week_pkey" ON "weekly_ranking_week" ("week_end");
+CREATE UNIQUE INDEX "account_pkey" ON "neon_auth"."account" ("id");
+CREATE INDEX "account_userId_idx" ON "neon_auth"."account" ("userId");
+CREATE INDEX "invitation_email_idx" ON "neon_auth"."invitation" ("email");
+CREATE INDEX "invitation_organizationId_idx" ON "neon_auth"."invitation" ("organizationId");
+CREATE UNIQUE INDEX "invitation_pkey" ON "neon_auth"."invitation" ("id");
+CREATE UNIQUE INDEX "jwks_pkey" ON "neon_auth"."jwks" ("id");
+CREATE INDEX "member_organizationId_idx" ON "neon_auth"."member" ("organizationId");
+CREATE UNIQUE INDEX "member_pkey" ON "neon_auth"."member" ("id");
+CREATE INDEX "member_userId_idx" ON "neon_auth"."member" ("userId");
+CREATE UNIQUE INDEX "organization_pkey" ON "neon_auth"."organization" ("id");
+CREATE UNIQUE INDEX "organization_slug_key" ON "neon_auth"."organization" ("slug");
+CREATE UNIQUE INDEX "project_config_endpoint_id_key" ON "neon_auth"."project_config" ("endpoint_id");
+CREATE UNIQUE INDEX "project_config_pkey" ON "neon_auth"."project_config" ("id");
+CREATE UNIQUE INDEX "session_pkey" ON "neon_auth"."session" ("id");
+CREATE UNIQUE INDEX "session_token_key" ON "neon_auth"."session" ("token");
+CREATE INDEX "session_userId_idx" ON "neon_auth"."session" ("userId");
+CREATE UNIQUE INDEX "user_email_key" ON "neon_auth"."user" ("email");
+CREATE UNIQUE INDEX "user_pkey" ON "neon_auth"."user" ("id");
+CREATE INDEX "verification_identifier_idx" ON "neon_auth"."verification" ("identifier");
+CREATE UNIQUE INDEX "verification_pkey" ON "neon_auth"."verification" ("id");
+ALTER TABLE "challenge" ADD CONSTRAINT "challenge_lab_id_fkey" FOREIGN KEY ("lab_id") REFERENCES "lab"("id");
+ALTER TABLE "class_entity" ADD CONSTRAINT "class_entity_challenge_id_fkey" FOREIGN KEY ("challenge_id") REFERENCES "challenge"("id");
+ALTER TABLE "class_entity" ADD CONSTRAINT "class_entity_declaring_type_fkey" FOREIGN KEY ("declaring_type") REFERENCES "master_data"("id");
+ALTER TABLE "class_entity" ADD CONSTRAINT "class_entity_outer_class_id_fkey" FOREIGN KEY ("outer_class_id") REFERENCES "class_entity"("id") ON DELETE CASCADE;
+ALTER TABLE "class_entity" ADD CONSTRAINT "class_entity_scope_fkey" FOREIGN KEY ("scope") REFERENCES "master_data"("id");
+ALTER TABLE "class_relation" ADD CONSTRAINT "class_relation_class_id_fkey" FOREIGN KEY ("class_id") REFERENCES "class_entity"("id");
+ALTER TABLE "class_relation" ADD CONSTRAINT "class_relation_relation_type_fkey" FOREIGN KEY ("relation_type") REFERENCES "master_data"("id");
+ALTER TABLE "class_relation" ADD CONSTRAINT "class_relation_target_class_id_fkey" FOREIGN KEY ("target_class_id") REFERENCES "class_entity"("id");
+ALTER TABLE "constructor" ADD CONSTRAINT "constructor_class_id_fkey" FOREIGN KEY ("class_id") REFERENCES "class_entity"("id");
+ALTER TABLE "constructor" ADD CONSTRAINT "constructor_constructor_declaration_id_fkey" FOREIGN KEY ("constructor_declaration_id") REFERENCES "constructor_declaration"("id");
+ALTER TABLE "constructor_declaration" ADD CONSTRAINT "constructor_declaration_scope_fkey" FOREIGN KEY ("scope") REFERENCES "master_data"("id");
+ALTER TABLE "feedback_attachment" ADD CONSTRAINT "feedback_attachment_feedback_item_id_fkey" FOREIGN KEY ("feedback_item_id") REFERENCES "feedback_item"("id") ON DELETE CASCADE;
+ALTER TABLE "feedback_item" ADD CONSTRAINT "feedback_item_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user_account"("id") ON DELETE CASCADE;
+ALTER TABLE "field" ADD CONSTRAINT "field_class_id_fkey" FOREIGN KEY ("class_id") REFERENCES "class_entity"("id");
+ALTER TABLE "field" ADD CONSTRAINT "field_field_declaration_id_fkey" FOREIGN KEY ("field_declaration_id") REFERENCES "field_declaration"("id");
+ALTER TABLE "field_declaration" ADD CONSTRAINT "field_declaration_scope_fkey" FOREIGN KEY ("scope") REFERENCES "master_data"("id");
+ALTER TABLE "field_declaration_name_alias" ADD CONSTRAINT "field_declaration_name_alias_field_declaration_id_fkey" FOREIGN KEY ("field_declaration_id") REFERENCES "field_declaration"("id") ON DELETE CASCADE;
+ALTER TABLE "field_declaration_type_alias" ADD CONSTRAINT "field_declaration_type_alias_field_declaration_id_fkey" FOREIGN KEY ("field_declaration_id") REFERENCES "field_declaration"("id") ON DELETE CASCADE;
+ALTER TABLE "lab" ADD CONSTRAINT "lab_term_id_fkey" FOREIGN KEY ("term_id") REFERENCES "term"("id");
+ALTER TABLE "lab_deadline_email_sent" ADD CONSTRAINT "lab_deadline_email_sent_lab_id_fkey" FOREIGN KEY ("lab_id") REFERENCES "lab"("id") ON DELETE CASCADE;
+ALTER TABLE "lab_deadline_email_sent" ADD CONSTRAINT "lab_deadline_email_sent_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user_account"("id") ON DELETE CASCADE;
+ALTER TABLE "lab_submission" ADD CONSTRAINT "lab_submission_lab_id_fkey" FOREIGN KEY ("lab_id") REFERENCES "lab"("id");
+ALTER TABLE "lab_submission" ADD CONSTRAINT "lab_submission_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user_account"("id");
+ALTER TABLE "method" ADD CONSTRAINT "method_class_id_fkey" FOREIGN KEY ("class_id") REFERENCES "class_entity"("id");
+ALTER TABLE "method" ADD CONSTRAINT "method_method_declaration_id_fkey" FOREIGN KEY ("method_declaration_id") REFERENCES "method_declaration"("id");
+ALTER TABLE "method_declaration" ADD CONSTRAINT "method_declaration_scope_fkey" FOREIGN KEY ("scope") REFERENCES "master_data"("id");
+ALTER TABLE "method_declaration_name_alias" ADD CONSTRAINT "method_declaration_name_alias_method_declaration_id_fkey" FOREIGN KEY ("method_declaration_id") REFERENCES "method_declaration"("id") ON DELETE CASCADE;
+ALTER TABLE "method_declaration_return_type_alias" ADD CONSTRAINT "method_declaration_return_type_alias_method_declaration_id_fkey" FOREIGN KEY ("method_declaration_id") REFERENCES "method_declaration"("id") ON DELETE CASCADE;
+ALTER TABLE "parameter" ADD CONSTRAINT "parameter_constructor_id_fkey" FOREIGN KEY ("constructor_id") REFERENCES "constructor"("id");
+ALTER TABLE "parameter" ADD CONSTRAINT "parameter_method_id_fkey" FOREIGN KEY ("method_id") REFERENCES "method"("id");
+ALTER TABLE "parameter_name_alias" ADD CONSTRAINT "parameter_name_alias_parameter_id_fkey" FOREIGN KEY ("parameter_id") REFERENCES "parameter"("id") ON DELETE CASCADE;
+ALTER TABLE "parameter_type_alias" ADD CONSTRAINT "parameter_type_alias_parameter_id_fkey" FOREIGN KEY ("parameter_id") REFERENCES "parameter"("id") ON DELETE CASCADE;
+ALTER TABLE "password_reset_token" ADD CONSTRAINT "password_reset_token_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user_account"("id") ON DELETE CASCADE;
+ALTER TABLE "student_daily_streak" ADD CONSTRAINT "student_daily_streak_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user_account"("id") ON DELETE CASCADE;
+ALTER TABLE "student_lab_progress" ADD CONSTRAINT "student_lab_progress_lab_id_fkey" FOREIGN KEY ("lab_id") REFERENCES "lab"("id");
+ALTER TABLE "student_lab_progress" ADD CONSTRAINT "student_lab_progress_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user_account"("id");
+ALTER TABLE "student_mascot_practice_token" ADD CONSTRAINT "student_mascot_practice_token_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user_account"("id") ON DELETE CASCADE;
+ALTER TABLE "student_mascot_purchase" ADD CONSTRAINT "student_mascot_purchase_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user_account"("id") ON DELETE CASCADE;
+ALTER TABLE "submission_challenge_result" ADD CONSTRAINT "submission_challenge_result_challenge_id_fkey" FOREIGN KEY ("challenge_id") REFERENCES "challenge"("id");
+ALTER TABLE "submission_challenge_result" ADD CONSTRAINT "submission_challenge_result_submission_id_fkey" FOREIGN KEY ("submission_id") REFERENCES "lab_submission"("id");
+ALTER TABLE "submission_constructor_result" ADD CONSTRAINT "submission_constructor_result_constructor_id_fkey" FOREIGN KEY ("constructor_id") REFERENCES "constructor"("id");
+ALTER TABLE "submission_constructor_result" ADD CONSTRAINT "submission_constructor_result_submission_id_fkey" FOREIGN KEY ("submission_id") REFERENCES "lab_submission"("id");
+ALTER TABLE "submission_field_result" ADD CONSTRAINT "submission_field_result_field_id_fkey" FOREIGN KEY ("field_id") REFERENCES "field"("id");
+ALTER TABLE "submission_field_result" ADD CONSTRAINT "submission_field_result_submission_id_fkey" FOREIGN KEY ("submission_id") REFERENCES "lab_submission"("id");
+ALTER TABLE "submission_method_result" ADD CONSTRAINT "submission_method_result_method_id_fkey" FOREIGN KEY ("method_id") REFERENCES "method"("id");
+ALTER TABLE "submission_method_result" ADD CONSTRAINT "submission_method_result_submission_id_fkey" FOREIGN KEY ("submission_id") REFERENCES "lab_submission"("id");
+ALTER TABLE "submission_plagiarism_fingerprint" ADD CONSTRAINT "submission_plagiarism_fingerprint_lab_id_fkey" FOREIGN KEY ("lab_id") REFERENCES "lab"("id") ON DELETE CASCADE;
+ALTER TABLE "submission_plagiarism_fingerprint" ADD CONSTRAINT "submission_plagiarism_fingerprint_submission_id_fkey" FOREIGN KEY ("submission_id") REFERENCES "lab_submission"("id") ON DELETE CASCADE;
+ALTER TABLE "submission_plagiarism_fingerprint" ADD CONSTRAINT "submission_plagiarism_fingerprint_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user_account"("id") ON DELETE CASCADE;
+ALTER TABLE "submission_plagiarism_match" ADD CONSTRAINT "submission_plagiarism_match_lab_id_fkey" FOREIGN KEY ("lab_id") REFERENCES "lab"("id") ON DELETE CASCADE;
+ALTER TABLE "submission_plagiarism_match" ADD CONSTRAINT "submission_plagiarism_match_other_submission_id_fkey" FOREIGN KEY ("other_submission_id") REFERENCES "lab_submission"("id") ON DELETE CASCADE;
+ALTER TABLE "submission_plagiarism_match" ADD CONSTRAINT "submission_plagiarism_match_submission_id_fkey" FOREIGN KEY ("submission_id") REFERENCES "lab_submission"("id") ON DELETE CASCADE;
+ALTER TABLE "submission_relation_result" ADD CONSTRAINT "submission_relation_result_class_relation_id_fkey" FOREIGN KEY ("class_relation_id") REFERENCES "class_relation"("id");
+ALTER TABLE "submission_relation_result" ADD CONSTRAINT "submission_relation_result_submission_id_fkey" FOREIGN KEY ("submission_id") REFERENCES "lab_submission"("id");
+ALTER TABLE "submission_testcase_assertion_result" ADD CONSTRAINT "submission_testcase_assertion_result_testcase_assertion_id_fkey" FOREIGN KEY ("testcase_assertion_id") REFERENCES "testcase_assertion"("id") ON DELETE CASCADE;
+ALTER TABLE "submission_testcase_assertion_result" ADD CONSTRAINT "submission_testcase_assertion_submission_testcase_result_i_fkey" FOREIGN KEY ("submission_testcase_result_id") REFERENCES "submission_testcase_result"("id") ON DELETE CASCADE;
+ALTER TABLE "submission_testcase_result" ADD CONSTRAINT "submission_testcase_result_submission_id_fkey" FOREIGN KEY ("submission_id") REFERENCES "lab_submission"("id") ON DELETE CASCADE;
+ALTER TABLE "submission_testcase_result" ADD CONSTRAINT "submission_testcase_result_testcase_id_fkey" FOREIGN KEY ("testcase_id") REFERENCES "testcase"("id") ON DELETE CASCADE;
+ALTER TABLE "term" ADD CONSTRAINT "term_academic_year_id_fkey" FOREIGN KEY ("academic_year_id") REFERENCES "academic_years"("id");
+ALTER TABLE "term_enrollment" ADD CONSTRAINT "term_enrollment_term_id_fkey" FOREIGN KEY ("term_id") REFERENCES "term"("id");
+ALTER TABLE "term_enrollment" ADD CONSTRAINT "term_enrollment_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user_account"("id");
+ALTER TABLE "testcase" ADD CONSTRAINT "testcase_challenge_id_fkey" FOREIGN KEY ("challenge_id") REFERENCES "challenge"("id") ON DELETE CASCADE;
+ALTER TABLE "testcase_assertion" ADD CONSTRAINT "testcase_assertion_field_id_fkey" FOREIGN KEY ("field_id") REFERENCES "field"("id") ON DELETE CASCADE;
+ALTER TABLE "testcase_assertion" ADD CONSTRAINT "testcase_assertion_invocation_id_fkey" FOREIGN KEY ("invocation_id") REFERENCES "testcase_invocation"("id") ON DELETE CASCADE;
+ALTER TABLE "testcase_assertion" ADD CONSTRAINT "testcase_assertion_testcase_id_fkey" FOREIGN KEY ("testcase_id") REFERENCES "testcase"("id") ON DELETE CASCADE;
+ALTER TABLE "testcase_invocation" ADD CONSTRAINT "testcase_invocation_constructor_id_fkey" FOREIGN KEY ("constructor_id") REFERENCES "constructor"("id") ON DELETE CASCADE;
+ALTER TABLE "testcase_invocation" ADD CONSTRAINT "testcase_invocation_dispatch_class_id_fkey" FOREIGN KEY ("dispatch_class_id") REFERENCES "class_entity"("id") ON DELETE CASCADE;
+ALTER TABLE "testcase_invocation" ADD CONSTRAINT "testcase_invocation_method_id_fkey" FOREIGN KEY ("method_id") REFERENCES "method"("id") ON DELETE CASCADE;
+ALTER TABLE "testcase_invocation" ADD CONSTRAINT "testcase_invocation_receiver_constructor_id_fkey" FOREIGN KEY ("receiver_constructor_id") REFERENCES "constructor"("id") ON DELETE CASCADE;
+ALTER TABLE "testcase_invocation" ADD CONSTRAINT "testcase_invocation_testcase_id_fkey" FOREIGN KEY ("testcase_id") REFERENCES "testcase"("id") ON DELETE CASCADE;
+ALTER TABLE "user_role" ADD CONSTRAINT "user_role_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "role"("id") ON DELETE CASCADE;
+ALTER TABLE "user_role" ADD CONSTRAINT "user_role_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user_account"("id") ON DELETE CASCADE;
+ALTER TABLE "weekly_ranking_entry" ADD CONSTRAINT "weekly_ranking_entry_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user_account"("id") ON DELETE CASCADE;
+ALTER TABLE "weekly_ranking_entry" ADD CONSTRAINT "weekly_ranking_entry_week_end_fkey" FOREIGN KEY ("week_end") REFERENCES "weekly_ranking_week"("week_end") ON DELETE CASCADE;
+ALTER TABLE "neon_auth"."account" ADD CONSTRAINT "account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "neon_auth"."user"("id") ON DELETE CASCADE;
+ALTER TABLE "neon_auth"."invitation" ADD CONSTRAINT "invitation_inviterId_fkey" FOREIGN KEY ("inviterId") REFERENCES "neon_auth"."user"("id") ON DELETE CASCADE;
+ALTER TABLE "neon_auth"."invitation" ADD CONSTRAINT "invitation_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "neon_auth"."organization"("id") ON DELETE CASCADE;
+ALTER TABLE "neon_auth"."member" ADD CONSTRAINT "member_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "neon_auth"."organization"("id") ON DELETE CASCADE;
+ALTER TABLE "neon_auth"."member" ADD CONSTRAINT "member_userId_fkey" FOREIGN KEY ("userId") REFERENCES "neon_auth"."user"("id") ON DELETE CASCADE;
+ALTER TABLE "neon_auth"."session" ADD CONSTRAINT "session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "neon_auth"."user"("id") ON DELETE CASCADE;
