@@ -1,7 +1,6 @@
-// target_json = { testIds: ['TC-05', …] }: chạy đúng những test được liệt kê.
 // target_json = { testIds: ['TC-05', …] }: run exactly the listed tests.
-// Mỗi mã phải tồn tại và đang 'ready'; mã lạ bị bỏ. Nhờ vậy chuỗi người dùng gửi lên
-// không bao giờ đi thẳng vào biểu thức --grep: chỉ mã đọc lại từ DB mới được dùng.
+// Each code must exist and be 'ready'; unknown codes are dropped. That way a user-supplied string
+// never reaches the --grep expression directly: only codes read back from the DB are used.
 class TestIdsTargetStrategy {
   constructor(catalogRepository) {
     this.catalogRepository = catalogRepository;

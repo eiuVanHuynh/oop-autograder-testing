@@ -1,14 +1,12 @@
 const asyncHandler = require("../utils/asyncHandler");
 
-// Kiểm tra sức khỏe hệ thống.
 // System health check.
-// Controller mỏng: đọc req → gọi service → res.json({ data }). Không có quy tắc nghiệp vụ.
-// Thin controller: read req → call the service → res.json({ data }). No business rules here.
+// Thin controller: read req → call service → res.json({ data }). No business rules.
 //
-// Cần làm / To do:
-// - GET /health: 200 khi server và DB đều ổn, 503 khi không kết nối được DB.
-// - Trả đúng status code ghi trong api-endpoints.md mục 11.
+// To do:
+// - GET /health: 200 when server and DB are both fine, 503 when the DB is unreachable.
+// - Return the status codes listed in api-endpoints.md section 11.
 
-// TODO: các hàm xử lý, bọc trong asyncHandler
+// TODO: handlers, wrapped in asyncHandler
 
 module.exports = {};

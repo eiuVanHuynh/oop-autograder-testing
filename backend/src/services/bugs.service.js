@@ -1,17 +1,16 @@
 const AppError = require("../utils/AppError");
 const { toApi } = require("../utils/mappers");
 
-// Báo lỗi từ một kết quả test bị Fail (🟡).
-// Bug reports raised from a failed test result (🟡).
-// Quy tắc nghiệp vụ nằm ở đây. Không require pg, không chạm req/res.
+// Report a bug from a failed test result (🟡).
+// Business rules live here. No pg require, no touching req/res.
 
-// Chỉ kết quả Fail mới báo lỗi được: một bug gắn vào test đã Đạt là dữ liệu tự mâu thuẫn.
+// Only a failed result can produce a bug: a bug attached to a passing test is self-contradictory data.
 const FAILED_STATUSES = ["failed", "timedOut"];
 
 class BugsService {
   constructor({ bugRepository, resultRepository }) {
     Object.entries({ bugRepository, resultRepository }).forEach(([name, dep]) => {
-      if (!dep) throw new Error(`BugsService thiếu phụ thuộc: ${name}`);
+      if (!dep) throw new Error(`BugsService is missing a dependency: ${name}`);
     });
     this.bugRepository = bugRepository;
     this.resultRepository = resultRepository;
@@ -25,7 +24,7 @@ class BugsService {
       throw new AppError(
         409,
         "RESULT_NOT_FAILED",
-        `Kết quả này là "${result.result_status}", chỉ báo lỗi được từ kết quả Fail`,
+        `This result is "${result.result_status}"; a bug can only be reported from a Fail result`,
       );
     }
 

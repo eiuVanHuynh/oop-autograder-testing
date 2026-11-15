@@ -1,7 +1,7 @@
-// Kịch bản thử API từ đầu đến cuối. Cần Node 18+, server đang chạy, đã chạy db/seed/dev_seed.sql.
+// An end-to-end API smoke script. Needs Node 18+, a running server, and db/seed/dev_seed.sql applied.
 //   node scripts/smoke-api.mjs
-// Biến tùy chọn: API_URL, ADMIN_EMAIL, ADMIN_PASSWORD, VIEWER_EMAIL, VIEWER_PASSWORD, SUITE_ID
-// Giả định RUNNER=fake (run tự kết thúc sau ~3 giây). Nếu dùng RUNNER=github: EXPECT_FAKE=0.
+// Optional variables: API_URL, ADMIN_EMAIL, ADMIN_PASSWORD, VIEWER_EMAIL, VIEWER_PASSWORD, SUITE_ID
+// Assumes RUNNER=fake (the run ends by itself after ~3 seconds). With RUNNER=github: EXPECT_FAKE=0.
 
 const API = process.env.API_URL || 'http://localhost:5000/api';
 const ADMIN = {
@@ -42,7 +42,7 @@ async function call(method, path, { token, body } = {}) {
   try {
     json = text ? JSON.parse(text) : null;
   } catch {
-    /* body không phải JSON */
+    /* body is not JSON */
   }
   return { status: res.status, body: json, text };
 }
@@ -54,32 +54,32 @@ const createdTemplates = [];
 let adminToken;
 
 async function main() {
-  section('1. Đăng nhập');
+  section('1. Sign in');
   let r = await call('POST', '/auth/login', { body: { email: ADMIN.email, password: 'sai-mat-khau' } });
-  check('sai mật khẩu → 401 INVALID_CREDENTIALS', r.status === 401 && errCode(r) === 'INVALID_CREDENTIALS', brief(r));
+  check('wrong password → 401 INVALID_CREDENTIALS', r.status === 401 && errCode(r) === 'INVALID_CREDENTIALS', brief(r));
 
   r = await call('POST', '/auth/login', { body: ADMIN });
   adminToken = tokenOf(r);
-  check('admin đăng nhập → 200 + token', r.status === 200 && !!adminToken, brief(r));
-  if (!adminToken) throw new Error('Không có token admin: kiểm tra đã chạy dev_seed.sql và JWT_SECRET');
+  check('admin login → 200 + token', r.status === 200 && !!adminToken, brief(r));
+  if (!adminToken) throw new Error('No admin token: check that dev_seed.sql ran and JWT_SECRET is set');
 
   r = await call('POST', '/auth/login', { body: VIEWER });
   const viewerToken = tokenOf(r);
-  check('viewer đăng nhập → 200 + token', r.status === 200 && !!viewerToken, brief(r));
+  check('viewer login → 200 + token', r.status === 200 && !!viewerToken, brief(r));
 
-  section('2. Phân quyền');
+  section('2. Permissions');
   r = await call('GET', '/templates');
-  check('không token → 401', r.status === 401, brief(r));
+  check('no token → 401', r.status === 401, brief(r));
   r = await call('POST', '/templates', {
     token: viewerToken,
     body: { template_name: `viewer-${Date.now()}`, target_json: { testIds: ['TC-DEV-01'] } },
   });
-  check('viewer tạo template → 403', r.status === 403, brief(r));
+  check('viewer creating a template → 403', r.status === 403, brief(r));
 
   section('3. Templates');
   const tplBody = {
     template_name: `smoke-${Date.now()}`,
-    description: 'tạo bởi smoke-api',
+    description: 'created by smoke-api',
     scope: 'UI',
     target_json: { testIds: ['TC-DEV-01', 'TC-DEV-02'] },
     env: 'staging',
@@ -87,23 +87,23 @@ async function main() {
   };
   r = await call('POST', '/templates', { token: adminToken, body: tplBody });
   const tpl = r.body?.data;
-  check('tạo template → 201', r.status === 201 && !!tpl?.template_id, brief(r));
-  if (!tpl?.template_id) throw new Error('Không tạo được template: đã chạy migration 008 chưa?');
+  check('create template → 201', r.status === 201 && !!tpl?.template_id, brief(r));
+  if (!tpl?.template_id) throw new Error('Could not create the template: has migration 008 been applied?');
   createdTemplates.push(tpl.template_id);
 
   r = await call('POST', '/templates', { token: adminToken, body: { ...tplBody, target_json: {} } });
-  check('target_json rỗng → 400', r.status === 400, brief(r));
+  check('empty target_json → 400', r.status === 400, brief(r));
 
   r = await call('GET', '/templates', { token: adminToken });
   const list = r.body?.data?.data ?? r.body?.data;
-  check('danh sách có template vừa tạo', r.status === 200 && Array.isArray(list) && list.some((t) => t.template_id === tpl.template_id), brief(r));
+  check('the list contains the new template', r.status === 200 && Array.isArray(list) && list.some((t) => t.template_id === tpl.template_id), brief(r));
 
-  r = await call('PUT', `/templates/${tpl.template_id}`, { token: adminToken, body: { description: 'đã sửa' } });
-  check('sửa template → 200, updated_at đổi', r.status === 200 && r.body?.data?.description === 'đã sửa', brief(r));
+  r = await call('PUT', `/templates/${tpl.template_id}`, { token: adminToken, body: { description: 'edited' } });
+  check('edit template → 200, updated_at changes', r.status === 200 && r.body?.data?.description === 'edited', brief(r));
 
   r = await call('POST', `/templates/${tpl.template_id}/duplicate`, { token: adminToken });
   const dup = r.body?.data;
-  check('nhân bản template → 201', r.status === 201 && !!dup?.template_id, brief(r));
+  check('duplicate template → 201', r.status === 201 && !!dup?.template_id, brief(r));
   if (dup?.template_id) createdTemplates.push(dup.template_id);
 
   if (process.env.SUITE_ID) {
@@ -115,27 +115,27 @@ async function main() {
     if (r.body?.data?.template_id) createdTemplates.push(r.body.data.template_id);
   }
 
-  section('4. Tạo run');
+  section('4. Creating a run');
   r = await call('POST', '/runs', { token: adminToken, body: { templateId: tpl.template_id, env: 'production' } });
   const run = r.body?.data;
-  check('chạy theo template → 202, status running', r.status === 202 && run?.status === 'running', brief(r));
-  check('grep chỉ gồm test ready, đúng thứ tự', run?.config_json?.grep === '(TC-DEV-01|TC-DEV-02) -', JSON.stringify(run?.config_json));
-  check('env chọn lúc chạy thắng env của template', run?.config_json?.env === 'production', JSON.stringify(run?.config_json));
-  if (!run?.run_id) throw new Error('Không tạo được run');
+  check('run from a template → 202, status running', r.status === 202 && run?.status === 'running', brief(r));
+  check('grep holds only ready tests, in order', run?.config_json?.grep === '(TC-DEV-01|TC-DEV-02) -', JSON.stringify(run?.config_json));
+  check('the env picked at run time beats the template env', run?.config_json?.env === 'production', JSON.stringify(run?.config_json));
+  if (!run?.run_id) throw new Error('Could not create the run');
 
   r = await call('POST', '/runs', { token: adminToken, body: { testIds: ['TC-DEV-04'] } });
-  check('chỉ có test draft → 409 NO_READY_TESTS', r.status === 409 && errCode(r) === 'NO_READY_TESTS', brief(r));
+  check('only draft tests → 409 NO_READY_TESTS', r.status === 409 && errCode(r) === 'NO_READY_TESTS', brief(r));
 
   r = await call('POST', '/runs', { token: adminToken, body: { testIds: ['x|.*'] } });
-  check('mã test lạ bị loại → 409, không lọt vào grep', r.status === 409, brief(r));
+  check('unknown test codes are dropped → 409, never reaching grep', r.status === 409, brief(r));
 
   r = await call('POST', '/runs', { token: adminToken, body: { templateId: tpl.template_id, testIds: ['TC-DEV-01'] } });
-  check('gửi cả templateId và testIds → 400', r.status === 400, brief(r));
+  check('sending both templateId and testIds → 400', r.status === 400, brief(r));
 
   r = await call('POST', '/runs', { token: adminToken, body: { testIds: ['TC-DEV-03'] } });
-  check('chạy trực tiếp bằng testIds → 202', r.status === 202, brief(r));
+  check('running straight from testIds → 202', r.status === 202, brief(r));
 
-  section('5. Log và kết thúc run');
+  section('5. Logs and finishing the run');
   let after = 0;
   const lines = [];
   let status = 'running';
@@ -149,48 +149,48 @@ async function main() {
     if (status === 'running') await sleep(1000);
   }
   if (EXPECT_FAKE) {
-    check('có ≥ 3 dòng log, seq tăng dần', lines.length >= 3 && lines.every((l, i) => i === 0 || l.seq > lines[i - 1].seq), JSON.stringify(lines));
-    check('FakeRunner kết thúc run → passed', status === 'passed', `status=${status}`);
+    check('≥ 3 log lines, with increasing seq', lines.length >= 3 && lines.every((l, i) => i === 0 || l.seq > lines[i - 1].seq), JSON.stringify(lines));
+    check('FakeRunner finishes the run → passed', status === 'passed', `status=${status}`);
   } else {
-    check('endpoint logs trả 200', r.status === 200, brief(r));
+    check('the logs endpoint returns 200', r.status === 200, brief(r));
   }
 
-  section('6. Lịch sử và lọc');
+  section('6. History and filters');
   r = await call('GET', `/runs/${run.run_id}`, { token: adminToken });
-  check('chi tiết run → 200, có tester_id và environment', r.status === 200 && !!r.body?.data?.tester_id && r.body.data.environment === 'production', brief(r));
+  check('run details → 200, with tester_id and environment', r.status === 200 && !!r.body?.data?.tester_id && r.body.data.environment === 'production', brief(r));
   r = await call('GET', '/runs?status=weird', { token: adminToken });
-  check('status không hợp lệ → 400', r.status === 400, brief(r));
+  check('an invalid status → 400', r.status === 400, brief(r));
   r = await call('GET', '/runs?limit=5&page=1', { token: adminToken });
-  check('phân trang → tối đa 5 dòng + meta.total', r.status === 200 && r.body?.data?.length <= 5 && Number.isInteger(r.body?.meta?.total), brief(r));
+  check('pagination → at most 5 rows + meta.total', r.status === 200 && r.body?.data?.length <= 5 && Number.isInteger(r.body?.meta?.total), brief(r));
   if (EXPECT_FAKE) {
     r = await call('GET', '/runs?status=passed', { token: adminToken });
-    check('lọc status=passed có run vừa xong', r.status === 200 && r.body?.data?.some((x) => x.run_id === run.run_id), brief(r));
+    check('filtering status=passed contains the finished run', r.status === 200 && r.body?.data?.some((x) => x.run_id === run.run_id), brief(r));
   }
 
-  section('7. Hủy và chạy lại');
+  section('7. Cancel and rerun');
   r = await call('POST', '/runs', { token: adminToken, body: { templateId: tpl.template_id } });
   const run2 = r.body?.data;
   r = await call('POST', `/runs/${run2.run_id}/cancel`, { token: adminToken });
-  check('hủy run đang chạy → 200, interrupted', r.status === 200 && r.body?.data?.status === 'interrupted', brief(r));
+  check('cancelling a running run → 200, interrupted', r.status === 200 && r.body?.data?.status === 'interrupted', brief(r));
   r = await call('POST', `/runs/${run2.run_id}/cancel`, { token: adminToken });
-  check('hủy lần hai → 409', r.status === 409, brief(r));
+  check('cancelling a second time → 409', r.status === 409, brief(r));
   await sleep(3000);
   r = await call('GET', `/runs/${run2.run_id}`, { token: adminToken });
-  check('FakeRunner không ghi đè trạng thái đã hủy', r.body?.data?.status === 'interrupted', brief(r));
+  check('FakeRunner does not overwrite a cancelled status', r.body?.data?.status === 'interrupted', brief(r));
 
   r = await call('POST', `/runs/${run.run_id}/rerun`, { token: adminToken });
-  check('chạy lại → 202, giữ cấu hình cũ', r.status === 202 && r.body?.data?.config_json?.env === 'production' && String(r.body?.data?.run_name).startsWith('Rerun_'), brief(r));
+  check('rerun → 202, keeps the old config', r.status === 202 && r.body?.data?.config_json?.env === 'production' && String(r.body?.data?.run_name).startsWith('Rerun_'), brief(r));
 }
 
 try {
   await main();
 } catch (err) {
   failed += 1;
-  console.log(`\n  LỖI DỪNG SỚM: ${err.message}`);
+  console.log(`\n  ABORTED: ${err.message}`);
 } finally {
   if (adminToken) {
     for (const id of createdTemplates) await call('DELETE', `/templates/${id}`, { token: adminToken });
   }
-  console.log(`\nKết quả: ${passed} đạt, ${failed} lỗi`);
+  console.log(`\nResult: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 }

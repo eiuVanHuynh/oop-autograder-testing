@@ -1,12 +1,12 @@
-// Kiểm tra Auth + Templates qua HTTP mà không cần PostgreSQL: thay pg bằng bảng trong RAM.
-// Phải chạy TRƯỚC require('../src/app') vì app nối dây db ngay lúc require.
-// Stub nhận placeholder $n chứ không phải ?, nên câu SQL nào còn sót cú pháp MySQL sẽ lộ ra.
+// Tests Auth + Templates over HTTP without PostgreSQL: pg is replaced by in-memory tables.
+// Must run BEFORE require('../src/app') because the app wires up db at require time.
+// The stub takes $n placeholders, not ?, so any query left with MySQL syntax shows up.
 const Module = require('module');
 const origLoad = Module._load;
 let templates = [];
 let users = [];
 let nextId = 1;
-let lastSql = [];   // để assert RETURNING và kiểu tham số
+let lastSql = [];   // to assert RETURNING and the parameter types
 
 Module._load = function (req) {
   if (req === 'pg') {
@@ -29,7 +29,7 @@ Module._load = function (req) {
             return { rows: [], rowCount: before - templates.length };
           }
           if (s.startsWith('UPDATE')) return { rows: [], rowCount: 1 };
-          // requireAuth tra cứu theo user_id, login tra cứu theo email
+          // requireAuth looks up by user_id, login looks up by email
           if (s.includes('FROM users') && s.includes('user_id = $1')) {
             return { rows: users.filter((u) => u.user_id === Number(p[0])), rowCount: 0 };
           }
@@ -61,9 +61,9 @@ const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 
 const PASSWORD = 'Test@1234';
-const HASH = bcrypt.hashSync(PASSWORD, 4); // cost thấp cho nhanh, chỉ dùng trong test
+const HASH = bcrypt.hashSync(PASSWORD, 4); // low cost for speed, tests only
 
-// Tên cột theo schema thật: user_role / user_status (không phải role / status).
+// Column names from the real schema: user_role / user_status (not role / status).
 const seedUser = (over = {}) => {
   const user = {
     user_id: users.length + 1,
@@ -88,27 +88,27 @@ const newTemplate = { template_name: 'Smoke UI', target_json: { suiteId: 1 } };
 
 test.beforeEach(() => { templates = []; users = []; nextId = 1; lastSql = []; });
 
-// ---------- Templates: nghiệp vụ ----------
+// ---------- Templates: business rules ----------
 
-test('POST /api/templates tạo được template và trả 201', async () => {
+test('POST /api/templates creates a template and returns 201', async () => {
   const tester = seedUser({ user_role: 'tester' });
   const res = await request(app).post('/api/templates').set(...auth(tester)).send(newTemplate);
   assert.strictEqual(res.status, 201);
   assert.strictEqual(res.body.data.template_name, 'Smoke UI');
-  // target_json phải về dạng object, không phải chuỗi JSON
+  // target_json must come back as an object, not a JSON string
   assert.deepStrictEqual(res.body.data.target_json, { suiteId: 1 });
-  // created_by lấy từ token, không phải giá trị mặc định
+  // created_by comes from the token, not from a default
   assert.strictEqual(res.body.data.created_by, tester.user_id);
 });
 
-test('POST /api/templates trùng tên trả 409', async () => {
+test('POST /api/templates with a duplicate name returns 409', async () => {
   const tester = seedUser();
   await request(app).post('/api/templates').set(...auth(tester)).send(newTemplate);
   const res = await request(app).post('/api/templates').set(...auth(tester)).send(newTemplate);
   assert.strictEqual(res.status, 409);
 });
 
-test('POST /api/templates thiếu target_json trả 400 kèm details', async () => {
+test('POST /api/templates without target_json returns 400 with details', async () => {
   const tester = seedUser();
   const res = await request(app).post('/api/templates').set(...auth(tester))
     .send({ template_name: 'No target', target_json: { testIds: [] } });
@@ -117,13 +117,13 @@ test('POST /api/templates thiếu target_json trả 400 kèm details', async () 
   assert.ok(Array.isArray(res.body.error.details));
 });
 
-test('GET /api/templates/:id không tồn tại trả 404 chứ không treo', async () => {
+test('GET /api/templates/:id for a missing id returns 404 instead of hanging', async () => {
   const res = await request(app).get('/api/templates/999').set(...auth(seedUser()));
   assert.strictEqual(res.status, 404);
   assert.strictEqual(res.body.error.message, 'Template not found');
 });
 
-test('POST /api/templates/:id/duplicate đặt tên (Copy) và trả 201', async () => {
+test('POST /api/templates/:id/duplicate names it (Copy) and returns 201', async () => {
   const tester = seedUser();
   await request(app).post('/api/templates').set(...auth(tester)).send(newTemplate);
   const res = await request(app).post('/api/templates/1/duplicate').set(...auth(tester));
@@ -131,79 +131,79 @@ test('POST /api/templates/:id/duplicate đặt tên (Copy) và trả 201', async
   assert.strictEqual(res.body.data.template_name, 'Smoke UI (Copy)');
 });
 
-test('DELETE /api/templates/:id trả 204, gọi lần hai trả 404', async () => {
+test('DELETE /api/templates/:id returns 204, a second call returns 404', async () => {
   const tester = seedUser();
   await request(app).post('/api/templates').set(...auth(tester)).send(newTemplate);
   assert.strictEqual((await request(app).delete('/api/templates/1').set(...auth(tester))).status, 204);
   assert.strictEqual((await request(app).delete('/api/templates/1').set(...auth(tester))).status, 404);
 });
 
-// ---------- requireAuth (#8 cửa 1) ----------
+// ---------- requireAuth (#8 gate 1) ----------
 
-test('GET /api/templates không kèm token trả 401', async () => {
+test('GET /api/templates without a token returns 401', async () => {
   const res = await request(app).get('/api/templates');
   assert.strictEqual(res.status, 401);
   assert.strictEqual(res.body.error.code, 'UNAUTHORIZED');
 });
 
-test('GET /api/templates với token rác trả 401', async () => {
-  const res = await request(app).get('/api/templates').set('Authorization', 'Bearer khong-phai-jwt');
+test('GET /api/templates with a garbage token returns 401', async () => {
+  const res = await request(app).get('/api/templates').set('Authorization', 'Bearer not-a-jwt');
   assert.strictEqual(res.status, 401);
 });
 
-test('GET /api/templates với token ký bằng secret khác trả 401', async () => {
+test('GET /api/templates with a token signed by another secret returns 401', async () => {
   const user = seedUser();
   const bad = jwt.sign({ user_id: user.user_id, role: user.user_role }, 'secret-khac');
   const res = await request(app).get('/api/templates').set('Authorization', `Bearer ${bad}`);
   assert.strictEqual(res.status, 401);
 });
 
-test('token hợp lệ nhưng tài khoản đã bị khóa trả 423', async () => {
+test('a valid token on a locked account returns 423', async () => {
   const locked = seedUser({ user_status: 'inactive' });
   const res = await request(app).get('/api/templates').set(...auth(locked));
   assert.strictEqual(res.status, 423);
   assert.strictEqual(res.body.error.code, 'ACCOUNT_LOCKED');
 });
 
-test('token của user đã bị xóa khỏi DB trả 401', async () => {
+test('a token of a user deleted from the DB returns 401', async () => {
   const ghost = { user_id: 999, user_role: 'admin' };
   const res = await request(app).get('/api/templates').set(...auth(ghost));
   assert.strictEqual(res.status, 401);
 });
 
-// ---------- requireRole (#8 cửa 2) ----------
+// ---------- requireRole (#8 gate 2) ----------
 
-test('viewer đọc được danh sách template (200)', async () => {
+test('a viewer can read the template list (200)', async () => {
   const res = await request(app).get('/api/templates').set(...auth(seedUser({ user_role: 'viewer' })));
   assert.strictEqual(res.status, 200);
 });
 
-test('viewer tạo template trả 403', async () => {
+test('a viewer creating a template gets 403', async () => {
   const res = await request(app).post('/api/templates')
     .set(...auth(seedUser({ user_role: 'viewer' }))).send(newTemplate);
   assert.strictEqual(res.status, 403);
   assert.strictEqual(res.body.error.code, 'FORBIDDEN');
 });
 
-test('viewer xóa template trả 403', async () => {
+test('a viewer deleting a template gets 403', async () => {
   const res = await request(app).delete('/api/templates/1')
     .set(...auth(seedUser({ user_role: 'viewer' })));
   assert.strictEqual(res.status, 403);
 });
 
-test('dev sửa template trả 403 (SRS: dev không quản lý template)', async () => {
+test('a dev editing a template gets 403 (SRS: dev does not manage templates)', async () => {
   const res = await request(app).put('/api/templates/1')
     .set(...auth(seedUser({ user_role: 'dev' }))).send({ description: 'x' });
   assert.strictEqual(res.status, 403);
 });
 
-test('admin tạo template được (201)', async () => {
+test('an admin can create a template (201)', async () => {
   const res = await request(app).post('/api/templates')
     .set(...auth(seedUser({ user_role: 'admin' }))).send(newTemplate);
   assert.strictEqual(res.status, 201);
 });
 
-test('403 xảy ra trước khi chạm DB: viewer gọi vào id không tồn tại vẫn là 403', async () => {
+test('403 happens before touching the DB: a viewer calling a missing id still gets 403', async () => {
   const res = await request(app).delete('/api/templates/999')
     .set(...auth(seedUser({ user_role: 'viewer' })));
   assert.strictEqual(res.status, 403);
@@ -211,81 +211,82 @@ test('403 xảy ra trước khi chạm DB: viewer gọi vào id không tồn t�
 
 // ---------- Auth login ----------
 
-test('POST /api/auth/login đúng mật khẩu trả token và không lộ password_hash', async () => {
+test('POST /api/auth/login with the right password returns a token and never leaks password_hash', async () => {
   const user = seedUser({ email: 'a@b.co', user_role: 'viewer' });
   const res = await request(app).post('/api/auth/login').send({ email: 'a@b.co', password: PASSWORD });
   assert.strictEqual(res.status, 200);
   assert.strictEqual('password_hash' in res.body.data.user, false);
   const payload = jwt.verify(res.body.data.token, 'test-secret');
   assert.strictEqual(payload.user_id, user.user_id);
-  assert.strictEqual(payload.role, 'viewer'); // lấy từ cột user_role
+  assert.strictEqual(payload.role, 'viewer'); // taken from the user_role column
 });
 
-test('POST /api/auth/login sai mật khẩu trả 401', async () => {
+test('POST /api/auth/login with a wrong password returns 401', async () => {
   seedUser({ email: 'a@b.co' });
   const res = await request(app).post('/api/auth/login').send({ email: 'a@b.co', password: 'wrong' });
   assert.strictEqual(res.status, 401);
 });
 
-test('POST /api/auth/login email không tồn tại cũng trả 401, không 500', async () => {
+test('POST /api/auth/login with an unknown email also returns 401, not 500', async () => {
   const res = await request(app).post('/api/auth/login').send({ email: 'nobody@b.co', password: 'x' });
   assert.strictEqual(res.status, 401);
 });
 
-test('POST /api/auth/login tài khoản bị khóa, mật khẩu đúng, trả 423', async () => {
+test('POST /api/auth/login on a locked account with the right password returns 423', async () => {
   seedUser({ email: 'locked@b.co', user_status: 'inactive' });
   const res = await request(app).post('/api/auth/login').send({ email: 'locked@b.co', password: PASSWORD });
   assert.strictEqual(res.status, 423);
 });
 
-test('POST /api/auth/login tài khoản Google (password_hash NULL) trả 401, không throw', async () => {
+test('POST /api/auth/login on a Google account (password_hash NULL) returns 401, does not throw', async () => {
   seedUser({ email: 'g@b.co', password_hash: null, auth_provider: 'GOOGLE' });
   const res = await request(app).post('/api/auth/login').send({ email: 'g@b.co', password: 'x' });
   assert.strictEqual(res.status, 401);
 });
 
-test('POST /api/auth/login body sai định dạng trả 400', async () => {
-  const res = await request(app).post('/api/auth/login').send({ email: 'khong-phai-email' });
+test('POST /api/auth/login with a malformed body returns 400', async () => {
+  const res = await request(app).post('/api/auth/login').send({ email: 'not-an-email' });
   assert.strictEqual(res.status, 400);
   assert.strictEqual(res.body.error.code, 'VALIDATION_ERROR');
 });
 
 // ---------- config/env (#7) ----------
 
-// Phải chạy trong tiến trình con: dotenv.config() nạp lại backend/.env từ đĩa, nên
-// xóa process.env.JWT_SECRET trong tiến trình này không có tác dụng.
-test('config/env throw và nêu tên biến thiếu khi thiếu JWT_SECRET', () => {
+// Must run in a child process: dotenv.config() reloads backend/.env from disk, so
+// deleting process.env.JWT_SECRET in this process has no effect.
+test('config/env throws and names the missing variable when JWT_SECRET is absent', () => {
   const { spawnSync } = require('node:child_process');
   const path = require('node:path');
   const envFile = path.resolve(__dirname, '../src/config/env.js');
+  const dotenvFile = require.resolve('dotenv');
 
   const env = { ...process.env, DATABASE_URL: 'postgresql://u:p@h:5432/d' };
   delete env.JWT_SECRET;
 
-  const run = spawnSync(process.execPath, ['-e', `require(${JSON.stringify(envFile)})`], {
-    cwd: require('node:os').tmpdir(), // thư mục không có .env để dotenv nạp
-    env,
-    encoding: 'utf8',
-  });
+  // env.js loads backend/.env by an absolute path, so cwd cannot hide it: stub dotenv in the
+  // child's require cache instead, otherwise a developer who has a real .env sees this test fail.
+  const script = `require.cache[${JSON.stringify(dotenvFile)}] = { id: 'dotenv', loaded: true, exports: { config: () => ({}) } };
+                  require(${JSON.stringify(envFile)});`;
+  const run = spawnSync(process.execPath, ['-e', script], { env, encoding: 'utf8' });
 
-  assert.notStrictEqual(run.status, 0, 'phải thoát với mã lỗi');
-  assert.match(run.stderr, /Thiếu biến môi trường bắt buộc: JWT_SECRET/);
+  assert.notStrictEqual(run.status, 0, 'it must exit with an error code');
+  assert.match(run.stderr, /Missing required environment variables: JWT_SECRET/);
 });
 
-// ---------- chốt việc dịch sang PostgreSQL ----------
+// ---------- locking in the move to PostgreSQL ----------
 
-test('INSERT template dùng RETURNING và truyền target_json là object, không phải chuỗi', async () => {
+test('the template INSERT uses RETURNING and passes target_json as an object, not a string', async () => {
   const tester = seedUser();
   await request(app).post('/api/templates').set(...auth(tester)).send(newTemplate);
 
   const insert = lastSql.find((q) => q.sql.startsWith('INSERT'));
-  assert.ok(insert, 'phải có câu INSERT');
-  assert.match(insert.sql, /RETURNING/, 'Postgres không có insertId, phải dùng RETURNING');
-  // target_json là cột JSONB: pg tự tuần tự hóa object; stringify sẵn sẽ lưu sai kiểu
+  assert.ok(insert, 'there must be an INSERT statement');
+  assert.match(insert.sql, /RETURNING/, 'Postgres has no insertId, RETURNING is required');
+  // target_json is a JSONB column: pg serializes the object itself; pre-stringifying stores the wrong type
   assert.deepStrictEqual(insert.params[3], { suiteId: 1 });
 });
 
-test('không câu SQL nào còn placeholder ? của MySQL', async () => {
+test('no SQL statement still uses the MySQL ? placeholder', async () => {
   const tester = seedUser();
   await request(app).post('/api/templates').set(...auth(tester)).send(newTemplate);
   await request(app).get('/api/templates?q=Smoke&scope=UI').set(...auth(tester));
@@ -293,16 +294,16 @@ test('không câu SQL nào còn placeholder ? của MySQL', async () => {
   await request(app).delete('/api/templates/1').set(...auth(tester));
 
   const mysqlish = lastSql.filter((q) => q.sql.includes('?'));
-  assert.deepStrictEqual(mysqlish.map((q) => q.sql), [], 'còn câu dùng ?');
-  // và mọi câu có tham số đều phải đánh số $n
+  assert.deepStrictEqual(mysqlish.map((q) => q.sql), [], 'a statement still uses ?');
+  // and every parameterized statement must number them $n
   lastSql.filter((q) => q.params.length).forEach((q) => {
-    assert.match(q.sql, /\$\d/, `thiếu $n: ${q.sql}`);
+    assert.match(q.sql, /\$\d/, `missing $n: ${q.sql}`);
   });
 });
 
-// ---------- bảng route khớp ma trận quyền trong api-endpoints.md mục 4 ----------
+// ---------- the route table matches the permission matrix in api-endpoints.md section 4 ----------
 
-test('mọi route templates ghi/sửa/xóa đều gắn requireAuth + requireRole(admin,tester)', () => {
+test('every write/edit/delete templates route has requireAuth + requireRole(admin,tester)', () => {
   const requireAuth = require('../src/middlewares/requireAuth');
   const routes = [];
   const walk = (stack, prefix) => {
@@ -324,23 +325,23 @@ test('mọi route templates ghi/sửa/xóa đều gắn requireAuth + requireRol
   walk(app._router.stack, '');
 
   const templates = routes.filter((r) => r.path.startsWith('/api/templates'));
-  assert.strictEqual(templates.length, 6, 'nhóm templates phải có đúng 6 endpoint');
+  assert.strictEqual(templates.length, 6, 'the templates group must have exactly 6 endpoints');
 
-  // Không endpoint template nào được công khai
-  templates.forEach((r) => assert.ok(r.hasAuth, `${r.method} ${r.path} thiếu requireAuth`));
+  // No template endpoint may be public
+  templates.forEach((r) => assert.ok(r.hasAuth, `${r.method} ${r.path} is missing requireAuth`));
 
-  // Ghi/sửa/xóa chỉ admin + tester; đọc thì mọi user đã đăng nhập
+  // Write/edit/delete is admin + tester only; reading is any signed-in user
   templates.forEach((r) => {
     const isWrite = r.method !== 'GET';
     if (isWrite) {
-      assert.deepStrictEqual(r.roles, ['admin', 'tester'], `${r.method} ${r.path} sai vai trò`);
+      assert.deepStrictEqual(r.roles, ['admin', 'tester'], `${r.method} ${r.path} has the wrong roles`);
     } else {
-      assert.strictEqual(r.roles, null, `${r.method} ${r.path} không nên chặn theo vai trò`);
+      assert.strictEqual(r.roles, null, `${r.method} ${r.path} should not be role-restricted`);
     }
   });
 
-  // login phải công khai, nếu không thì không ai đăng nhập được
+  // login must be public, otherwise nobody can sign in
   const login = routes.find((r) => r.path === '/api/auth/login');
-  assert.ok(login, 'thiếu POST /api/auth/login');
-  assert.strictEqual(login.hasAuth, false, 'login không được đòi token');
+  assert.ok(login, 'POST /api/auth/login is missing');
+  assert.strictEqual(login.hasAuth, false, 'login must not require a token');
 });

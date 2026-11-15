@@ -12,35 +12,34 @@ const {
   changeStatusSchema,
 } = require('../validators/users.schema');
 
-// Quản lý thành viên – chỉ Admin.
 // Member management – Admin only.
-// Endpoint đầy đủ: api-endpoints.md mục 2.
+// Full endpoint list: api-endpoints.md section 2.
 //
-// Mỗi dòng theo đúng thứ tự: requireAuth → requireRole → validate → controller.
+// Every line in this order: requireAuth → requireRole → validate → controller.
 const onlyAdmin = requireRole('admin');
 const validateId = validate(userIdParamsSchema, 'params');
 
-// GET /api/users?q=&role=&status=&page=&limit= – danh sách thành viên (Admin)
+// GET /api/users?q=&role=&status=&page=&limit= – member list (Admin)
 router.get('/', requireAuth, onlyAdmin, validate(userQuerySchema, 'query'), usersController.getUsers);
 
-// POST /api/users – tạo tài khoản hộ (Admin, email trùng → 409)
+// POST /api/users – create an account on someone's behalf (Admin, duplicate email → 409)
 router.post('/', requireAuth, onlyAdmin, validate(createUserSchema), usersController.createUser);
 
-// Thêm /users/me (api-endpoints.md mục 2, 🟡) thì phải đặt TRƯỚC ba dòng /:id dưới đây,
-// nếu không 'me' rơi vào :id và chết ở validate (id phải là số) → 400 thay vì hồ sơ của mình.
-// GET /api/users/:id – chi tiết một thành viên (Admin)
+// Adding /users/me (api-endpoints.md section 2, 🟡) must go BEFORE the three /:id lines below,
+// otherwise 'me' falls into :id and dies in validate (id must be numeric) → 400 instead of your own profile.
+// GET /api/users/:id – one member's details (Admin)
 router.get('/:id', requireAuth, onlyAdmin, validateId, usersController.getUser);
 
-// PATCH /api/users/:id – sửa họ tên / email (Admin)
+// PATCH /api/users/:id – edit full name / email (Admin)
 router.patch('/:id', requireAuth, onlyAdmin, validateId, validate(updateUserSchema), usersController.updateUser);
 
-// DELETE /api/users/:id – xóa hẳn (Admin, không tự xóa mình → 400, xóa admin → 409)
+// DELETE /api/users/:id – hard delete (Admin, cannot delete yourself → 400, deleting an admin → 409)
 router.delete('/:id', requireAuth, onlyAdmin, validateId, usersController.deleteUser);
 
-// PATCH /api/users/:id/role – đổi vai trò (Admin, không tự hạ quyền mình → 400)
+// PATCH /api/users/:id/role – change role (Admin, cannot demote yourself → 400)
 router.patch('/:id/role', requireAuth, onlyAdmin, validateId, validate(changeRoleSchema), usersController.changeRole);
 
-// PATCH /api/users/:id/status – khóa / mở khóa (Admin, không tự khóa mình → 400)
+// PATCH /api/users/:id/status – lock / unlock (Admin, cannot lock yourself → 400)
 router.patch('/:id/status', requireAuth, onlyAdmin, validateId, validate(changeStatusSchema), usersController.changeStatus);
 
 module.exports = router;

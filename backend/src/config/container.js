@@ -16,14 +16,12 @@ const BugRepository = require("../repositories/BugRepository");
 const { createTargetResolver } = require("../services/target");
 const { createRunner } = require("../services/runner");
 
-// Factory ráp sẵn repository vào service, và service vào controller.
-// Factory that wires repositories into services, and services into controllers.
-// Nhờ nó, test có thể dựng service với repository giả mà không cần thư viện DI.
-// It lets tests build a service with a fake repository, with no DI library.
+// Factory wiring repositories into services, and services into controllers.
+// Thanks to it, tests can build a service with a fake repository without a DI library.
 //
-// Cần làm / To do:
-// - Mỗi nhóm tính năng thêm đúng một dòng vào đây khi service của nhóm xong.
-// - Giữ file này chỉ để nối dây: không có if, không có quy tắc nghiệp vụ.
+// To do:
+// - Each feature group adds exactly one line here once its service is done.
+// - Keep this file pure wiring: no ifs, no business rules.
 
 const userRepository = new UserRepository();
 const templateRepository = new TemplateRepository();
@@ -40,8 +38,8 @@ const catalogService = new CatalogService({ catalogRepository });
 const runRepository = new RunRepository();
 const logRepository = new LogRepository();
 const resultRepository = new ResultRepository();
-// testRunner đứng riêng vì hai nơi dùng: chạy test, và /meta/options hỏi nó môi trường nào
-// chạy được — một nguồn chân lý, không để giao diện mời chọn thứ POST /runs sẽ từ chối.
+// testRunner stands apart because two places use it: running tests, and /meta/options asking it which
+// environments are runnable — one source of truth, so the UI never offers what POST /runs would reject.
 const testRunner = createRunner({
   logRepository,
   runRepository,
@@ -79,5 +77,5 @@ module.exports = {
   usersService,
   bugsService,
   testRunner,
-  userRepository, // requireAuth cần để kiểm tra trạng thái khóa của tài khoản
+  userRepository, // requireAuth needs it to check whether the account is locked
 };

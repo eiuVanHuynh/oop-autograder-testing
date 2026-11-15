@@ -11,8 +11,8 @@ const caseQuerySchema = z
     priority: z.enum(CASE_PRIORITIES).optional(),
     status: z.enum(CASE_STATUSES).optional(),
   })
-  // KHÔNG .strict() cho query: một tham số lạ (cache-buster "_", tham số FE thêm sau) không
-  // đáng để cả trang trắng vì 400. Body thì vẫn strict — ở đó key lạ thường là viết sai tên.
+  // NO .strict() for query: one unknown param (a cache-buster "_", a param the FE adds later) is not
+  // worth a blank page from a 400. The body stays strict — there an unknown key is usually a typo.
   .strip();
 const createCaseSchema = z
   .object({
@@ -40,7 +40,7 @@ const updateSpecSchema = createSpecSchema
   .partial()
   .strict()
   .refine((data) => Object.keys(data).length > 0, {
-    message: "Cần ít nhất một trường để cập nhật",
+    message: "At least one field is required to update",
   });
 const createSuiteSchema = z
   .object({
@@ -52,12 +52,11 @@ const updateSuiteSchema = createSuiteSchema
   .partial()
   .strict()
   .refine((data) => Object.keys(data).length > 0, {
-    message: "Cần ít nhất một trường để cập nhật",
+    message: "At least one field is required to update",
   });
-// Schema zod cho nhóm catalog; middleware validate() dùng các schema này.
-// zod schemas for the catalog group; the validate() middleware consumes them.
+// Zod schemas for the catalog group; the validate() middleware uses them.
 //
-// Cần làm / To do:
+// To do:
 // - caseQuerySchema: suite, type, priority, status.
 
 // TODO
@@ -80,7 +79,7 @@ const replaceCaseStepsSchema = z
           step_action: z.string().trim().min(1),
           step_target: z.string().max(255).nullable().optional(),
           expected_result: z.string().nullable().optional(),
-          // FILL: tên field trong test_data mà bước này điền.
+          // FILL: the test_data field name this step fills in.
           field_name: z.string().trim().max(100).nullable().optional(),
         })
         .strict(),
@@ -120,7 +119,7 @@ const replaceCaseDataSchema = z
       z
         .object({
           field_name: z.string().trim().min(1).max(100),
-          // Giữ nguyên chuỗi "env:TEN_BIEN": nơi chạy test mới giải, backend không giải.
+          // Keep the "env:VAR_NAME" string as is: only the runner resolves it, the backend does not.
           data_value: z.string().nullable().optional(),
           is_valid: z.boolean().optional(),
         })
@@ -128,8 +127,8 @@ const replaceCaseDataSchema = z
     ),
   })
   .strict()
-  // Hai dòng cùng field_name trong một case là trạng thái không ai giải được: bước FILL chỉ
-  // đọc được một giá trị. Chặn ngay ở cửa API thay vì để runner đoán (xem toDataMap).
+  // Two rows with the same field_name in one case is an unresolvable state: a FILL step can only
+  // read one value. Block it right at the API door instead of letting the runner guess (see toDataMap).
   .superRefine((body, ctx) => {
     const seen = new Set();
     body.data.forEach((row, i) => {
@@ -137,7 +136,7 @@ const replaceCaseDataSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["data", i, "field_name"],
-          message: `field_name "${row.field_name}" bị gửi hai lần`,
+          message: `field_name "${row.field_name}" was sent twice`,
         });
       }
       seen.add(row.field_name);
@@ -149,14 +148,14 @@ const caseDataParamsSchema = z.object({
   field: z.string().trim().min(1).max(100),
 });
 
-// Sửa metadata: mọi trường tùy chọn, nhưng body rỗng thì không có gì để ghi.
-// tc_code và spec_id bị loại: mã test là bất biến sau khi tạo (xem CatalogRepository.updateCase).
+// Metadata edit: every field optional, but an empty body has nothing to write.
+// tc_code and spec_id are excluded: the test code is immutable after creation (see CatalogRepository.updateCase).
 const updateCaseSchema = createCaseSchema
   .omit({ spec_id: true, tc_code: true })
   .partial()
   .strict()
   .refine((data) => Object.keys(data).length > 0, {
-    message: "Cần ít nhất một trường để cập nhật",
+    message: "At least one field is required to update",
   });
 
 module.exports = {

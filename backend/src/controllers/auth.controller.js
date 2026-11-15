@@ -1,20 +1,18 @@
 const asyncHandler = require("../utils/asyncHandler");
-// Đăng nhập, đăng ký, quên mật khẩu, Google OAuth.
 // Login, register, forgot password, Google OAuth.
-// Controller mỏng: đọc req → gọi service → res.json({ data }). Không có quy tắc nghiệp vụ.
-// Thin controller: read req → call the service → res.json({ data }). No business rules here.
+// Thin controller: read req → call service → res.json({ data }). No business rules.
 //
-// Cần làm / To do:
+// To do:
 // // - register / login / me / logout / forgot-password / reset-password / google + callback.
-// - login trả { token, user }; sai mật khẩu 401, tài khoản khóa 423, thử nhiều lần 429.
-// - Trả đúng status code ghi trong api-endpoints.md mục 1.
+// - login returns { token, user }; wrong password 401, locked account 423, too many attempts 429.
+// - Return the status codes listed in api-endpoints.md section 1.
 
 class AuthController {
   constructor(authService) {
     this.authService = authService;
   }
 
-  // 1. POST /auth/register - Đăng ký tài khoản mới (Status code: 201)
+  // 1. POST /auth/register - Register a new account (Status code: 201)
   register = asyncHandler(async (req, res) => {
     const result = await this.authService.register(req.body);
     return res.status(201).json({
@@ -22,22 +20,22 @@ class AuthController {
     });
   });
 
-  // 2. POST /auth/login - Đăng nhập (Status code: 200, 401, 423, 429)
+  // 2. POST /auth/login - Sign in (Status code: 200, 401, 423, 429)
   login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
-    // Gọi service xử lý logic đăng nhập
+    // Call the service that holds the login logic
     const result = await this.authService.login({ email, password });
 
-    // Trả về kết quả thành công với status 200 theo chuẩn quy ước
+    // Return success with status 200 per the shared convention
     return res.status(200).json({
       data: result,
     });
   });
 
-  // 3. GET /auth/me - Lấy thông tin user hiện tại qua token (Status code: 200, 401)
+  // 3. GET /auth/me - Current user from the token (Status code: 200, 401)
   me = asyncHandler(async (req, res) => {
-    // req.user được gán từ requireAuth middleware
+    // req.user is set by the requireAuth middleware
     const userId = req.user.user_id;
     const result = await this.authService.getCurrentUser(userId);
     return res.status(200).json({
@@ -45,14 +43,14 @@ class AuthController {
     });
   });
 
-  // 4. POST /auth/logout - Đăng xuất / Hủy token (Status code: 204, 401)[cite: 1]
+  // 4. POST /auth/logout - Sign out / invalidate the token (Status code: 204, 401)[cite: 1]
   logout = asyncHandler(async (req, res) => {
     await this.authService.logout(req.user);
-    // 204 No Content: thành công nhưng không cần trả dữ liệu[cite: 1]
+    // 204 No Content: succeeded, but there is no data to return[cite: 1]
     return res.status(204).send();
   });
 
-  // 5. POST /auth/forgot-password - Quên mật khẩu (Status code: 200, 400, 429)[cite: 1]
+  // 5. POST /auth/forgot-password - Forgot password (Status code: 200, 400, 429)[cite: 1]
   forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
     await this.authService.forgotPassword(email);
@@ -61,7 +59,7 @@ class AuthController {
     });
   });
 
-  // 6. POST /auth/reset-password - Đặt lại mật khẩu mới (Status code: 200, 400, 410)[cite: 1]
+  // 6. POST /auth/reset-password - Set a new password (Status code: 200, 400, 410)[cite: 1]
   resetPassword = asyncHandler(async (req, res) => {
     const { token, newPassword } = req.body;
     await this.authService.resetPassword({ token, newPassword });
@@ -70,13 +68,13 @@ class AuthController {
     });
   });
 
-  // 7. GET /auth/google - Chuyển hướng sang trang Google OAuth (Status code: 302)[cite: 1]
+  // 7. GET /auth/google - Redirect to the Google OAuth page (Status code: 302)[cite: 1]
   google = asyncHandler(async (req, res) => {
     const googleAuthUrl = await this.authService.getGoogleAuthUrl();
     return res.redirect(302, googleAuthUrl);
   });
 
-  // 8. GET /auth/google/callback - Nhận kết quả trả về từ Google (Status code: 302, 401)[cite: 1]
+  // 8. GET /auth/google/callback - Receive the result from Google (Status code: 302, 401)[cite: 1]
   googleCallback = asyncHandler(async (req, res) => {
     const { code } = req.query;
     const redirectUrl = await this.authService.handleGoogleCallback(code);

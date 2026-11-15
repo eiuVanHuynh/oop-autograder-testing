@@ -10,22 +10,21 @@ const {
   idParamsSchema,
 } = require('../validators/bugs.schema');
 
-// Báo lỗi từ một kết quả test bị Fail (🟡).
-// Bug reports raised from a failed test result (🟡).
-// Endpoint đầy đủ: api-endpoints.md mục 10. POST /results/:id/bugs KHÔNG nằm dưới /bugs,
-// nên nhóm này mount ở gốc và khai đường dẫn đầy đủ (xem ghi chú routes/index.js).
+// Report a bug from a failed test result (🟡).
+// Full endpoint list: api-endpoints.md section 10. POST /results/:id/bugs does NOT sit under /bugs,
+// so this group is mounted at the root and declares full paths (see the note in routes/index.js).
 //
-// Mỗi dòng theo đúng thứ tự: requireAuth → requireRole → validate → controller.
-const canReport = requireRole('admin', 'tester', 'dev'); // Phụ lục A: Dev được báo lỗi
+// Every line in this order: requireAuth → requireRole → validate → controller.
+const canReport = requireRole('admin', 'tester', 'dev'); // Appendix A: Dev may report bugs
 const validateId = validate(idParamsSchema, 'params');
 
-// POST /api/results/:id/bugs – tạo báo cáo lỗi từ một kết quả Fail (409 nếu kết quả đã Đạt)
+// POST /api/results/:id/bugs – create a bug report from a failed result (409 if the result passed)
 router.post('/results/:id/bugs', requireAuth, canReport, validateId, validate(createBugSchema), bugsController.createBug);
 
-// GET /api/bugs?status=&severity= – danh sách lỗi (mọi user đăng nhập)
+// GET /api/bugs?status=&severity= – bug list (any signed-in user)
 router.get('/bugs', requireAuth, validate(bugQuerySchema, 'query'), bugsController.getBugs);
 
-// PATCH /api/bugs/:id – cập nhật lỗi, thường là đổi trạng thái (Admin, Tester)
+// PATCH /api/bugs/:id – update a bug, usually its status (Admin, Tester)
 router.patch('/bugs/:id', requireAuth, requireRole('admin', 'tester'), validateId, validate(updateBugSchema), bugsController.updateBug);
 
 module.exports = router;

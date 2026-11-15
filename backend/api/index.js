@@ -1,3 +1,2 @@
-// Điểm vào cho Vercel: serverless chỉ cần đối tượng app, không gọi listen.
-// Vercel entry point: serverless only needs the app object, never listen.
+// Entry point for Vercel: serverless only needs the app object, no listen() call.
 module.exports = require('../src/app');

@@ -1,24 +1,21 @@
-// Template – thứ người dùng chọn để chạy (bảng mới test_templates).
-// Templates – what the user picks to run (the new test_templates table).
-// Quy tắc nghiệp vụ nằm ở đây. Không require pg, không chạm req/res.
-// Business rules live here. Never require pg, never touch req/res.
-// Nhận repository qua constructor để test thay được bằng bản giả.
-// Takes its repositories through the constructor so tests can pass fakes.
+// Template – what the user picks to run (new test_templates table).
+// Business rules live here. No pg require, no touching req/res.
+// Takes repositories through the constructor so tests can swap in fakes.
 //
-// Cần làm / To do:
-// - target_json bắt buộc: { suiteId } hoặc { testIds }. Thiếu → 400.
-// - Trùng template_name → 409. Sửa/xóa template KHÔNG ảnh hưởng lịch sử chạy.
-// - Nên trả kèm số test case 'ready' để giao diện chặn sớm template rỗng.
+// To do:
+// - target_json is required: { suiteId } or { testIds }. Missing → 400.
+// - Duplicate template_name → 409. Editing/deleting a template does NOT affect run history.
+// - Should also return the 'ready' test case count so the UI can block an empty template early.
 class TemplatesService {
   constructor(deps = {}) {
     this.templateRepository = deps.templateRepository;
-    this.caseRepository = deps.caseRepository; // Dùng để đếm số test case ready nếu cần
+    this.caseRepository = deps.caseRepository; // Used to count ready test cases when needed
   }
 
   async getAllTemplates(filters = {}) {
     const templates = await this.templateRepository.findAllWithFilters(filters);
 
-    // Parse target_json và gắn thêm thông tin số lượng test case 'ready' nếu cần
+    // Parse target_json and attach the 'ready' test case count when needed
     for (const t of templates) {
       if (typeof t.target_json === "string") {
         t.target_json = JSON.parse(t.target_json);
@@ -51,7 +48,7 @@ class TemplatesService {
   async createTemplate(userId, data) {
     const { template_name, target_json } = data;
 
-    // Kiểm tra target_json bắt buộc phải có suiteId hoặc testIds hợp lệ -> 400
+    // target_json must carry a valid suiteId or testIds -> 400
     if (
       !target_json ||
       (!target_json.suiteId &&
@@ -64,7 +61,7 @@ class TemplatesService {
       throw error;
     }
 
-    // Kiểm tra trùng tên template -> 409 Conflict
+    // Check for a duplicate template name -> 409 Conflict
     const existing = await this.templateRepository.findByName(template_name);
     if (existing) {
       const error = new Error("Template name already exists");
@@ -81,7 +78,7 @@ class TemplatesService {
   }
 
   async updateTemplate(id, data) {
-    // Kiểm tra xem template có tồn tại không
+    // Check whether the template exists
     await this.getTemplateById(id);
 
     if (data.template_name) {
@@ -119,7 +116,7 @@ class TemplatesService {
       throw error;
     }
 
-    // Xóa template KHÔNG ảnh hưởng lịch sử chạy vì test_runs đã snapshot grep/config từ trước
+    // Deleting a template does NOT affect run history, since test_runs already snapshotted grep/config
     return await this.templateRepository.delete(id);
   }
 

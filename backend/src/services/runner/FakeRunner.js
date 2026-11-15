@@ -1,11 +1,10 @@
 const TestRunner = require('./TestRunner');
 
-// Bản giả cho test và cho lúc chạy local: không gọi GitHub.
-// Fake used by tests and local runs: never calls GitHub.
+// The fake used by tests and local runs: it never calls GitHub.
 //
-// - Luôn lưu lại tham số mỗi lần gọi (this.calls) để bài test kiểm tra biểu thức grep.
-// - Nếu truyền logRepository + runRepository thì mô phỏng một lần chạy: ghi vài dòng log
-//   gắn nhãn [FAKE RUNNER] rồi đóng run là 'passed'. KHÔNG phải kết quả test thật.
+// - Always records the arguments of each call (this.calls) so tests can check the grep expression.
+// - Given logRepository + runRepository it simulates a run: writes a few log lines
+//   tagged [FAKE RUNNER] then closes the run as 'passed'. These are NOT real test results.
 class FakeRunner extends TestRunner {
   constructor({ logRepository, runRepository, stepMs = 700, baseUrls } = {}) {
     super({ baseUrls });
@@ -29,9 +28,9 @@ class FakeRunner extends TestRunner {
 
   _simulate(runId, ciRunId, { grep, env }) {
     const lines = [
-      ['info', '[FAKE RUNNER] Giả lập chạy test, không có test thật nào được thực thi.'],
+      ['info', '[FAKE RUNNER] Simulating a test run; no real test was executed.'],
       ['info', `[FAKE RUNNER] env=${env} grep=${grep}`],
-      ['info', '[FAKE RUNNER] Hoàn tất.'],
+      ['info', '[FAKE RUNNER] Done.'],
     ];
     let i = 0;
     const step = async () => {

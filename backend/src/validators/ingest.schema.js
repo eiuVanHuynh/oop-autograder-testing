@@ -1,10 +1,10 @@
 const { z } = require("zod");
 
-// Schema zod cho nhóm ingest; middleware validate() dùng các schema này.
-// Dữ liệu đến từ máy (GitHub Actions) nên vẫn phải kiểm: API key chỉ chứng minh "ai gửi",
-// không chứng minh "gửi đúng".
+// Zod schemas for the ingest group; the validate() middleware uses them.
+// The data comes from a machine (GitHub Actions) and still must be checked: an API key only proves "who sent it",
+// not "that it is correct".
 
-// result_status của test_results có CHECK ở DB; chặn sớm tại đây để trả 400 thay vì 500.
+// test_results.result_status has a CHECK in the DB; block it early here to return 400 instead of 500.
 const RESULT_STATUS = ['passed', 'failed', 'timedOut', 'skipped', 'interrupted'];
 
 const addResultsSchema = z.object({
@@ -18,7 +18,7 @@ const addResultsSchema = z.object({
         error: z.string().nullish(),
       }),
     )
-    .nonempty("results không được rỗng"),
+    .nonempty("results must not be empty"),
 });
 
 const addLogsSchema = z.object({
@@ -29,10 +29,10 @@ const addLogsSchema = z.object({
         message: z.string(),
       }),
     )
-    .nonempty("lines không được rỗng"),
+    .nonempty("lines must not be empty"),
 });
 
-// final_status: chỉ gửi khi nơi chạy biết một kết cục mà test_results không nói lên được.
+// final_status: only sent when the runner knows an outcome that test_results cannot express.
 const finishSchema = z.object({
   final_status: z.enum(['passed', 'failed', 'interrupted']).nullish(),
 });

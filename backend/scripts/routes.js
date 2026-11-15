@@ -1,8 +1,7 @@
-// Liệt kê các endpoint ĐANG hoạt động, đọc từ bảng route của Express chứ không từ
-// tài liệu viết tay — nên không bao giờ lệch với code. Chạy: npm run routes
+// Lists the endpoints that are LIVE, read from Express's route table rather than from
+// hand-written docs — so it can never drift from the code. Run: npm run routes
 //
-// Không cần kết nối DB: chỉ require app rồi đi qua router stack.
-// No DB needed: it only requires the app and walks the router stack.
+// No DB connection needed: it just requires the app and walks the router stack.
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://x:x@localhost:5432/x';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'x';
 
@@ -10,7 +9,7 @@ const app = require('../src/app');
 const requireAuth = require('../src/middlewares/requireAuth');
 const requireApiKey = require('../src/middlewares/requireApiKey');
 
-// Express 4 giữ tiền tố của router con trong layer.regexp — gỡ ngược ra thành chuỗi.
+// Express 4 keeps a sub-router's prefix in layer.regexp — unpick it back into a string.
 const prefixOf = (layer) => {
   if (layer.path) return layer.path;
   const m = /^\^\\\/(.*?)\\\/\?/.exec(layer.regexp.source);
@@ -28,8 +27,8 @@ const walk = (stack, prefix, out) => {
           ? 'JWT'
           : handlers.includes(requireApiKey)
             ? 'API key'
-            : 'công khai',
-        // requireRole tự gắn .roles vào middleware nó trả về
+            : 'public',
+        // requireRole attaches .roles to the middleware it returns
         roles: handlers.find((h) => h.roles)?.roles ?? null,
       });
     } else if (layer.name === 'router' && layer.handle?.stack) {
@@ -43,7 +42,7 @@ walk(app._router.stack, '', routes);
 routes.sort((a, b) => a.path.localeCompare(b.path) || a.methods[0].localeCompare(b.methods[0]));
 
 if (!routes.length) {
-  console.log('Không có endpoint nào đang hoạt động.');
+  console.log('No endpoint is live.');
   process.exit(0);
 }
 
@@ -51,18 +50,18 @@ const rows = routes.map((r) => [
   r.methods.join(','),
   r.path,
   r.auth,
-  r.roles ? r.roles.join(', ') : r.auth === 'công khai' ? '—' : 'mọi user đã đăng nhập',
+  r.roles ? r.roles.join(', ') : r.auth === 'public' ? '—' : 'any signed-in user',
 ]);
-const head = ['METHOD', 'ĐƯỜNG DẪN', 'XÁC THỰC', 'VAI TRÒ'];
+const head = ['METHOD', 'PATH', 'AUTH', 'ROLES'];
 const w = head.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i].length)));
 const line = (cells) => cells.map((c, i) => c.padEnd(w[i])).join('  ');
 
-console.log(`\n${routes.length} endpoint đang hoạt động:\n`);
+console.log(`\n${routes.length} live endpoints:\n`);
 console.log(line(head));
 console.log(w.map((n) => '-'.repeat(n)).join('  '));
 rows.forEach((r) => console.log(line(r)));
 
-// Nhóm nào đã mount router nhưng chưa có route nào — controller còn rỗng.
+// Groups whose router is mounted but that have no route yet — an empty controller.
 const mounted = [];
 walk(app._router.stack, '', []);
 for (const layer of app._router.stack) {
@@ -76,7 +75,7 @@ for (const layer of app._router.stack) {
   }
 }
 if (mounted.length) {
-  console.log(`\nĐã mount nhưng CHƯA có endpoint nào (controller còn rỗng):`);
+  console.log(`\nMounted but NO endpoint yet (controller still empty):`);
   mounted.forEach((p) => console.log(`  ${p}`));
 }
 console.log();

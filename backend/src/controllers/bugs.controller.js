@@ -1,10 +1,10 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { bugsService } = require('../config/container');
 
-// Báo lỗi từ một kết quả test bị Fail (🟡).
-// Controller mỏng: đọc req → gọi service → res.json({ data }). Không có quy tắc nghiệp vụ.
+// Report a bug from a failed test result (🟡).
+// Thin controller: read req → call service → res.json({ data }). No business rules.
 
-// 1. POST /results/:id/bugs (201; 409 nếu kết quả không phải Fail)
+// 1. POST /results/:id/bugs (201; 409 if the result is not a Fail)
 const createBug = asyncHandler(async (req, res) => {
   const bug = await bugsService.createForResult(req.params.id, req.body, req.user.user_id);
   return res.status(201).json({ data: bug });

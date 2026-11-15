@@ -1,18 +1,17 @@
 const BaseRepository = require("./BaseRepository");
 
-// Truy vấn bảng mới test_templates – thứ người dùng chọn để chạy.
-// Queries the new test_templates table – what the user picks to run.
+// Queries against the new test_templates table – what the user picks to run.
 //
-// Cần làm / To do:
-// - CRUD + tìm theo tên/phạm vi; trùng template_name → để lỗi UNIQUE nổi lên thành 409.
-// - target_json là NOT NULL: template không trỏ tới test nào là template vô dụng.
-// - Xóa template KHÔNG đụng tới lịch sử chạy (test_runs đã chụp grep vào config_json).
+// To do:
+// - CRUD + search by name/scope; a duplicate template_name → let the UNIQUE error surface as 409.
+// - target_json is NOT NULL: a template pointing at no test is a useless template.
+// - Deleting a template does NOT touch run history (test_runs already snapshotted it into config_json).
 class TemplateRepository extends BaseRepository {
   constructor() {
     super("test_templates", "template_id");
   }
 
-  // Tìm kiếm danh sách template với bộ lọc tùy chọn (q cho tên, scope cho phạm vi)
+  // Search the template list with optional filters (q for the name, scope for the scope)
   async findAllWithFilters(filters = {}) {
     let sql = `SELECT * FROM ${this.tableName} WHERE 1=1`;
     const params = [];
@@ -37,14 +36,14 @@ class TemplateRepository extends BaseRepository {
     return res.rows;
   }
 
-  // Tìm template theo tên chính xác (phục vụ kiểm tra trùng lặp để trả 409)
+  // Find a template by exact name (used for the duplicate check that returns 409)
   async findByName(templateName) {
     const sql = `SELECT * FROM ${this.tableName} WHERE template_name = $1`;
     const res = await this.query(sql, [templateName]);
     return res.rows[0] || null;
   }
 
-  // Tạo mới template
+  // Create a template
   async createTemplate(data) {
     const {
       template_name,
@@ -62,8 +61,8 @@ class TemplateRepository extends BaseRepository {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING ${this.primaryKey}
     `;
-    // target_json là JSONB (backend-design.md mục 6): pg tự tuần tự hóa object.
-    // shortcut: nếu nhóm DB làm cột này thành TEXT thì phải bọc lại JSON.stringify.
+    // target_json is JSONB (backend-design.md section 6): pg serializes the object itself.
+    // shortcut: if the DB team makes this column TEXT, it has to be wrapped in JSON.stringify again.
     const res = await this.query(sql, [
       template_name,
       description || null,
@@ -77,7 +76,7 @@ class TemplateRepository extends BaseRepository {
     return res.rows[0][this.primaryKey];
   }
 
-  // Cập nhật template
+  // Update a template
   async updateTemplate(id, data) {
     const fields = [];
     const params = [];

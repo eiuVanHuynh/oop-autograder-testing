@@ -1,7 +1,6 @@
 const BaseRepository = require("./BaseRepository");
 
-// Truy vấn bảng bugs (migration 013) – lỗi phần mềm báo từ một kết quả test Fail.
-// Queries the bugs table – software bugs raised from a failed test result.
+// Queries against the bugs table (migration 013) – defects reported from a failed test result.
 class BugRepository extends BaseRepository {
   constructor() {
     super("bugs", "bug_id");
@@ -17,7 +16,7 @@ class BugRepository extends BaseRepository {
     return res.rows[0];
   }
 
-  // Danh sách lỗi, lọc theo trạng thái + mức độ. Kèm mã test để giao diện không phải hỏi thêm.
+  // Bug list, filtered by status + severity. Includes the test code so the UI needs no extra call.
   async findAllWithFilters(filters = {}) {
     const params = [];
     let where = " WHERE 1=1";
@@ -44,7 +43,7 @@ class BugRepository extends BaseRepository {
     return res.rows;
   }
 
-  // Cập nhật lỗi – thường chỉ là đổi status. Không có dòng nào khớp → null.
+  // Update a bug – usually just a status change. No matching row → null.
   async updateBug(id, data) {
     const allowedFields = ["title", "description", "severity", "status"];
     const fields = [];

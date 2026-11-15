@@ -1,19 +1,17 @@
 const AppError = require('../utils/AppError');
 
-// Chốt cuối: đổi mọi lỗi thành { error: { code, message, details? } }.
-// Final stop: turns every error into { error: { code, message, details? } }.
-// Lỗi lạ (không phải AppError) trả 500 kèm thông điệp chung — không lộ stack ra ngoài.
-// An unknown error (not AppError) returns a generic 500 — never leak the stack.
+// Final gate: turn every error into { error: { code, message, details? } }.
+// An unknown error (not AppError) returns 500 with a generic message — no stack leaked.
 //
-// Cần làm / To do:
-// - AppError → dùng status/code/details của nó. Còn lại → 500 INTERNAL_ERROR.
-// - Log stack chỉ cho lỗi lạ và 5xx; AppError 4xx là phản hồi bình thường, không log.
+// To do:
+// - AppError → use its status/code/details. Anything else → 500 INTERNAL_ERROR.
+// - Log the stack only for unknown errors and 5xx; a 4xx AppError is a normal response, do not log it.
 // eslint-disable-next-line no-unused-vars
 module.exports = (err, req, res, next) => {
-  // Chỉ log stack cho lỗi KHÔNG lường trước. AppError 4xx là phản hồi bình thường
-  // (sai mật khẩu, thiếu quyền, body sai) — log stack cho chúng chỉ làm ngập log Vercel.
+  // Log the stack only for UNEXPECTED errors. A 4xx AppError is a normal response
+  // (wrong password, missing permission, bad body) — logging their stacks just floods the Vercel log.
   if (!(err instanceof AppError) || err.status >= 500) {
-    console.error(err);
+    console.error(`[${req.method} ${req.originalUrl}]`, err);
   }
 
   if (err instanceof AppError) {
@@ -22,7 +20,7 @@ module.exports = (err, req, res, next) => {
     });
   }
 
-  // Service hiện throw Error kèm statusCode thay vì AppError — vẫn tôn trọng status đó.
+  // Services currently throw Error with statusCode instead of AppError — still honour that status.
   if (err.statusCode) {
     return res
       .status(err.statusCode)

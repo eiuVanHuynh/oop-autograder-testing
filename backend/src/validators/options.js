@@ -1,24 +1,24 @@
 const { z } = require("zod");
 
-// Danh sách giá trị hợp lệ dùng chung — NGUỒN DUY NHẤT cho zod, GET /meta/options và FE.
-// Trước đây mỗi schema tự viết lại z.enum([...]) nên test_type có hai bản trong cùng một file.
-// Thêm một giá trị = sửa đúng một dòng ở đây.
-// Nhận cả chữ HOA ở phía GHI: toApi trả enum dạng HOA ('NEW'), nên thứ FE vừa đọc được
-// phải gửi lại nguyên dạng mà không bị 400.
+// The shared list of valid values — THE single source for zod, GET /meta/options and the FE.
+// Each schema used to repeat z.enum([...]), so test_type existed twice in one file.
+// Adding a value = editing exactly one line here.
+// UPPERCASE is accepted on the WRITE side: toApi returns enums in uppercase ('NEW'), so what the FE just read
+// can be sent back verbatim without a 400.
 const lowerEnum = (values) =>
   z.preprocess((v) => (typeof v === "string" ? v.toLowerCase() : v), z.enum(values));
 
-// email LUÔN hạ chữ trước khi xuống DB: uq_users_email trên một số DB đang là UNIQUE(email)
-// chứ không phải UNIQUE(lower(email)), nên 'A@b.co' lẽ ra trùng lại chèn được, rồi findByEmail
-// (lower(email) … LIMIT 1) chọn một trong hai dòng — đăng nhập sai tài khoản.
-// Mọi schema GHI email (register, admin tạo/sửa user) phải dùng field này.
+// email is ALWAYS lowercased before it hits the DB: on some DBs uq_users_email is UNIQUE(email)
+// rather than UNIQUE(lower(email)), so 'A@b.co' would insert despite being a duplicate, and findByEmail
+// (lower(email) … LIMIT 1) would pick one of the two rows — signing you into the wrong account.
+// Every schema that WRITES an email (register, admin create/edit user) must use this field.
 const emailField = z.string().trim().toLowerCase().pipe(z.string().email());
 
 module.exports = {
   lowerEnum,
   emailField,
-  // Môi trường: mỗi giá trị cần một BASE_URL_<TÊN> ở phía backend và một secret cùng tên
-  // bên GitHub Actions, nếu không thì POST /runs trả 400 (xem services/runner/TestRunner.js).
+  // Environments: each value needs a BASE_URL_<NAME> on the backend and a secret of the same name
+  // in GitHub Actions, otherwise POST /runs returns 400 (see services/runner/TestRunner.js).
   ENVIRONMENTS: ["development", "testing", "staging", "production"],
   SCOPES: ["UI", "API", "DB"],
   TEMPLATE_STATUSES: ["active", "inactive"],

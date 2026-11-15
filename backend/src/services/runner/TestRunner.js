@@ -1,16 +1,15 @@
-// Adapter – giao diện chung cho nơi thực sự chạy test.
-// Adapter – the shared interface for whatever actually runs the tests.
-// runs.service chỉ biết giao diện này, nên đổi GitHub Actions sang thứ khác
-// không phải sửa tầng nghiệp vụ.
+// Adapter – the shared interface of wherever tests actually run.
+// runs.service only knows this interface, so swapping GitHub Actions for something else
+// needs no change in the business layer.
 //
-// trigger({ runId, testCodes, grep, env, timeout }) — env quyết định BASE_URL của nơi chạy.
-// trigger({ runId, testCodes, grep, env, timeout }) → trả ciRunId (hoặc null nếu nơi chạy không có id).
-// testCodes: mã test đã giải ra từ template/suite. grep: cùng danh sách đó dưới dạng biểu thức
-// --grep cho nơi chạy chỉ nhận chuỗi (GitHub Actions). Đừng parse grep ngược lại thành mã test.
+// trigger({ runId, testCodes, grep, env, timeout }) — env decides the runner's BASE_URL.
+// trigger({ runId, testCodes, grep, env, timeout }) → returns ciRunId (or null if the runner has no id).
+// testCodes: the test codes resolved from the template/suite. grep: that same list as a --grep
+// expression for runners that only take a string (GitHub Actions). Never parse grep back into test codes.
 // cancel(ciRunId).
-// Lớp con không cài đặt thì ném lỗi, đừng im lặng trả undefined.
+// A subclass that does not implement it throws, rather than silently returning undefined.
 class TestRunner {
-  // baseUrls: { <môi trường>: url }. Nơi chạy không gắn với URL nào (FakeRunner) thì bỏ trống.
+  // baseUrls: { <environment>: url }. A runner tied to no URL (FakeRunner) leaves it empty.
   constructor({ baseUrls } = {}) {
     this.baseUrls = baseUrls || {};
   }
@@ -19,8 +18,8 @@ class TestRunner {
     return this.baseUrls[env] || null;
   }
 
-  // null = chạy được với môi trường này; chuỗi = lý do để nơi gọi trả 400 TRƯỚC khi tạo run.
-  // Mặc định không cần URL nào (FakeRunner); lớp con nào bắn vào web thật thì ghi đè.
+  // null = runnable with this environment; a string = the reason for the caller to return 400 BEFORE creating the run.
+  // By default no URL is needed (FakeRunner); a subclass that hits a real site overrides this.
   checkEnv() {
     return null;
   }
@@ -28,7 +27,7 @@ class TestRunner {
   requireBaseUrl(env) {
     return this.baseUrlFor(env)
       ? null
-      : `Chưa cấu hình BASE_URL_${String(env).toUpperCase()} cho môi trường "${env}"`;
+      : `BASE_URL_${String(env).toUpperCase()} is not configured for environment "${env}"`;
   }
 
   async trigger() {

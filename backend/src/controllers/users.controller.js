@@ -1,8 +1,8 @@
 const asyncHandler = require("../utils/asyncHandler");
 const { usersService } = require("../config/container");
 
-// Quản lý thành viên – chỉ Admin.
-// Controller mỏng: đọc req → gọi service → res.json({ data }). Không có quy tắc nghiệp vụ.
+// Member management – Admin only.
+// Thin controller: read req → call service → res.json({ data }). No business rules.
 
 // 1. GET /users?q=&role=&status=&page=&limit= (200)
 const getUsers = asyncHandler(async (req, res) => {

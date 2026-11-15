@@ -2,12 +2,12 @@ const asyncHandler = require("../utils/asyncHandler");
 const { testRunner } = require("../config/container");
 const options = require("../validators/options");
 
-// Các lựa chọn có sẵn, để giao diện không ghi cứng (api-endpoints.md mục 12).
-// Controller mỏng: không có quy tắc nghiệp vụ nào — chỉ đọc danh sách enum dùng chung.
+// The available options, so the UI hard-codes nothing (api-endpoints.md section 12).
+// Thin controller: no business rules at all — it just reads the shared enum lists.
 
-// environments: hỏi chính bộ chạy test, vì nó là nơi quyết định POST /runs có 400 hay không.
-// Đọc env.BASE_URLS ở đây thì có hai nguồn chân lý: với RUNNER=github URL nằm ở GitHub
-// Secrets (backend không thấy), với RUNNER=fake thì môi trường nào cũng chạy được.
+// environments: ask the test runner itself, since it decides whether POST /runs returns 400.
+// Reading env.BASE_URLS here would create two sources of truth: with RUNNER=github the URLs live in GitHub
+// Secrets (invisible to the backend), and with RUNNER=fake every environment is runnable.
 const getOptions = asyncHandler(async (_req, res) => {
   res.status(200).json({
     data: {

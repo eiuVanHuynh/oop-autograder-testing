@@ -1,19 +1,17 @@
-// Nơi DUY NHẤT đổi giữa quy ước DB và quy ước API.
-// The ONLY place that converts between the DB and the API conventions.
-// DB: snake_case, enum chữ thường ('passed'). API/FE: camelCase, chữ HOA ('PASSED').
+// The ONLY place that converts between DB conventions and API conventions.
 // DB: snake_case, lowercase enums ('passed'). API/FE: camelCase, UPPERCASE ('PASSED').
 //
-// Cần làm / To do:
-// - toApi(row) / toDb(obj): đổi tên khóa hai chiều.
-// - status: 'passed' ↔ 'PASSED'. Đừng đổi ở controller hay repository, chỉ ở đây.
-// - Không bao giờ để password_hash lọt qua toApi().
+// To do:
+// - toApi(row) / toDb(obj): rename keys both ways.
+// - status: 'passed' ↔ 'PASSED'. Never convert in a controller or repository, only here.
+// - Never let password_hash slip through toApi().
 
-// Helper chuyển snake_case sang camelCase
+// Helper converting snake_case to camelCase
 const snakeToCamel = (str) => {
   return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
 };
 
-// Helper chuyển camelCase sang snake_case
+// Helper converting camelCase to snake_case
 const camelToSnake = (str) => {
   return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 };
@@ -23,7 +21,7 @@ const toApi = (row) => {
   const apiObj = {};
 
   for (const key of Object.keys(row)) {
-    // KHÔNG BAO GIỜ để password_hash hoặc password lọt qua toApi()
+    // NEVER let password_hash or password slip through toApi()
     if (key === "password_hash" || key === "password") {
       continue;
     }
@@ -31,7 +29,7 @@ const toApi = (row) => {
     const camelKey = snakeToCamel(key);
     let value = row[key];
 
-    // Chuyển đổi status / enum từ chữ thường (DB) sang chữ HOA (API/FE)
+    // Convert status / enum from lowercase (DB) to UPPERCASE (API/FE)
     if (
       key === "status" ||
       key === "test_status" ||
@@ -57,7 +55,7 @@ const toDb = (obj) => {
     const snakeKey = camelToSnake(key);
     let value = obj[key];
 
-    // Chuyển đổi status / enum từ chữ HOA (API/FE) về chữ thường (DB)
+    // Convert status / enum from UPPERCASE (API/FE) back to lowercase (DB)
     if (
       snakeKey === "status" ||
       snakeKey === "test_status" ||

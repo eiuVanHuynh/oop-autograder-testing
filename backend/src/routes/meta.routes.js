@@ -2,10 +2,10 @@ const router = require('express').Router();
 const metaController = require('../controllers/meta.controller');
 const requireAuth = require('../middlewares/requireAuth');
 
-// Các lựa chọn có sẵn cho giao diện (api-endpoints.md mục 12).
-// Route chỉ khai báo URL, không có logic.
+// The options available to the UI (api-endpoints.md section 12).
+// A route only declares the URL, it holds no logic.
 
-// GET /api/meta/options – môi trường, priority, test_type, test_status… (mọi user đăng nhập)
+// GET /api/meta/options – environments, priority, test_type, test_status… (any signed-in user)
 router.get('/options', requireAuth, metaController.getOptions);
 
 module.exports = router;

@@ -1,5 +1,5 @@
-// Users / bugs / chọn môi trường: kiểm ở tầng service với repository giả, không cần PostgreSQL.
-// Chỉ xét phần có nhánh — những luật mà nếu sai thì không ai thấy ngay.
+// Users / bugs / environment choice: tested at the service layer with fake repositories, no PostgreSQL needed.
+// Only the branching parts — the rules whose breakage nobody would notice right away.
 const test = require('node:test');
 const assert = require('node:assert');
 const UsersService = require('../src/services/users.service');
@@ -7,21 +7,21 @@ const BugsService = require('../src/services/bugs.service');
 const RunsService = require('../src/services/runs.service');
 const TestRunner = require('../src/services/runner/TestRunner');
 
-test('users: admin không tự hạ quyền / tự khóa mình', async () => {
+test('users: an admin cannot demote or lock themselves', async () => {
   const svc = new UsersService({
     userRepository: {
-      updateRole: async () => assert.fail('không được ghi khi tự đổi chính mình'),
-      updateStatus: async () => assert.fail('không được ghi khi tự khóa chính mình'),
+      updateRole: async () => assert.fail('must not write when changing yourself'),
+      updateStatus: async () => assert.fail('must not write when locking yourself'),
       findPublicById: async () => ({}),
     },
   });
   await assert.rejects(() => svc.changeRole(7, 'viewer', 7), { status: 400 });
-  await assert.rejects(() => svc.changeStatus('7', 'inactive', 7), { status: 400 }); // id từ URL là chuỗi
+  await assert.rejects(() => svc.changeStatus('7', 'inactive', 7), { status: 400 }); // the id from the URL is a string
 });
 
-test('users: user không tồn tại → 404; UPDATE từ chối (là admin) → 409', async () => {
-  // Câu UPDATE có điều kiện "user_role <> 'admin'" nên nó trả false cho cả hai trường hợp;
-  // service phân biệt bằng việc đọc lại dòng.
+test('users: unknown user → 404; UPDATE refused (is an admin) → 409', async () => {
+  // The UPDATE carries the condition "user_role <> 'admin'", so it returns false in both cases;
+  // the service tells them apart by re-reading the row.
   const svc = (user) =>
     new UsersService({
       userRepository: { updateRole: async () => false, findPublicById: async () => user },
@@ -42,21 +42,21 @@ test('users: user không tồn tại → 404; UPDATE từ chối (là admin) →
   assert.equal((await ok.changeRole(3, 'tester', 1)).userRole, 'tester');
 });
 
-test('users: tạo / sửa / xóa', async () => {
+test('users: create / edit / delete', async () => {
   const admin = { user_id: 2, user_role: 'admin' };
   const svc = (repo) => new UsersService({ userRepository: repo });
 
-  // tạo: mật khẩu phải được băm trước khi tới repository
+  // create: the password must be hashed before it reaches the repository
   let saved;
   const created = await svc({
     create: async (row) => ((saved = row), { user_id: 9, ...row }),
   }).createUser({ fullName: 'A B', email: 'a@b.co', password: 'secret1', role: 'tester' });
   assert.notEqual(saved.password_hash, 'secret1');
   assert.equal(saved.user_role, 'tester');
-  assert.equal(created.passwordHash, undefined); // toApi không để lọt
+  assert.equal(created.passwordHash, undefined); // toApi does not leak it
   assert.equal(created.userId, 9);
 
-  // sửa: không có dòng → 404
+  // edit: no row → 404
   await assert.rejects(
     () => svc({ updateProfile: async () => null }).updateUser(9, { fullName: 'X Y' }),
     { status: 404 },
@@ -67,9 +67,9 @@ test('users: tạo / sửa / xóa', async () => {
     'X Y',
   );
 
-  // xóa: tự xóa mình → 400, admin → 409, không có → 404
+  // delete: yourself → 400, an admin → 409, missing → 404
   await assert.rejects(
-    () => svc({ deleteNonAdmin: async () => assert.fail('không được xóa chính mình') }).deleteUser(2, 2),
+    () => svc({ deleteNonAdmin: async () => assert.fail('must not delete yourself') }).deleteUser(2, 2),
     { status: 400 },
   );
   const refused = { deleteNonAdmin: async () => false };
@@ -83,15 +83,15 @@ test('users: tạo / sửa / xóa', async () => {
   assert.equal(await svc({ deleteNonAdmin: async () => true }).deleteUser(9, 1), undefined);
 });
 
-test('users: schema tạo/sửa', () => {
+test('users: create/edit schemas', () => {
   const { createUserSchema, updateUserSchema } = require('../src/validators/users.schema');
   assert.equal(createUserSchema.safeParse({ fullName: 'A B', email: 'a@b.co', password: '12345' }).success, false); // < 6
   assert.equal(createUserSchema.parse({ fullName: 'A B', email: 'a@b.co', password: '123456', role: 'TESTER' }).role, 'tester');
-  assert.equal(updateUserSchema.safeParse({}).success, false); // sửa mà không có gì để sửa
-  assert.equal(updateUserSchema.safeParse({ role: 'admin' }).success, false); // vai trò có endpoint riêng
+  assert.equal(updateUserSchema.safeParse({}).success, false); // an edit with nothing to edit
+  assert.equal(updateUserSchema.safeParse({ role: 'admin' }).success, false); // role has its own endpoint
 
-  // email hạ chữ ở MỌI schema ghi: uq_users_email ở DB là UNIQUE(email), không phải
-  // UNIQUE(lower(email)) — không chuẩn hóa thì 'A@b.co' lọt qua và login chọn sai dòng.
+  // email is lowercased in EVERY write schema: uq_users_email in the DB is UNIQUE(email), not
+  // UNIQUE(lower(email)) — without normalizing, 'A@b.co' slips through and login picks the wrong row.
   const { registerSchema } = require('../src/validators/auth.schema');
   const bodies = [
     [createUserSchema, { fullName: 'A B', password: '123456' }],
@@ -100,28 +100,28 @@ test('users: schema tạo/sửa', () => {
   ];
   for (const [schema, rest] of bodies) {
     assert.equal(schema.parse({ ...rest, email: '  ADMIN@EIU.edu.VN ' }).email, 'admin@eiu.edu.vn');
-    assert.equal(schema.safeParse({ ...rest, email: 'khong-phai-email' }).success, false);
+    assert.equal(schema.safeParse({ ...rest, email: 'not-an-email' }).success, false);
   }
 });
 
-test('enum phía ghi nhận cả chữ HOA mà toApi trả ra', () => {
+test('write-side enums also accept the UPPERCASE that toApi returns', () => {
   const { updateBugSchema, bugQuerySchema } = require('../src/validators/bugs.schema');
   const { changeRoleSchema } = require('../src/validators/users.schema');
-  // toApi trả {"status":"NEW","severity":"HIGH"}; gửi lại y nguyên không được 400.
+  // toApi returns {"status":"NEW","severity":"HIGH"}; sending that back verbatim must not be a 400.
   assert.deepEqual(updateBugSchema.parse({ status: 'IN_PROGRESS' }), { status: 'in_progress' });
   assert.deepEqual(bugQuerySchema.parse({ severity: 'HIGH' }), { severity: 'high' });
   assert.deepEqual(changeRoleSchema.parse({ role: 'TESTER' }), { role: 'tester' });
-  assert.equal(bugQuerySchema.safeParse({ status: 'rác' }).success, false);
+  assert.equal(bugQuerySchema.safeParse({ status: 'garbage' }).success, false);
 });
 
-test('GithubActionsRunner chỉ kiểm tên môi trường, không đòi BASE_URL phía backend', () => {
+test('GithubActionsRunner only checks the environment name, it does not demand a backend BASE_URL', () => {
   const GithubActionsRunner = require('../src/services/runner/GithubActionsRunner');
-  const runner = new GithubActionsRunner({ token: 't', repo: 'o/r' }); // không truyền baseUrls
-  assert.equal(runner.checkEnv('production'), null); // secret nằm ở GitHub, workflow tự canh
-  assert.match(runner.checkEnv('prod'), /không có trong danh sách/);
+  const runner = new GithubActionsRunner({ token: 't', repo: 'o/r' }); // no baseUrls passed
+  assert.equal(runner.checkEnv('production'), null); // the secret lives in GitHub, the workflow checks it
+  assert.match(runner.checkEnv('prod'), /is not in the list/);
 });
 
-test('bugs: chỉ kết quả Fail mới báo lỗi được', async () => {
+test('bugs: only a failed result can produce a bug report', async () => {
   const bugRepository = { createBug: async (data) => ({ bug_id: 1, ...data }) };
   const svc = (result) => new BugsService({ bugRepository, resultRepository: { findById: async () => result } });
 
@@ -131,7 +131,7 @@ test('bugs: chỉ kết quả Fail mới báo lỗi được', async () => {
   );
   await assert.rejects(
     () => svc({ result_status: 'passed' }).createForResult(1, { title: 'x', severity: 'low' }, 1),
-    { status: 409, message: /chỉ báo lỗi được từ kết quả Fail/ },
+    { status: 409, message: /a bug can only be reported from a Fail result/ },
   );
   for (const status of ['failed', 'timedOut']) {
     const bug = await svc({ result_status: status }).createForResult(1, { title: 'x', severity: 'high' }, 5);
@@ -139,15 +139,15 @@ test('bugs: chỉ kết quả Fail mới báo lỗi được', async () => {
   }
 });
 
-test('TestRunner.requireBaseUrl: thiếu BASE_URL_<MÔI TRƯỜNG> thì nói đúng tên biến', () => {
+test('TestRunner.requireBaseUrl: a missing BASE_URL_<ENVIRONMENT> names the right variable', () => {
   const runner = new TestRunner({ baseUrls: { staging: 'https://s' } });
-  assert.equal(runner.checkEnv('production'), null); // lớp cơ sở không cần URL (FakeRunner)
+  assert.equal(runner.checkEnv('production'), null); // the base class needs no URL (FakeRunner)
   assert.equal(runner.requireBaseUrl('staging'), null);
   assert.match(runner.requireBaseUrl('production'), /BASE_URL_PRODUCTION/);
   assert.equal(runner.baseUrlFor('staging'), 'https://s');
 });
 
-test('POST /runs: môi trường chưa cấu hình BASE_URL → 400, không tạo run', async () => {
+test('POST /runs: an environment with no BASE_URL configured → 400, no run created', async () => {
   let created = false;
   const svc = new RunsService({
     runRepository: {
@@ -158,12 +158,12 @@ test('POST /runs: môi trường chưa cấu hình BASE_URL → 400, không tạ
     logRepository: {},
     resultRepository: {},
     targetResolver: { resolveExplicitTestCodes: async () => ['TC-01'] },
-    testRunner: { checkEnv: (env) => (env === 'production' ? 'Chưa cấu hình BASE_URL_PRODUCTION' : null) },
+    testRunner: { checkEnv: (env) => (env === 'production' ? 'BASE_URL_PRODUCTION is not configured' : null) },
   });
 
   await assert.rejects(() => svc.createRun(1, { testIds: ['TC-01'], env: 'production' }), {
     status: 400,
     message: /BASE_URL_PRODUCTION/,
   });
-  assert.equal(created, false); // chặn TRƯỚC khi ghi test_runs
+  assert.equal(created, false); // blocked BEFORE writing test_runs
 });

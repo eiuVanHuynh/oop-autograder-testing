@@ -1,22 +1,21 @@
 const router = require('express').Router();
 const { query } = require('../config/db');
 
-// Kiểm tra sức khỏe hệ thống.
 // System health check.
-// Endpoint đầy đủ: api-endpoints.md mục 11 — GET /health, CÔNG KHAI (không requireAuth):
-// nơi gọi là script deploy và bộ test kết nối DB, chúng không có token.
-// Mount ở routes/index.js dưới '/' nên URL thật là /api/health.
+// Full endpoint list: api-endpoints.md section 11 — GET /health, PUBLIC (no requireAuth):
+// the callers are the deploy script and the DB connection tests, which have no token.
+// Mounted under '/' in routes/index.js, so the real URL is /api/health.
 //
-// Không có service riêng: endpoint này cố tình chỉ gồm một câu SELECT 1, mọi lớp thêm vào
-// đều là thứ có thể tự hỏng và làm sai câu trả lời "server còn sống không".
+// No service of its own: this endpoint is deliberately just a SELECT 1, and any extra layer
+// is one more thing that can break and lie about whether the server is alive.
 router.get('/health', async (_req, res) => {
   try {
     await query('SELECT 1');
     res.status(200).json({ data: { status: 'ok', db: 'up' } });
   } catch (err) {
-    // 503, KHÔNG để errorHandler biến thành 500: mất DB là "chưa sẵn sàng", không phải lỗi lạ.
+    // 503, NOT letting errorHandler turn it into a 500: a lost DB is "not ready", not an unknown error.
     res.status(503).json({
-      error: { code: 'DB_DOWN', message: 'Không kết nối được Database' },
+      error: { code: 'DB_DOWN', message: 'Cannot connect to the database' },
       data: { status: 'degraded', db: 'down' },
     });
   }

@@ -1,14 +1,12 @@
 const asyncHandler = require("../utils/asyncHandler");
 
-// Số liệu cho Dashboard.
-// Numbers for the Dashboard.
-// Controller mỏng: đọc req → gọi service → res.json({ data }). Không có quy tắc nghiệp vụ.
-// Thin controller: read req → call the service → res.json({ data }). No business rules here.
+// Dashboard metrics.
+// Thin controller: read req → call service → res.json({ data }). No business rules.
 //
-// Cần làm / To do:
-// - GET /stats/summary và /stats/daily?days=7. days không hợp lệ → 400.
-// - Trả đúng status code ghi trong api-endpoints.md mục 3.
+// To do:
+// - GET /stats/summary and /stats/daily?days=7. An invalid days → 400.
+// - Return the status codes listed in api-endpoints.md section 3.
 
-// TODO: các hàm xử lý, bọc trong asyncHandler
+// TODO: handlers, wrapped in asyncHandler
 
 module.exports = {};

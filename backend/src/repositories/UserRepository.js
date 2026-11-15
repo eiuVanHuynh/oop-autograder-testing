@@ -2,10 +2,10 @@ const BaseRepository = require("./BaseRepository");
 const { query } = require("../config/db");
 const AppError = require("../utils/AppError");
 
-// uq_users_email bắt ở DB, không ở tầng service: hai request đồng thời cùng email thì
-// chỉ một câu INSERT đi qua, request kia nhận 409 thay vì 500.
-// Chỉ nhận đúng ràng buộc email — 23505 của users_pkey (sequence lệch sau khi seed id cố định)
-// là lỗi khác, báo "email đã tồn tại" thì đi tìm sai chỗ.
+// uq_users_email is enforced by the DB, not the service layer: with two concurrent requests for the same email
+// only one INSERT gets through, and the other gets a 409 instead of a 500.
+// Only the email constraint is caught — a 23505 on users_pkey (sequence drift after seeding fixed ids)
+// is a different bug, and reporting "email already exists" would send you looking in the wrong place.
 const rethrowEmailTaken = (err) => {
   if (err.code === "23505" && err.constraint === "uq_users_email") {
     throw new AppError(409, "EMAIL_TAKEN", "Email already exists");
@@ -13,19 +13,18 @@ const rethrowEmailTaken = (err) => {
   throw err;
 };
 
-// Truy vấn bảng users.
-// Queries the users table.
+// Queries against the users table.
 //
-// Cần làm / To do:
-// - findByEmail (cho đăng nhập), đổi vai trò, khóa/mở khóa tài khoản.
-// - KHÔNG BAO GIỜ trả password_hash ra ngoài repository trừ lúc so khớp mật khẩu.
+// To do:
+// - findByEmail (for login), role change, lock/unlock an account.
+// - NEVER return password_hash outside the repository except when verifying a password.
 class UserRepository extends BaseRepository {
   constructor() {
     super("users", "user_id");
   }
 
-  // Danh sách thành viên: tìm theo tên/email (q), lọc vai trò + trạng thái, phân trang.
-  // KHÔNG chọn password_hash (ghi chú đầu file): nó không được rời repository.
+  // Member list: search by name/email (q), filter by role + status, paginated.
+  // Does NOT select password_hash (see the note at the top): it must not leave the repository.
   async findAllWithFilters(filters = {}) {
     const params = [];
     let where = " WHERE 1=1";
@@ -67,7 +66,7 @@ class UserRepository extends BaseRepository {
     };
   }
 
-  // Một thành viên, không kèm password_hash. Không có → null.
+  // One member, without password_hash. Not found → null.
   async findPublicById(userId) {
     const res = await query(
       `SELECT user_id, full_name, email, auth_provider, user_role, user_status, created_at
@@ -85,13 +84,13 @@ class UserRepository extends BaseRepository {
     return res.rows[0] || null;
   }
 
-  // Cột là user_role / user_status, không phải role / status
-  // (db/schema/test_automation_db_schema.sql mục 1).
+  // The columns are user_role / user_status, not role / status
+  // (db/schema/test_automation_db_schema.sql section 1).
   //
-  // "user_role <> 'admin'" nằm TRONG câu UPDATE, không kiểm trước rồi mới ghi: không ai được
-  // hạ quyền hay khoá một admin qua API, và điều kiện ở ngay trong một câu SQL nên hai request
-  // đồng thời không thể cùng đi qua (kiểm-rồi-ghi ở tầng service thì có thể).
-  // rowCount = 0 → service đọc lại dòng để biết là 404 (không có) hay 409 (là admin).
+  // "user_role <> 'admin'" lives INSIDE the UPDATE rather than being checked before writing: nobody can
+  // demote or lock an admin through the API, and because the condition is part of a single SQL statement
+  // two concurrent requests cannot both pass it (a check-then-write in the service layer could).
+  // rowCount = 0 → the service re-reads the row to tell 404 (missing) from 409 (is an admin).
   async updateRole(userId, role) {
     const res = await query(
       "UPDATE users SET user_role = $1 WHERE user_id = $2 AND user_role <> 'admin'",
@@ -102,21 +101,21 @@ class UserRepository extends BaseRepository {
 
   // ######################################################################
   // ##                                                                  ##
-  // ##  CẢNH BÁO: HAI HÀM DƯỚI ĐÂY CHƯA HOÀN THIỆN                      ##
+  // ##  WARNING: THE TWO FUNCTIONS BELOW ARE UNFINISHED                 ##
   // ##                                                                  ##
-  // ##  create() và updatePassword() mới chỉ đủ chạy, CHƯA DÙNG ĐƯỢC    ##
-  // ##  CHO PRODUCTION. Đọc kỹ phần "Còn thiếu" của từng hàm trước khi  ##
-  // ##  gắn route /auth/register hay /auth/reset-password.              ##
+  // ##  create() and updatePassword() are only just runnable, NOT YET   ##
+  // ##  PRODUCTION READY. Read each function's "Still missing" notes    ##
+  // ##  before wiring up /auth/register or /auth/reset-password.        ##
   // ##                                                                  ##
-  // ##  Ai hoàn thiện thì xoá khung này.                                ##
+  // ##  Whoever finishes this, delete this box.                         ##
   // ##                                                                  ##
   // ######################################################################
 
-  // shortcut: chưa hoàn thiện — chỉ đủ cho auth.service.register.
-  // Còn thiếu:
-  //   - Tài khoản GOOGLE: auth_provider đang hardcode 'LOCAL'.
-  //   - Admin tạo user hộ (chọn user_role khác viewer) chưa có đường vào.
-  // Không RETURNING password_hash, theo ghi chú đầu file.
+  // shortcut: unfinished — only enough for auth.service.register.
+  // Still missing:
+  //   - GOOGLE accounts: auth_provider is hardcoded to 'LOCAL'.
+  //   - An admin creating a user on someone's behalf (picking a user_role other than viewer) has no path in.
+  // No RETURNING password_hash, per the note at the top of the file.
   async create({ full_name, email, password_hash, user_role, user_status }) {
     const res = await this.query(
       `INSERT INTO ${this.tableName}
@@ -134,12 +133,12 @@ class UserRepository extends BaseRepository {
     return res.rows[0];
   }
 
-  // shortcut: chưa hoàn thiện — không tự kiểm quyền hay token.
-  // Còn thiếu:
-  //   - Caller (auth.service.resetPassword) PHẢI xác thực trước khi gọi;
-  //     hàm này gọi là đổi, không hỏi gì.
-  //   - Chưa vô hiệu hóa các JWT đã cấp trước đó. Hiện chỉ token reset tự hết
-  //     hiệu lực vì nó ký kèm 10 ký tự đầu của password_hash cũ.
+  // shortcut: unfinished — it checks neither permissions nor tokens.
+  // Still missing:
+  //   - The caller (auth.service.resetPassword) MUST authenticate before calling;
+  //     this function just changes the password, it asks nothing.
+  //   - Previously issued JWTs are not invalidated. Today only the reset token expires
+  //     on its own, because it is signed with the first 10 characters of the old password_hash.
   async updatePassword(userId, passwordHash) {
     const res = await this.query(
       `UPDATE ${this.tableName} SET password_hash = $1 WHERE ${this.primaryKey} = $2`,
@@ -148,8 +147,8 @@ class UserRepository extends BaseRepository {
     return res.rowCount > 0;
   }
 
-  // Khoá admin thì không, nhưng MỞ khoá admin vẫn được: chặn cả chiều mở là tự khoá mình
-  // khỏi một tài khoản đã bị khoá sẵn mà không có đường nào ngoài psql.
+  // Locking an admin is refused, but UNLOCKING one is still allowed: blocking that direction too would leave
+  // an already-locked account with no way back in except psql.
   async updateStatus(userId, status) {
     const res = await query(
       `UPDATE users SET user_status = $1
@@ -159,8 +158,8 @@ class UserRepository extends BaseRepository {
     return res.rowCount > 0;
   }
 
-  // Sửa hồ sơ: chỉ họ tên / email. Vai trò và trạng thái đi qua updateRole / updateStatus
-  // vì hai cột đó có luật riêng (không hạ quyền admin).
+  // Profile edit: full name / email only. Role and status go through updateRole / updateStatus
+  // because those two columns have their own rule (no demoting an admin).
   async updateProfile(userId, fields) {
     const params = [];
     const sets = [];
@@ -181,8 +180,8 @@ class UserRepository extends BaseRepository {
     return res.rows[0] || null;
   }
 
-  // Xóa hẳn. Admin thì không (như updateRole/updateStatus) — khóa tài khoản là đường khuyến nghị.
-  // Các FK trỏ tới users đều ON DELETE SET NULL nên lịch sử chạy test không mất, chỉ mất tên người chạy.
+  // Hard delete. Not for an admin (same as updateRole/updateStatus) — locking the account is the recommended path.
+  // Every FK pointing at users is ON DELETE SET NULL, so run history survives; only the runner's name is lost.
   async deleteNonAdmin(userId) {
     const res = await query(
       "DELETE FROM users WHERE user_id = $1 AND user_role <> 'admin'",

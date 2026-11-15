@@ -1,16 +1,13 @@
-// Số liệu cho Dashboard.
-// Numbers for the Dashboard.
-// Quy tắc nghiệp vụ nằm ở đây. Không require pg, không chạm req/res.
-// Business rules live here. Never require pg, never touch req/res.
-// Nhận repository qua constructor để test thay được bằng bản giả.
-// Takes its repositories through the constructor so tests can pass fakes.
+// Dashboard metrics.
+// Business rules live here. No pg require, no touching req/res.
+// Takes repositories through the constructor so tests can swap in fakes.
 //
-// Cần làm / To do:
-// - Tính tổng số run, tỷ lệ đạt, số đang chạy, lần lỗi gần nhất.
-// - Trạng thái run phải tính ra, không đọc cột run_status (không có cột đó).
+// To do:
+// - Compute the total run count, pass rate, how many are running, and the latest failure.
+// - The run status must be computed, not read from a run_status column (there is none).
 class StatsService {
   constructor(deps = {}) {
-    // TODO: nhận repository cần dùng từ config/container.js
+    // TODO: take the repositories it needs from config/container.js
   }
 
   // TODO

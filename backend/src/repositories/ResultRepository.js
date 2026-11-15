@@ -1,21 +1,20 @@
 const BaseRepository = require('./BaseRepository');
 const { CODE_EXPR } = require('./CatalogRepository');
 
-// Truy vấn test_results và bằng chứng kèm theo.
-// Queries test_results and their attached evidence.
+// Queries against test_results and its attached evidence.
 //
-// Khóa chính của bảng là execution_id (db/schema), không phải result_id.
+// The table's primary key is execution_id (db/schema), not result_id.
 //
-// Cần làm / To do:
-// - Ghi nhiều kết quả một lần (bulk insert) cho /ingest/runs/:id/results.
-// - Đọc theo run để dựng bảng từng bước ở trang báo cáo.
+// To do:
+// - Write many results at once (bulk insert) for /ingest/runs/:id/results.
+// - Read by run to build the step-by-step table on the report page.
 class ResultRepository extends BaseRepository {
   constructor() {
     super('test_results', 'execution_id');
   }
 
-  // Ghi kết quả của một test case theo mã test (tc_code hoặc automation_ref).
-  // Mã không có trong test_cases → không ghi gì, trả null (nơi gọi tự ghi log).
+  // Write the result of one test case by test code (tc_code or automation_ref).
+  // A code not present in test_cases → nothing written, returns null (the caller logs it).
   async recordForCode(runId, code, { status, ms = 0, actual = null, error = null }) {
     const res = await this.query(
       `INSERT INTO ${this.tableName}
@@ -30,13 +29,13 @@ class ResultRepository extends BaseRepository {
     return res.rows[0] ? res.rows[0][this.primaryKey] : null;
   }
 
-  // Kết quả từng case của một run, kèm bằng chứng (screenshot/trace) — trang báo cáo dùng.
-  // Nhờ có nó, frontend không phải bóc pass/fail từ chuỗi log nữa.
+  // Per-case results of a run, with evidence (screenshot/trace) — used by the report page.
+  // Thanks to it, the frontend no longer has to scrape pass/fail out of the log text.
   async findByRun(runId) {
-    // DISTINCT ON: một case chỉ một dòng, lấy execution_id lớn nhất. CI đẩy /results hai lần
-    // (workflow bị dispatch lại cùng RUN_ID) thì bảng có hai dòng cho cùng test_id; trang báo
-    // cáo khoá theo tc_code nên hai dòng sẽ thành hai hàng mâu thuẫn. Giữ lần chạy cuối, đúng
-    // như cách đọc log cũ ("dòng sau đè dòng trước").
+    // DISTINCT ON: one row per case, taking the highest execution_id. If CI pushes /results twice
+    // (the workflow is re-dispatched with the same RUN_ID) the table holds two rows for one test_id; the report
+    // page keys on tc_code, so two rows would become two contradictory lines. Keep the last run, exactly
+    // like the old log reading did ("a later line overrides an earlier one").
     const res = await this.query(
       `SELECT DISTINCT ON (r.test_id)
               r.${this.primaryKey}, r.test_id, c.tc_code, c.title,
@@ -62,8 +61,8 @@ class ResultRepository extends BaseRepository {
     return res.rows;
   }
 
-  // Nhiều kết quả một lượt cho POST /ingest/runs/:id/results.
-  // Trả về danh sách mã không tìm thấy trong test_cases để nơi gọi báo lại cho CI.
+  // Many results at once for POST /ingest/runs/:id/results.
+  // Returns the list of codes not found in test_cases so the caller can report them back to CI.
   async recordMany(runId, items) {
     const unknown = [];
     for (const item of items) {

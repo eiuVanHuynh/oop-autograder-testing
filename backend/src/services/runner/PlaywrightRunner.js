@@ -1,15 +1,14 @@
 const TestRunner = require('./TestRunner');
 const { runCase } = require('./steps');
 
-// Chạy test bằng Playwright ngay trong tiến trình backend — CHỈ DÙNG LOCAL.
-// Runs Playwright in the backend process — LOCAL DEV ONLY.
+// Runs tests with Playwright inside the backend process — LOCAL USE ONLY.
 //
-// Production đi đường GitHub Actions (backend-design.md mục 3): Vercel là serverless, không có
-// binary chromium, đóng tiến trình ngay sau khi trả response nên việc chạy nền ở đây sẽ bị cắt.
-// Lớp này tồn tại để chạy thử một run thật trên máy mình mà không cần đợi CI.
+// Production goes through GitHub Actions (backend-design.md section 3): Vercel is serverless, has no
+// chromium binary, and kills the process right after the response, so background work here would be cut off.
+// This class exists to try a real run on your own machine without waiting for CI.
 //
-// Phần diễn giải bước nằm ở ./steps.js, dùng chung với spec trong CI — một ngôn ngữ bước,
-// một bản cài đặt. Lớp này chỉ lo: mở browser, lặp qua các case, ghi test_results + log.
+// Step interpretation lives in ./steps.js, shared with the CI spec — one step language,
+// one implementation. This class only handles: open the browser, loop over cases, write test_results + logs.
 class PlaywrightRunner extends TestRunner {
   constructor({
     logRepository, runRepository, resultRepository, catalogRepository,
@@ -25,15 +24,15 @@ class PlaywrightRunner extends TestRunner {
     this.cancelled = new Set();
   }
 
-  // Chạy web nào là do env của run quyết định, không phải một BASE_URL cố định.
+  // Which site is hit is decided by the run's env, not by a fixed BASE_URL.
   checkEnv(env) {
     return this.requireBaseUrl(env);
   }
 
-  // testCodes do runs.service giải ra từ template/suite — không parse lại từ biểu thức grep.
+  // testCodes are resolved by runs.service from the template/suite — never parsed back out of the grep expression.
   async trigger({ runId, testCodes, timeout, env }) {
     const ciRunId = `pw-${runId}`;
-    this._run(runId, ciRunId, { codes: testCodes || [], timeout, env }); // không await: chạy nền
+    this._run(runId, ciRunId, { codes: testCodes || [], timeout, env }); // not awaited: runs in the background
     return ciRunId;
   }
 
@@ -48,13 +47,13 @@ class PlaywrightRunner extends TestRunner {
     const log = (level, msg) => this.logRepository.append(runId, level, msg).catch(() => {});
     const baseUrl = this.baseUrlFor(env);
     if (!baseUrl) {
-      // runs.service đã chặn từ trước (400); tới đây chỉ khi cấu hình đổi giữa hai bước.
+      // runs.service already blocked this (400); we only get here if the config changed between the two steps.
       await log('error', `[PLAYWRIGHT] ${this.requireBaseUrl(env)}`);
       await this.runRepository.markFinished(runId, 'failed');
       return;
     }
 
-    await log('info', `[PLAYWRIGHT] ${codes.length} test case trên ${baseUrl} (${env}): ${codes.join(', ')}`);
+    await log('info', `[PLAYWRIGHT] ${codes.length} test cases on ${baseUrl} (${env}): ${codes.join(', ')}`);
 
     let browser;
     try {
@@ -64,19 +63,19 @@ class PlaywrightRunner extends TestRunner {
 
       for (const code of codes) {
         if (this.cancelled.has(ciRunId)) {
-          await log('warn', '[PLAYWRIGHT] Đã hủy, bỏ các test case còn lại.');
+          await log('warn', '[PLAYWRIGHT] Cancelled, skipping the remaining test cases.');
           await this.runRepository.markFinished(runId, 'interrupted');
           return;
         }
         await this._runCase(browser, runId, code, timeout, log, baseUrl);
       }
 
-      // final_status để trống: status của run được tính từ test_results.
+      // final_status left empty: the run status is computed from test_results.
       await this.runRepository.markFinished(runId, null);
-      await log('info', '[PLAYWRIGHT] Chạy xong.');
+      await log('info', '[PLAYWRIGHT] Finished.');
     } catch (err) {
-      // Lỗi hạ tầng (không mở được browser…), không phải một test fail.
-      await log('error', `[PLAYWRIGHT] Lỗi bộ chạy: ${err.message}`);
+      // An infrastructure error (browser would not start…), not a failing test.
+      await log('error', `[PLAYWRIGHT] Runner error: ${err.message}`);
       await this.runRepository.markFinished(runId, 'failed');
     } finally {
       this.sessions.delete(ciRunId);
@@ -84,32 +83,32 @@ class PlaywrightRunner extends TestRunner {
     }
   }
 
-  // Một case = một page mới (không mang session đăng nhập sang case sau) + một dòng test_results.
+  // One case = one fresh page (no login session carried into the next case) + one test_results row.
   async _runCase(browser, runId, code, timeout, log, baseUrl) {
     const page = await browser.newPage({ baseURL: baseUrl });
     page.setDefaultTimeout(Number(timeout) || 30000);
     try {
       const kase = (await this.catalogRepository.findCaseByCode(code)) || { steps: [], data: {} };
-      await log('info', `[PLAYWRIGHT] ${code}: ${kase.steps.length} bước`);
+      await log('info', `[PLAYWRIGHT] ${code}: ${kase.steps.length} steps`);
       const result = await runCase(page, kase, log);
       await this._record(runId, code, result, log);
       await log(result.status === 'passed' ? 'info' : 'error',
         `[PLAYWRIGHT] ${code} ${result.status} (${result.ms}ms)${result.error ? ': ' + result.error : ''}`);
     } catch (err) {
-      // Đọc DB lỗi: ghi nhận case này fail chứ không làm sập cả run.
+      // A DB read failure: record this case as failed rather than bringing the whole run down.
       await this._record(runId, code, { status: 'failed', ms: 0, error: err.message }, log);
     } finally {
       await page.close().catch(() => {});
     }
   }
 
-  // Ghi test_results là phần không được mất: lỗi ở đây phải vào log, không làm chết run.
+  // Writing test_results is the part that must not be lost: an error here goes to the log, it does not kill the run.
   async _record(runId, code, result, log) {
     try {
       const id = await this.resultRepository.recordForCode(runId, code, result);
-      if (!id) await log('warn', `[PLAYWRIGHT] ${code} không có trong test_cases — kết quả không được ghi.`);
+      if (!id) await log('warn', `[PLAYWRIGHT] ${code} is not in test_cases — its result was not written.`);
     } catch (err) {
-      await log('error', `[PLAYWRIGHT] Không ghi được kết quả ${code}: ${err.message}`);
+      await log('error', `[PLAYWRIGHT] Could not write the result of ${code}: ${err.message}`);
     }
   }
 }

@@ -3,23 +3,20 @@ const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = require("../config/env");
 const AppError = require("../utils/AppError");
 
-// Đăng nhập, đăng ký, quên mật khẩu, Google OAuth.
 // Login, register, forgot password, Google OAuth.
-// Quy tắc nghiệp vụ nằm ở đây. Không require pg, không chạm req/res.
-// Business rules live here. Never require pg, never touch req/res.
-// Nhận repository qua constructor để test thay được bằng bản giả.
-// Takes its repositories through the constructor so tests can pass fakes.
+// Business rules live here. No pg require, no touching req/res.
+// Takes repositories through the constructor so tests can swap in fakes.
 //
-// Cần làm / To do:
-// - Băm mật khẩu bằng bcrypt, ký JWT. Tài khoản mới LUÔN là viewer.
-// - Token đặt lại mật khẩu KHÔNG lưu DB: JWT 15 phút ký kèm một phần password_hash hiện tại.
-// - forgot-password luôn trả 200 kể cả email không tồn tại, tránh dò email.
+// To do:
+// - Hash passwords with bcrypt, sign JWTs. A new account is ALWAYS a viewer.
+// - The password reset token is NOT stored in the DB: a 15-minute JWT signed with part of the current password_hash.
+// - forgot-password always returns 200 even for an unknown email, to prevent email probing.
 class AuthService {
   constructor({ userRepository }) {
     this.userRepository = userRepository;
   }
 
-  // 1. Đăng ký tài khoản mới (Tài khoản mới luôn là viewer)[cite: 1]
+  // 1. Register a new account (a new account is always a viewer)[cite: 1]
   async register({ fullName, email, password }) {
     const existingUser = await this.userRepository.findByEmail(email);
     if (existingUser) {
@@ -31,7 +28,7 @@ class AuthService {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Tạo user mới với quyền mặc định là 'viewer'[cite: 1]
+    // Create the user with the default 'viewer' role[cite: 1]
     const newUser = await this.userRepository.create({
       full_name: fullName,
       email,
@@ -56,7 +53,7 @@ class AuthService {
     };
   }
 
-  // 2. Đăng nhập hệ thống
+  // 2. Sign in
   async login({ email, password }) {
     // Find user by email
     const user = await this.userRepository.findByEmail(email);
@@ -64,13 +61,13 @@ class AuthService {
       throw new AppError(401, "INVALID_CREDENTIALS", "Invalid email or password");
     }
 
-    // Kiểm tra nếu tài khoản đang bị khóa -> trả về 423 theo api-endpoints.md mục 0 & 1[cite: 1]
+    // If the account is locked -> return 423 per api-endpoints.md sections 0 & 1[cite: 1]
     if (user.user_status !== "active") {
-      throw new AppError(423, "ACCOUNT_LOCKED", "Tài khoản đang bị khóa");
+      throw new AppError(423, "ACCOUNT_LOCKED", "Account is locked");
     }
 
-    // Tài khoản Google chưa đặt mật khẩu: password_hash NULL. bcrypt.compare(null)
-    // throw nên phải chặn ở đây, nếu không thành 500 thay vì 401.
+    // A Google account with no password set: password_hash NULL. bcrypt.compare(null)
+    // throws, so block it here, otherwise it becomes a 500 instead of a 401.
     if (!user.password_hash) {
       throw new AppError(401, "INVALID_CREDENTIALS", "Invalid email or password");
     }
@@ -97,7 +94,7 @@ class AuthService {
     };
   }
 
-  // 3. Lấy thông tin user hiện tại (GET /auth/me)[cite: 1]
+  // 3. Get the current user (GET /auth/me)[cite: 1]
   async getCurrentUser(userId) {
     const user = await this.userRepository.findById(userId);
     if (!user) {
@@ -112,36 +109,36 @@ class AuthService {
 
   // ######################################################################
   // ##                                                                  ##
-  // ##  CẢNH BÁO: forgotPassword CHƯA HOÀN THIỆN — KHÔNG BẬT ROUTE NÀY  ##
+  // ##  WARNING: forgotPassword IS UNFINISHED — DO NOT ENABLE IT        ##
   // ##                                                                  ##
-  // ##  Đang console.log token reset ra log server, không gửi email.    ##
-  // ##  Ai đọc được log là đổi được mật khẩu của bất kỳ ai.             ##
+  // ##  It console.logs the reset token to the server log, no email.    ##
+  // ##  Anyone who can read the log can change anyone's password.       ##
   // ##                                                                  ##
-  // ##  Trước khi gắn POST /auth/forgot-password:                       ##
-  // ##    1. Nối service gửi email thật, bỏ dòng console.log.           ##
-  // ##    2. Thêm rate-limit (api-endpoints.md mục 1: 429).             ##
+  // ##  Before wiring up POST /auth/forgot-password:                    ##
+  // ##    1. Plug in a real email service, drop the console.log line.   ##
+  // ##    2. Add rate limiting (api-endpoints.md section 1: 429).       ##
   // ##                                                                  ##
-  // ##  resetPassword bên dưới cũng chưa dùng được chừng nào bước 1     ##
-  // ##  chưa xong — xem thêm UserRepository.updatePassword.             ##
+  // ##  resetPassword below is unusable as well until step 1            ##
+  // ##  is done — see also UserRepository.updatePassword.               ##
   // ##                                                                  ##
-  // ##  Ai hoàn thiện thì xoá khung này.                                ##
+  // ##  Whoever finishes this, delete this box.                         ##
   // ##                                                                  ##
   // ######################################################################
 
-  // 4. Quên mật khẩu (Luôn trả 200 kể cả email không tồn tại để tránh dò email)[cite: 1]
+  // 4. Forgot password (always returns 200 even for an unknown email, to prevent email probing)[cite: 1]
   async forgotPassword(email) {
     const user = await this.userRepository.findByEmail(email);
     if (user && user.password_hash) {
-      // Token đặt lại mật khẩu KHÔNG lưu DB: JWT 15 phút ký kèm một phần password_hash hiện tại[cite: 2]
+      // The reset token is NOT stored in the DB: a 15-minute JWT signed with part of the current password_hash[cite: 2]
       const hashSnippet = user.password_hash.substring(0, 10);
       const resetToken = jwt.sign(
         { user_id: user.user_id, snippet: hashSnippet },
         JWT_SECRET,
         { expiresIn: "15m" },
       );
-      // Ghi chú: Tại đây tích hợp service gửi email thực tế chứa resetToken
-      // Chưa có dịch vụ gửi email nên KHÔNG ghi token ra log mặc định (ai đọc log là đổi được mật khẩu).
-      // Chỉ in khi dev chủ động bật DEV_LOG_RESET_TOKEN=true và không phải production.
+      // Note: this is where a real email service sending resetToken would be plugged in
+      // No email service yet, so the token is NOT logged by default (anyone reading the log could change the password).
+      // It is printed only when a dev explicitly sets DEV_LOG_RESET_TOKEN=true outside production.
       if (
         process.env.NODE_ENV !== "production" &&
         process.env.DEV_LOG_RESET_TOKEN === "true"
@@ -152,7 +149,7 @@ class AuthService {
     return { message: "If the email exists, a reset link has been sent." };
   }
 
-  // 5. Đặt lại mật khẩu mới[cite: 1]
+  // 5. Set a new password[cite: 1]
   async resetPassword({ token, newPassword }) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
@@ -165,7 +162,7 @@ class AuthService {
         throw error;
       }
 
-      // Xác thực snippet của password_hash để token tự vô hiệu hóa sau khi đổi mật khẩu[cite: 2]
+      // Verify the password_hash snippet so the token invalidates itself once the password changes[cite: 2]
       const hashSnippet = user.password_hash.substring(0, 10);
       if (decoded.snippet !== hashSnippet) {
         const error = new Error("Link has already been used or is expired");

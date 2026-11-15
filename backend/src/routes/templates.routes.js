@@ -8,25 +8,23 @@ const requireAuth = require("../middlewares/requireAuth");
 const requireRole = require("../middlewares/requireRole");
 const validate = require("../middlewares/validate");
 
-// Ai được làm gì: api-endpoints.md mục 4.
+// Who may do what: api-endpoints.md section 4.
 const canWrite = requireRole("admin", "tester");
 
-// Template – thứ người dùng chọn để chạy (bảng mới test_templates).
-// Templates – what the user picks to run (the new test_templates table).
-// Endpoint đầy đủ: api-endpoints.md mục 4.
+// Template – what the user picks to run (new test_templates table).
 // Full endpoint list: api-endpoints.md section 4.
 //
-// Cần làm / To do:
-// - Mỗi dòng theo đúng thứ tự: requireAuth → requireRole → validate → controller.
-// - Route chỉ khai báo URL, không có logic.
+// To do:
+// - Every line in this order: requireAuth → requireRole → validate → controller.
+// - A route only declares the URL, it holds no logic.
 
-// GET /api/templates - Xem danh sách template (Mọi user đăng nhập)
+// GET /api/templates - List templates (any signed-in user)
 router.get("/", requireAuth, templateController.getTemplates);
 
-// GET /api/templates/:id - Xem chi tiết 1 template (Mọi user đăng nhập)
+// GET /api/templates/:id - View one template (any signed-in user)
 router.get("/:id", requireAuth, templateController.getTemplateById);
 
-// POST /api/templates - Tạo template mới (Admin, Tester)
+// POST /api/templates - Create a template (Admin, Tester)
 router.post(
   "/",
   requireAuth,
@@ -35,7 +33,7 @@ router.post(
   templateController.createTemplate,
 );
 
-// PUT /api/templates/:id - Sửa template (Admin, Tester)
+// PUT /api/templates/:id - Edit a template (Admin, Tester)
 router.put(
   "/:id",
   requireAuth,
@@ -44,10 +42,10 @@ router.put(
   templateController.updateTemplate,
 );
 
-// DELETE /api/templates/:id - Xóa template (Admin, Tester)
+// DELETE /api/templates/:id - Delete a template (Admin, Tester)
 router.delete("/:id", requireAuth, canWrite, templateController.deleteTemplate);
 
-// POST /api/templates/:id/duplicate - Nhân bản template (Admin, Tester)
+// POST /api/templates/:id/duplicate - Duplicate a template (Admin, Tester)
 router.post(
   "/:id/duplicate",
   requireAuth,

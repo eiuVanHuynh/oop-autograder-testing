@@ -1,25 +1,24 @@
 const AppError = require('../utils/AppError');
 
-// Cửa 2: chặn theo vai trò. Dùng requireRole('admin','tester').
-// Gate 2: role check. Used as requireRole('admin','tester').
+// Gate 2: block by role. Use requireRole('admin','tester').
 //
-// Vai trò hợp lệ: admin / tester / dev / viewer (SRS mục 4). Dev không được chạy test.
-// Ẩn nút ở frontend là chưa đủ — mọi hạn chế quyền phải có 403 ở đây.
+// Valid roles: admin / tester / dev / viewer (SRS section 4). Dev may not run tests.
+// Hiding a button in the frontend is not enough — every permission limit needs a 403 here.
 module.exports = (...roles) => {
   const middleware = (req, res, next) => {
-    // Luôn chạy SAU requireAuth; không có req.user là gắn sai thứ tự middleware.
+    // Always runs AFTER requireAuth; a missing req.user means the middleware order is wrong.
     if (!req.user) {
-      return next(new AppError(401, 'UNAUTHORIZED', 'Chưa đăng nhập'));
+      return next(new AppError(401, 'UNAUTHORIZED', 'Not authenticated'));
     }
 
     if (!roles.includes(req.user.role)) {
-      return next(new AppError(403, 'FORBIDDEN', 'Không đủ quyền thực hiện hành động này'));
+      return next(new AppError(403, 'FORBIDDEN', 'Insufficient permissions for this action'));
     }
 
     next();
   };
 
-  // Để scripts/routes.js in được ma trận quyền từ chính app, không phải từ tài liệu viết tay.
+  // Lets scripts/routes.js print the permission matrix from the app itself, not from hand-written docs.
   middleware.roles = roles;
   return middleware;
 };

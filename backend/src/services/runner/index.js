@@ -3,15 +3,15 @@ const FakeRunner = require('./FakeRunner');
 const GithubActionsRunner = require('./GithubActionsRunner');
 const PlaywrightRunner = require('./PlaywrightRunner');
 
-// Chọn bộ chạy test theo biến môi trường RUNNER ('github' | 'fake').
-// Bỏ trống: có GITHUB_TOKEN → github, không có → fake (chỉ ngoài production).
-// Ở production mà chưa cấu hình đủ thì trigger() báo lỗi rõ ràng, KHÔNG chạy giả im lặng.
+// Pick the test runner from the RUNNER environment variable ('github' | 'fake').
+// Empty: GITHUB_TOKEN present → github, absent → fake (outside production only).
+// In production with an incomplete config, trigger() reports a clear error and does NOT silently fake a run.
 const notConfigured = (reason) => ({
   trigger: async () => {
-    throw new Error(`Chưa cấu hình bộ chạy test: ${reason}`);
+    throw new Error(`No test runner configured: ${reason}`);
   },
   cancel: async () => {},
-  checkEnv: () => null, // lỗi cấu hình thuộc về trigger(), không giả thành lỗi 400 của người dùng
+  checkEnv: () => null, // a config error belongs to trigger(), it must not masquerade as a user 400
 });
 
 function createRunner({ logRepository, runRepository, resultRepository, catalogRepository }) {
@@ -19,7 +19,7 @@ function createRunner({ logRepository, runRepository, resultRepository, catalogR
 
   if (kind === 'github') {
     if (!env.GITHUB_TOKEN || !env.GITHUB_REPO) {
-      return notConfigured('thiếu GITHUB_TOKEN hoặc GITHUB_REPO (owner/repo)');
+      return notConfigured('missing GITHUB_TOKEN or GITHUB_REPO (owner/repo)');
     }
     return new GithubActionsRunner({
       token: env.GITHUB_TOKEN,
@@ -30,10 +30,10 @@ function createRunner({ logRepository, runRepository, resultRepository, catalogR
     });
   }
 
-  // playwright = chạy thật trong tiến trình backend, chỉ dùng local (xem PlaywrightRunner).
+  // playwright = a real run inside the backend process, local use only (see PlaywrightRunner).
   if (kind === 'playwright') {
     if (!Object.keys(env.BASE_URLS).length) {
-      return notConfigured('thiếu BASE_URL_<MÔI TRƯỜNG> (web đích để chạy Playwright)');
+      return notConfigured('missing BASE_URL_<ENVIRONMENT> (the target site for Playwright)');
     }
     return new PlaywrightRunner({
       logRepository,
@@ -47,13 +47,13 @@ function createRunner({ logRepository, runRepository, resultRepository, catalogR
 
   if (kind === 'fake') {
     if (env.NODE_ENV === 'production') {
-      return notConfigured('đặt RUNNER=github cùng GITHUB_TOKEN và GITHUB_REPO');
+      return notConfigured('set RUNNER=github together with GITHUB_TOKEN and GITHUB_REPO');
     }
-    console.warn('[runner] Đang dùng FakeRunner: run chỉ được giả lập, không chạy test thật.');
+    console.warn('[runner] FakeRunner: runs are simulated, no real test executes.');
     return new FakeRunner({ logRepository, runRepository });
   }
 
-  return notConfigured(`RUNNER="${env.RUNNER}" không hợp lệ (github | fake | playwright)`);
+  return notConfigured(`RUNNER="${env.RUNNER}" is invalid (github | fake | playwright)`);
 }
 
 module.exports = { createRunner };

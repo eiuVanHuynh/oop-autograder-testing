@@ -1,6 +1,5 @@
-// target_json = { suiteId }: lấy tc_code của mọi test case 'ready' trong suite đó.
-// target_json = { suiteId }: collect the tc_code of every 'ready' case in that suite.
-// Suite không ra test nào → trả mảng rỗng; việc báo 409 là của runs.service.
+// target_json = { suiteId }: take the tc_code of every 'ready' test case in that suite.
+// A suite yielding no test → an empty array; reporting 409 is runs.service's job.
 class SuiteTargetStrategy {
   constructor(catalogRepository) {
     this.catalogRepository = catalogRepository;

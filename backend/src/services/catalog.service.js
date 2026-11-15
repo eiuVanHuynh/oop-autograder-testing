@@ -1,35 +1,32 @@
 const { toApi } = require("../utils/mappers");
 const AppError = require("../utils/AppError");
 const { requiredFields } = require("./runner/steps");
-// Suite / spec / case – nơi khai báo test, nguồn để chọn target.
-// Suites / specs / cases – where tests are declared, the source for picking targets.
-// Quy tắc nghiệp vụ nằm ở đây. Không require pg, không chạm req/res.
-// Business rules live here. Never require pg, never touch req/res.
-// Nhận repository qua constructor để test thay được bằng bản giả.
-// Takes its repositories through the constructor so tests can pass fakes.
+// Suite / spec / case – where tests are declared, the source for picking a target.
+// Business rules live here. No pg require, no touching req/res.
+// Takes repositories through the constructor so tests can swap in fakes.
 //
-// Cần làm / To do:
-// - Chỉ test_status = 'ready' mới được chạy; draft và deprecated bị bỏ qua.
-// - Cũng là nguồn cho helper loadTestCase(tcCode) bên automation/.
-// Lỗi ràng buộc của test_cases → lỗi API. Dùng cho cả create và update.
+// To do:
+// - Only test_status = 'ready' may run; draft and deprecated are skipped.
+// - Also the source for the loadTestCase(tcCode) helper under automation/.
+// Turn a test_cases constraint error into an API error. Used by both create and update.
 const caseWriteError = (err, tcCode) => {
   if (err.code === "23505")
-    // UNIQUE: tc_code (hoặc automation_ref)
-    return new AppError(409, "CONFLICT", `tc_code "${tcCode}" đã tồn tại`);
+    // UNIQUE: tc_code (or automation_ref)
+    return new AppError(409, "CONFLICT", `tc_code "${tcCode}" already exists`);
   if (err.code === "23503")
-    // FK: spec_id không có thật
-    return new AppError(400, "VALIDATION_ERROR", "spec_id không tồn tại");
+    // FK: spec_id does not exist
+    return new AppError(400, "VALIDATION_ERROR", "spec_id does not exist");
   return err;
 };
 
 class CatalogService {
   constructor(deps = {}) {
     this.catalogRepository = deps.catalogRepository;
-    // TODO: nhận repository cần dùng từ config/container.js
+    // TODO: take the repositories it needs from config/container.js
   }
-  // Sửa steps/data có thể làm một case ĐANG 'ready' không còn chạy được (xoá hết bước, bỏ
-  // field mà bước FILL cần). Chặn sửa thì không ai sửa được case đã ready; để nguyên thì
-  // 'ready' thành lời hứa sai và run fail giữa đường. Nên: tự hạ về 'draft' và NÓI RA.
+  // Editing steps/data can make a case that IS 'ready' unrunnable (all steps removed, a field a FILL
+  // step needs dropped). Blocking the edit means a ready case can never be edited; leaving it alone makes
+  // 'ready' a false promise and the run fails midway. So: drop it back to 'draft' and SAY SO.
   async _demoteIfBroken(id) {
     const current = await this.catalogRepository.findCaseDetails(id);
     if (!current || current.test_status !== "ready") return null;
@@ -130,7 +127,7 @@ class CatalogService {
       throw new AppError(404, "NOT_FOUND", "Test case not found");
     }
 
-    // Xoá field mà một bước FILL đang cần cũng làm 'ready' thành lời hứa sai, y như sửa steps.
+    // Dropping a field a FILL step needs also makes 'ready' a false promise, exactly like editing steps.
     return this._demoteIfBroken(id);
   }
   // Suite CRUD
@@ -155,7 +152,7 @@ class CatalogService {
         throw new AppError(
           409,
           "CONFLICT",
-          `suite_name "${data.suite_name}" đã tồn tại`,
+          `suite_name "${data.suite_name}" already exists`,
         );
       }
 
@@ -179,7 +176,7 @@ class CatalogService {
         throw new AppError(
           409,
           "CONFLICT",
-          `suite_name "${data.suite_name}" đã tồn tại`,
+          `suite_name "${data.suite_name}" already exists`,
         );
       }
 
@@ -199,7 +196,7 @@ class CatalogService {
         throw new AppError(
           409,
           "CONFLICT",
-          "Suite đang có Specification tham chiếu, không thể xóa",
+          "The suite is referenced by a Specification and cannot be deleted",
         );
       }
 
@@ -211,7 +208,7 @@ class CatalogService {
         throw new AppError(
           409,
           "CONFLICT",
-          "Suite đang được dữ liệu khác tham chiếu, không thể xóa",
+          "The suite is referenced by other data and cannot be deleted",
         );
       }
 
@@ -232,7 +229,7 @@ class CatalogService {
         throw new AppError(
           409,
           "CONFLICT",
-          `spec_code "${data.spec_code}" đã tồn tại`,
+          `spec_code "${data.spec_code}" already exists`,
         );
       }
 
@@ -240,7 +237,7 @@ class CatalogService {
         throw new AppError(
           400,
           "VALIDATION_ERROR",
-          "suite_id không tồn tại",
+          "suite_id does not exist",
         );
       }
 
@@ -263,7 +260,7 @@ class CatalogService {
         throw new AppError(
           409,
           "CONFLICT",
-          `spec_code "${data.spec_code}" đã tồn tại`,
+          `spec_code "${data.spec_code}" already exists`,
         );
       }
 
@@ -271,7 +268,7 @@ class CatalogService {
         throw new AppError(
           400,
           "VALIDATION_ERROR",
-          "Dữ liệu tham chiếu không tồn tại",
+          "The referenced data does not exist",
         );
       }
 
@@ -294,7 +291,7 @@ class CatalogService {
         throw new AppError(
           409,
           "CONFLICT",
-          "Specification đang được Test Case tham chiếu, không thể xóa",
+          "The specification is referenced by a Test Case and cannot be deleted",
         );
       }
 
@@ -361,7 +358,7 @@ class CatalogService {
         throw new AppError(
           409,
           "CONFLICT",
-          "Test case còn dữ liệu con, không thể xóa. Hãy chuyển test_status thành deprecated.",
+          "The test case still has child data and cannot be deleted. Set test_status to deprecated instead.",
         );
       }
 
@@ -369,12 +366,12 @@ class CatalogService {
     } catch (err) {
       if (err instanceof AppError) throw err;
 
-      // FK từ bảng khác vẫn tham chiếu đến testcase.
+      // An FK from another table still references the test case.
       if (err.code === "23503") {
         throw new AppError(
           409,
           "CONFLICT",
-          "Test case đang được dữ liệu khác tham chiếu, không thể xóa",
+          "The test case is referenced by other data and cannot be deleted",
         );
       }
 
@@ -418,14 +415,14 @@ class CatalogService {
 
     return (testCase.test_data ?? []).map((item) => toApi(item));
   }
-  // 'ready' là lời hứa "bấm Run là chạy được". Kiểm trước khi hứa, thay vì để run fail giữa
-  // đường với thông báo của runner — luật lấy từ chính nơi thi hành (runner/steps.js).
+  // 'ready' is the promise "press Run and it works". Check before promising, instead of letting the run fail
+  // midway with the runner's own message — the rules come from the enforcer itself (runner/steps.js).
   async _assertRunnable(id) {
     const kase = await this.catalogRepository.findCaseDetails(id);
     if (!kase) throw new AppError(404, "NOT_FOUND", "Test case not found");
 
     if (!kase.steps.length) {
-      throw new AppError(409, "NOT_RUNNABLE", "Case chưa có bước nào trong test_steps");
+      throw new AppError(409, "NOT_RUNNABLE", "The case has no steps in test_steps yet");
     }
 
     const have = new Set((kase.test_data || []).map((d) => d.field_name));
@@ -434,7 +431,7 @@ class CatalogService {
       throw new AppError(
         409,
         "NOT_RUNNABLE",
-        `Thiếu test_data cho field: ${missing.join(", ")}`,
+        `Missing test_data for field: ${missing.join(", ")}`,
       );
     }
   }

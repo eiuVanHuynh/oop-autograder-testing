@@ -1,24 +1,23 @@
 const BaseRepository = require("./BaseRepository");
 const { getPool } = require("../config/db");
-// Đọc test_suites / test_specs / test_cases – nơi khai báo test.
 // Reads test_suites / test_specs / test_cases – where tests are declared.
 //
-// Chỉ lấy test_status = 'ready'. Ưu tiên automation_ref nếu có, không thì dùng tc_code.
-// Giả định cột (db/schema): test_cases(spec_id, tc_code, automation_ref, test_status),
-// test_specs(spec_id, suite_id). Nếu schema thật đặt tên khác, sửa 2 câu SQL dưới đây.
-// Phần ghi (CRUD suite/spec/case) là 🟡, làm sau.
+// Only takes test_status = 'ready'. Prefers automation_ref when present, otherwise tc_code.
+// Assumed columns (db/schema): test_cases(spec_id, tc_code, automation_ref, test_status),
+// test_specs(spec_id, suite_id). If the real schema names them differently, fix the 2 queries below.
+// The write side (CRUD suite/spec/case) is 🟡, later.
 const CODE_EXPR = "COALESCE(NULLIF(c.automation_ref, ''), c.tc_code)";
 
-// Các dòng test_data của MỘT case → map field_name → data_value cho bộ chạy test.
-// Hai dòng cùng field_name KHÔNG còn im lặng đè nhau theo thứ tự data_id: dòng
-// is_valid = false thắng, vì một giá trị bị đánh dấu là sai chỉ tồn tại để case âm nhập nó.
-// Trong cùng một nhóm thì dòng đầu (data_id nhỏ nhất) thắng.
+// The test_data rows of ONE case → a field_name → data_value map for the test runner.
+// Two rows with the same field_name no longer silently override each other by data_id order: the
+// is_valid = false row wins, because a value marked invalid only exists for a negative case to type in.
+// Within the same group the first row (lowest data_id) wins.
 //
-// shortcut: đây là luật dọn dẹp cho dữ liệu trùng đã có sẵn trong DB, KHÔNG phải tính năng
-// "một luồng nhiều bộ dữ liệu" — chạy một luồng hai lần (bộ đúng và bộ sai) cần cột
-// test_data.variant + nhãn bộ dữ liệu trong test_results để trang báo cáo phân biệt được
-// hai dòng cùng tc_code. Làm khi FE sẵn sàng hiện nhãn đó. Cửa API (PUT .../data) đã chặn
-// tạo thêm dòng trùng, nên luật này chỉ còn áp cho dữ liệu seed/psql cũ.
+// shortcut: this is a cleanup rule for duplicate data already in the DB, NOT a
+// "one flow, several data sets" feature — running one flow twice (a valid and an invalid set) needs a
+// test_data.variant column + a data-set label in test_results so the report page can tell apart
+// two rows with the same tc_code. Do it once the FE is ready to show that label. The API door (PUT .../data)
+// already blocks creating more duplicate rows, so this rule now only applies to old seed/psql data.
 function toDataMap(rows) {
   const data = {};
   const fromInvalid = new Set();
@@ -36,7 +35,7 @@ class CatalogRepository extends BaseRepository {
     super("test_suites", "suite_id");
   }
 
-  // Mã test 'ready' của một suite, dùng để sinh --grep.
+  // The 'ready' test codes of a suite, used to build --grep.
   async findReadyCaseCodes(suiteId) {
     const res = await this.query(
       `SELECT ${CODE_EXPR} AS code
@@ -49,8 +48,8 @@ class CatalogRepository extends BaseRepository {
     return res.rows.map((r) => r.code);
   }
 
-  // Một test case theo mã (tc_code hoặc automation_ref) kèm bước và dữ liệu — bộ chạy test cần.
-  // Không tìm thấy → null. Bước đã sắp theo step_order nên nơi gọi chạy tuần tự được luôn.
+  // One test case by code (tc_code or automation_ref) with its steps and data — what the test runner needs.
+  // Not found → null. Steps come sorted by step_order so the caller can run them in sequence directly.
   async findCaseByCode(code) {
     const found = await this.query(
       `SELECT c.test_id FROM test_cases c WHERE ${CODE_EXPR} = $1 LIMIT 1`,
@@ -79,9 +78,9 @@ class CatalogRepository extends BaseRepository {
     };
   }
 
-  // Kế hoạch chạy của GitHub Actions: nhiều case kèm steps + test_data, 3 truy vấn cố định.
-  // Giữ nguyên chuỗi 'env:TEN_BIEN' trong data_value — nơi chạy test tự giải, backend không giải
-  // (mật khẩu thật không được đi qua response rồi lọt vào log Actions của repo public).
+  // The GitHub Actions run plan: many cases with steps + test_data, in 3 fixed queries.
+  // Keeps the 'env:VAR_NAME' string in data_value as is — only the runner resolves it, the backend does not
+  // (a real password must not travel through a response and end up in a public repo's Actions log).
   async findCasesByCodes(codes) {
     if (!codes || !codes.length) return [];
     const cases = await this.query(
@@ -116,7 +115,7 @@ class CatalogRepository extends BaseRepository {
     }));
   }
 
-  // Trong danh sách tc_code người dùng gửi lên, chỉ giữ mã có thật và đang 'ready'.
+  // From the tc_code list the user sent, keep only codes that exist and are 'ready'.
   async findReadyCodesByTcCodes(tcCodes) {
     const res = await this.query(
       `SELECT ${CODE_EXPR} AS code
@@ -258,7 +257,7 @@ class CatalogRepository extends BaseRepository {
     try {
       await client.query("BEGIN");
 
-      // Khóa testcase để tránh phát sinh dữ liệu con trong lúc kiểm tra và xóa.
+      // Lock the test case so no child rows appear between the check and the delete.
       const caseResult = await client.query(
         `SELECT test_id
          FROM test_cases
@@ -272,7 +271,7 @@ class CatalogRepository extends BaseRepository {
         return null;
       }
 
-      // Kiểm tra dữ liệu con trước khi xóa.
+      // Check for child rows before deleting.
       const childrenResult = await client.query(
         `SELECT
            EXISTS (
@@ -304,7 +303,7 @@ class CatalogRepository extends BaseRepository {
       try {
         await client.query("ROLLBACK");
       } catch {
-        // Giữ nguyên lỗi ban đầu.
+        // Keep the original error.
       }
 
       throw error;
@@ -425,7 +424,7 @@ class CatalogRepository extends BaseRepository {
     try {
       await client.query("BEGIN");
 
-      // Khóa Suite để tránh thay đổi dữ liệu trong lúc kiểm tra và xóa.
+      // Lock the Suite so the data cannot change between the check and the delete.
       const suiteResult = await client.query(
         `SELECT suite_id
          FROM test_suites
@@ -439,7 +438,7 @@ class CatalogRepository extends BaseRepository {
         return null;
       }
 
-      // Suite đang được Specification tham chiếu thì không cho xóa.
+      // A Suite still referenced by a Specification cannot be deleted.
       const childrenResult = await client.query(
         `SELECT EXISTS (
            SELECT 1
@@ -467,7 +466,7 @@ class CatalogRepository extends BaseRepository {
       try {
         await client.query("ROLLBACK");
       } catch {
-        // Giữ nguyên lỗi ban đầu.
+        // Keep the original error.
       }
 
       throw error;
@@ -518,7 +517,7 @@ class CatalogRepository extends BaseRepository {
 
     return result.rows[0] || null;
   }
-  // Đếm test 'ready' mà một target_json của template sẽ chạy (dùng cho readyCount).
+  // Count the 'ready' tests a template's target_json would run (used for readyCount).
   async countReadyForTarget(target = {}) {
     const codes =
       target.suiteId != null
@@ -529,17 +528,17 @@ class CatalogRepository extends BaseRepository {
     return codes.length;
   }
 
-  // Thay dòng con của một test case trong MỘT transaction (steps hoặc test_data).
-  // scopeColumn + scopeValues: chỉ xoá những dòng khớp (vd chỉ các field_name được gửi lên);
-  // bỏ trống thì xoá hết dòng con của case.
-  // Case không tồn tại → null để service trả 404. Dùng chung cho replaceCaseSteps/replaceCaseData.
+  // Replace a test case's child rows in ONE transaction (steps or test_data).
+  // scopeColumn + scopeValues: delete only the matching rows (e.g. only the field_names that were sent);
+  // left empty, it deletes every child row of the case.
+  // Case does not exist → null so the service returns 404. Shared by replaceCaseSteps/replaceCaseData.
   async _replaceChildRows(id, table, columns, rows, scope = null) {
     const client = await getPool().connect();
 
     try {
       await client.query("BEGIN");
 
-      // Kiểm tra test case có tồn tại và khóa dòng trong transaction.
+      // Check that the test case exists and lock the row inside the transaction.
       const caseResult = await client.query(
         `SELECT test_id
          FROM test_cases
@@ -565,7 +564,7 @@ class CatalogRepository extends BaseRepository {
       const placeholders = columns.map((_, i) => `$${i + 2}`).join(", ");
       const inserted = [];
 
-      // Thêm lại theo đúng thứ tự mảng gửi lên.
+      // Re-insert in the exact order of the array that was sent.
       for (const values of rows) {
         const result = await client.query(
           `INSERT INTO ${table} (test_id, ${columns.join(", ")})
@@ -583,7 +582,7 @@ class CatalogRepository extends BaseRepository {
       try {
         await client.query("ROLLBACK");
       } catch {
-        // Giữ nguyên lỗi ban đầu nếu rollback cũng thất bại.
+        // Keep the original error if the rollback fails too.
       }
 
       throw error;
@@ -592,7 +591,7 @@ class CatalogRepository extends BaseRepository {
     }
   }
 
-  // step_order do backend gán theo chỉ số mảng, bắt đầu từ 0.
+  // step_order is assigned by the backend from the array index, starting at 0.
   async replaceCaseSteps(id, steps) {
     return this._replaceChildRows(
       id,
@@ -608,11 +607,11 @@ class CatalogRepository extends BaseRepository {
     );
   }
 
-  // Thay dữ liệu của ĐÚNG những field được gửi lên; field không nhắc tới thì không bị chạm.
-  // Cố ý KHÔNG replace-all: TC-08…TC-12 có những field (irn_prefix, role, expected_message…)
-  // mà form sửa case không sinh ra từ test_steps, replace-all sẽ xoá sạch chúng và làm các
-  // spec riêng bên automation/ chết. Xoá hẳn một field thì dùng deleteCaseDataField.
-  // Giữ nguyên chuỗi 'env:TEN_BIEN' trong data_value — chỉ nơi chạy test giải, backend không.
+  // Replace the data of EXACTLY the fields that were sent; a field not mentioned is left untouched.
+  // Deliberately NOT replace-all: TC-08…TC-12 have fields (irn_prefix, role, expected_message…)
+  // that the case edit form does not derive from test_steps, so replace-all would wipe them and break
+  // the standalone specs under automation/. To drop a field entirely, use deleteCaseDataField.
+  // Keeps the 'env:VAR_NAME' string in data_value as is — only the runner resolves it, the backend does not.
   async replaceCaseData(id, data) {
     return this._replaceChildRows(
       id,
@@ -627,8 +626,8 @@ class CatalogRepository extends BaseRepository {
     );
   }
 
-  // Xoá mọi dòng test_data của một field. Case không tồn tại → null (service trả 404);
-  // field không có dòng nào → 0, xoá lại lần nữa vẫn 0 (idempotent).
+  // Delete every test_data row of one field. Case does not exist → null (the service returns 404);
+  // a field with no rows → 0, and deleting again still returns 0 (idempotent).
   async deleteCaseDataField(id, fieldName) {
     const found = await this.query(
       "SELECT test_id FROM test_cases WHERE test_id = $1",
@@ -734,7 +733,7 @@ class CatalogRepository extends BaseRepository {
       const requestedIds = steps.map((step) => Number(step.step_id));
       const requestedOrders = steps.map((step) => Number(step.step_order));
 
-      // Kiểm tra đầy đủ step, không trùng ID và không trùng thứ tự.
+      // Check that every step is present, with no duplicate ID and no duplicate order.
       if (
         currentIds.length !== requestedIds.length ||
         new Set(requestedIds).size !== requestedIds.length ||
@@ -748,7 +747,7 @@ class CatalogRepository extends BaseRepository {
         return false;
       }
 
-      // Chuyển tạm step_order để tránh vi phạm UNIQUE(test_id, step_order).
+      // Shift step_order temporarily to avoid violating UNIQUE(test_id, step_order).
       const maxOrder = Math.max(
         -1,
         ...currentResult.rows.map((step) => Number(step.step_order)),
@@ -765,7 +764,7 @@ class CatalogRepository extends BaseRepository {
         );
       }
 
-      // Cập nhật thứ tự mới.
+      // Apply the new order.
       for (const step of steps) {
         await client.query(
           `UPDATE test_steps
@@ -794,14 +793,14 @@ class CatalogRepository extends BaseRepository {
       client.release();
     }
   }
-  // Sửa metadata của case (gồm test_status: draft → ready). Không có dòng nào khớp → null.
-  // tc_code và spec_id KHÔNG sửa được: test_runs.config_json lưu MÃ test, đổi mã xong thì
-  // Rerun một run cũ trả 409 NO_READY_TESTS mà người dùng không hiểu vì sao.
-  // Xóa test case.
-  // Còn steps, test_data hoặc test_results → không xóa, trả HAS_CHILDREN.
-  // Không tìm thấy → null.
+  // Edit a case's metadata (including test_status: draft → ready). No matching row → null.
+  // tc_code and spec_id are NOT editable: test_runs.config_json stores the test CODE, so after a rename
+  // rerunning an old run returns 409 NO_READY_TESTS and the user has no idea why.
+  // Delete a test case.
+  // Still has steps, test_data or test_results → no delete, returns HAS_CHILDREN.
+  // Not found → null.
 }
 
 module.exports = CatalogRepository;
 module.exports.toDataMap = toDataMap;
-module.exports.CODE_EXPR = CODE_EXPR; // ResultRepository ghi kết quả theo cùng biểu thức mã test
+module.exports.CODE_EXPR = CODE_EXPR; // ResultRepository writes results using the same test-code expression

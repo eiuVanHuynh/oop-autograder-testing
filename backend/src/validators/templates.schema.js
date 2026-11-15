@@ -1,11 +1,10 @@
 const { z } = require("zod");
 const { SCOPES, ENVIRONMENTS, TEMPLATE_STATUSES } = require("./options");
 
-// Schema zod cho nhóm templates; middleware validate() dùng các schema này.
-// zod schemas for the templates group; the validate() middleware consumes them.
+// Zod schemas for the templates group; the validate() middleware uses them.
 //
-// Cần làm / To do:
-// - createTemplateSchema: template_name bắt buộc, target_json phải khớp một trong hai dạng.
+// To do:
+// - createTemplateSchema: template_name required, target_json must match one of the two shapes.
 
 const createTemplateSchema = z.object({
   template_name: z

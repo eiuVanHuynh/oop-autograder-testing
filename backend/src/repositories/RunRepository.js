@@ -1,10 +1,9 @@
 const BaseRepository = require("./BaseRepository");
 
-// Truy vấn bảng test_runs.
-// Queries the test_runs table.
-// Một case = MỘT kết quả: dòng execution_id lớn nhất của case đó trong run (CI đẩy /results
-// hai lần thì bảng có hai dòng cho cùng test_id). GET /runs/:id/results cũng lọc đúng như vậy,
-// nên số liệu dưới đây và bảng trên trang báo cáo không bao giờ lệch nhau.
+// Queries against the test_runs table.
+// One case = ONE result: the row with the highest execution_id for that case in the run (if CI pushes
+// /results twice the table holds two rows for the same test_id). GET /runs/:id/results filters the same way,
+// so the numbers below and the table on the report page can never disagree.
 const LAST_PER_CASE = `(
   SELECT DISTINCT ON (x.test_id) x.result_status
     FROM test_results x
@@ -12,13 +11,13 @@ const LAST_PER_CASE = `(
    ORDER BY x.test_id, x.execution_id DESC
 )`;
 
-// Trạng thái KHÔNG lưu thành cột riêng mà tính ra (backend-design mục 6):
+// The status is NOT stored in a column but computed (backend-design section 6):
 //   finished_at IS NULL          → 'running'
-//   final_status IS NOT NULL     → final_status (hủy / lỗi kích hoạt: chưa có dòng test_results nào)
-//   có kết quả failed|timedOut   → 'failed'
-//   có kết quả interrupted       → 'interrupted'
-//   còn lại                      → 'passed'
-// Nhờ vậy /ingest/runs/:id/finish chỉ cần ghi finished_at.
+//   final_status IS NOT NULL     → final_status (cancelled / trigger error: no test_results row yet)
+//   any failed|timedOut result   → 'failed'
+//   any interrupted result       → 'interrupted'
+//   otherwise                    → 'passed'
+// That way /ingest/runs/:id/finish only has to write finished_at.
 const STATUS_EXPR = `CASE
     WHEN r.finished_at IS NULL THEN 'running'
     WHEN r.final_status IS NOT NULL THEN r.final_status
@@ -30,9 +29,9 @@ const STATUS_EXPR = `CASE
 class RunRepository extends BaseRepository {
   constructor() {
     super("test_runs", "run_id");
-    // Bảng + cột status tính ra. Cột "status" luôn do câu SQL này quyết định.
-    // Mọi câu SELECT của repository này đi qua đây, nên số case và tên người chạy chỉ cần
-    // khai một lần: Dashboard/History hiện được cột Passed/Failed và tên thay cho "User #1".
+    // The table + the computed status column. The "status" column is always decided by this SQL.
+    // Every SELECT in this repository goes through here, so the case counts and the runner's name only need
+    // declaring once: Dashboard/History can show Passed/Failed columns and a name instead of "User #1".
     this.withStatus = `(
       SELECT r.*, ${STATUS_EXPR} AS status,
              u.full_name AS tester_name,
@@ -57,13 +56,13 @@ class RunRepository extends BaseRepository {
     return res.rows[0] || null;
   }
 
-  // Lịch sử chạy: lọc theo tên, trạng thái, khoảng ngày + phân trang (page/limit).
-  // Không truyền limit → trả hết. Trả { data, meta }.
+  // Run history: filter by name, status, date range + pagination (page/limit).
+  // No limit passed → return everything. Returns { data, meta }.
   async findAllWithFilters(filters = {}) {
     const params = [];
     let where = " WHERE 1=1";
 
-    // ILIKE để không phân biệt hoa thường.
+    // ILIKE so it is case-insensitive.
     if (filters.q) {
       params.push(`%${filters.q}%`);
       where += ` AND t.run_name ILIKE $${params.length}`;
@@ -102,9 +101,9 @@ class RunRepository extends BaseRepository {
     return { data: res.rows, meta: { page: limit ? page : 1, limit, total } };
   }
 
-  // Tạo mới một lượt chạy test (đang chạy: finished_at còn NULL).
-  // Cột started_at, browser, created_at lấy giá trị mặc định của DB (migration 008).
-  // user_id của service = cột tester_id trong DB.
+  // Create a new test run (still running: finished_at is NULL).
+  // The started_at, browser and created_at columns take the DB defaults (migration 008).
+  // The service's user_id is the tester_id column in the DB.
   async createRun(data) {
     const { run_name, user_id, environment, config_json } = data;
     const sql = `
@@ -117,7 +116,7 @@ class RunRepository extends BaseRepository {
     return res.rows[0][this.primaryKey];
   }
 
-  // Lưu id lần chạy bên GitHub Actions để hủy được sau này.
+  // Store the GitHub Actions run id so it can be cancelled later.
   async setCiRunId(id, ciRunId) {
     const res = await this.query(
       `UPDATE ${this.tableName} SET ci_run_id = $1 WHERE ${this.primaryKey} = $2`,
@@ -126,8 +125,8 @@ class RunRepository extends BaseRepository {
     return res.rowCount > 0;
   }
 
-  // Kết thúc một run: ghi giờ kết thúc + kết quả chung. Chỉ có tác dụng khi run còn đang chạy
-  // (gọi lần hai trả false → nơi gọi quyết định có báo 409 hay không).
+  // End a run: write the finish time + overall result. Only takes effect while the run is still running
+  // (a second call returns false → the caller decides whether to report 409).
   async markFinished(id, finalStatus) {
     const res = await this.query(
       `UPDATE ${this.tableName}

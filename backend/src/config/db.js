@@ -1,11 +1,9 @@
 const { Pool } = require("pg");
 require("dotenv").config();
 
-// Singleton: cả tiến trình dùng chung một pool. Vercel serverless tái dùng lại
-// container nên tạo pool mới mỗi request sẽ cạn kết nối của PostgreSQL.
-// container, so a new pool per request would exhaust PostgreSQL's connections.
+// Singleton: the whole process shares one pool. Vercel serverless reuses the
+// container, so creating a new pool per request would exhaust PostgreSQL connections.
 //
-// Chỉ repositories/ được require file này. Service không chạm vào đây.
 // Only repositories/ may require this file. Services never touch it.
 let pool;
 
@@ -13,34 +11,31 @@ const getPool = () => {
   if (!pool) {
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      // Nhỏ (1-5) để tránh vượt giới hạn kết nối của DB cloud,
-      // theo đúng ghi chú ở automation/tests/utils/db-client.js
+      // Small (1-5) to stay under the connection limit of the cloud DB,
+      // matching the note in automation/tests/utils/db-client.js
       max: Number(process.env.DB_POOL_SIZE || 5),
-      // Supabase bắt buộc SSL; Postgres local thường không bật. Cùng quy ước DB_SSL.
+      // Supabase requires SSL; local Postgres usually does not. Same DB_SSL convention.
       ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: true } : undefined,
     });
   }
   return pool;
 };
 
-// Trả về NGUYÊN result của pg: đọc thì dùng .rows, ghi thì dùng .rowCount.
 // Returns pg's result object as-is: read via .rows, write via .rowCount.
+const brief = (sql) => sql.replace(/\s+/g, " ").trim();
+
 const query = async (text, params) => {
   const start = Date.now();
   try {
     const res = await getPool().query(text, params);
-
-    if (process.env.NODE_ENV !== "production") {
-      console.log("⚡ [Postgres Query]", {
-        text,
-        duration: `${Date.now() - start}ms`,
-        rowCount: res.rowCount,
-      });
+    // Opt-in: one page load fires dozens of queries, so this is off by default.
+    if (process.env.DB_LOG === "true") {
+      console.log(`[db] ${Date.now() - start}ms ${res.rowCount} rows  ${brief(text).slice(0, 100)}`);
     }
-
     return res;
   } catch (error) {
-    console.error("❌ [DB Error]", { text, error: error.message });
+    // Errors are rare: keep the whole statement, just on one line.
+    console.error(`[db] ${error.message}  ${brief(text)}`);
     throw error;
   }
 };

@@ -1,14 +1,12 @@
 const router = require('express').Router();
 
-// Xuất báo cáo PDF/HTML và link chia sẻ.
-// PDF/HTML report export and share links.
-// Endpoint đầy đủ: api-endpoints.md mục 7.
+// Export PDF/HTML reports and share links.
 // Full endpoint list: api-endpoints.md section 7.
 //
-// Cần làm / To do:
-// - Mỗi dòng theo đúng thứ tự: requireAuth → requireRole → validate → controller.
-// - Route chỉ khai báo URL, không có logic.
+// To do:
+// - Every line in this order: requireAuth → requireRole → validate → controller.
+// - A route only declares the URL, it holds no logic.
 
-// TODO: khai báo các route của nhóm reports
+// TODO: declare the routes of the reports group
 
 module.exports = router;

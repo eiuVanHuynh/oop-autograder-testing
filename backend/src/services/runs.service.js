@@ -2,10 +2,9 @@ const AppError = require("../utils/AppError");
 const { buildGrep } = require("./target");
 const { ENVIRONMENTS } = require("../validators/options");
 
-// Chạy test, theo dõi log, lịch sử, hủy, chạy lại.
-// Running tests, log tailing, history, cancel, re-run.
-// Quy tắc nghiệp vụ nằm ở đây. Không require pg, không chạm req/res.
-// Nhận mọi phụ thuộc qua constructor (ráp ở config/container.js) để test thay bằng bản giả.
+// Run tests, follow logs, history, cancel, rerun.
+// Business rules live here. No pg require, no touching req/res.
+// Takes every dependency through the constructor (wired in config/container.js) so tests can swap in fakes.
 
 const RUN_STATUSES = ["running", "passed", "failed", "interrupted"];
 
@@ -36,7 +35,7 @@ class RunsService {
       testRunner,
       resultRepository,
     }).forEach(([name, dep]) => {
-      if (!dep) throw new Error(`RunsService thiếu phụ thuộc: ${name}`);
+      if (!dep) throw new Error(`RunsService is missing a dependency: ${name}`);
     });
     this.runRepository = runRepository;
     this.templateRepository = templateRepository;
@@ -48,7 +47,7 @@ class RunsService {
 
   async getAllRuns(filters = {}) {
     if (filters.status && !RUN_STATUSES.includes(String(filters.status).toLowerCase())) {
-      throw new AppError(400, "VALIDATION_ERROR", `status phải là một trong: ${RUN_STATUSES.join(", ")}`);
+      throw new AppError(400, "VALIDATION_ERROR", `status must be one of: ${RUN_STATUSES.join(", ")}`);
     }
     return this.runRepository.findAllWithFilters(filters);
   }
@@ -60,7 +59,7 @@ class RunsService {
     return run;
   }
 
-  // Kết quả từng case của một run. Run không có → 404 (chứ không phải danh sách rỗng).
+  // Per-case results of a run. No such run → 404 (not an empty list).
   async getRunResults(id) {
     await this.getRunById(id);
     return this.resultRepository.findByRun(id);
@@ -84,21 +83,21 @@ class RunsService {
       throw new AppError(409, "NO_READY_TESTS", "No ready test cases found for this execution target");
     }
 
-    // Giá trị người dùng chọn lúc bấm Run thắng mặc định của template.
+    // What the user picked when pressing Run beats the template default.
     const env = data.env || template?.env || "development";
 
-    // env của template KHÔNG đi qua zod (nó là giá trị cũ trong DB, có thể là 'dev'), nên
-    // kiểm danh sách ở đây để thông báo giống nhau dù runner nào đang cắm.
+    // A template's env does NOT go through zod (it is an old value in the DB, possibly 'dev'), so
+    // check the list here to keep the message identical whatever runner is plugged in.
     if (!ENVIRONMENTS.includes(env)) {
       throw new AppError(
         400,
         "VALIDATION_ERROR",
-        `Môi trường "${env}" không hợp lệ; phải là một trong: ${ENVIRONMENTS.join(", ")}`,
+        `Environment "${env}" is invalid; it must be one of: ${ENVIRONMENTS.join(", ")}`,
       );
     }
 
-    // Môi trường phải trỏ tới một web thật. Trước đây env chỉ là nhãn: một run gắn
-    // "production" vẫn bắn vào site cũ. Chặn ở đây, TRƯỚC khi tạo dòng test_runs.
+    // An environment must point at a real site. env used to be just a label: a run tagged
+    // "production" still hit the old site. Block it here, BEFORE creating the test_runs row.
     const envProblem = this.testRunner.checkEnv(env);
     if (envProblem) throw new AppError(400, "VALIDATION_ERROR", envProblem);
 
@@ -108,8 +107,8 @@ class RunsService {
     const configJson = {
       templateId: data.templateId || null,
       testIds: data.testIds || null,
-      // Mã test đã giải ra, để bộ chạy / GET /ingest/runs/:id/plan dùng lại.
-      // Không bao giờ parse ngược từ `grep`: grep là chuỗi cho GitHub Actions, không phải dữ liệu.
+      // The resolved test codes, for the runner / GET /ingest/runs/:id/plan to reuse.
+      // Never parse them back out of `grep`: grep is a string for GitHub Actions, not data.
       testCodes,
       grep,
       env,
@@ -140,7 +139,7 @@ class RunsService {
       throw new AppError(409, "RUN_FINISHED", "Cannot cancel a run that has already finished");
     }
 
-    // Hủy bên nơi chạy là best-effort: lỗi ở đó không được giữ run ở trạng thái 'running' mãi.
+    // Cancelling on the runner side is best-effort: a failure there must not leave the run 'running' forever.
     try {
       await this.testRunner.cancel(run.ci_run_id);
     } catch (err) {
@@ -167,7 +166,7 @@ class RunsService {
     });
   }
 
-  // Polling log: trả các dòng có seq > after, kèm trạng thái run để giao diện biết khi nào dừng hỏi.
+  // Log polling: return the lines with seq > after, plus the run status so the UI knows when to stop asking.
   async getRunLogs(id, after = 0) {
     const run = await this.getRunById(id);
     const rows = await this.logRepository.findAfter(id, after);
