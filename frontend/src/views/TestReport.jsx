@@ -1,10 +1,11 @@
 // Trang chi tiết một lần chạy (/runs/:id).
 // Mọi số trên trang này phải đến từ API thật:
 //   GET /runs/:id        -> thông tin lần chạy
-//   GET /runs/:id/logs   -> log, và pass/fail từng case bóc ra từ đó (models/runLog.js)
+//   GET /runs/:id/results -> pass/fail từng case, đọc THẲNG bảng test_results
+//   GET /runs/:id/logs   -> log hiển thị; cũng là nguồn dự phòng cho pass/fail
 //   GET /catalog/cases   -> tên test case, vì log chỉ có mã
-// Không có GET nào trả test_results, nên trạng thái từng case là đọc từ log chứ không
-// phải đọc thẳng bảng — case nào runner chưa kịp chạy sẽ không có trạng thái.
+// Nguồn chuẩn cho trạng thái từng case là /results. Bóc từ log (models/runLog.js) chỉ còn
+// là dự phòng cho run đang chạy (runner chưa ghi test_results) hoặc run cũ không có dòng nào.
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -23,7 +24,7 @@ import {
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
 import { canRunTest } from "../models/permissions";
-import { getRun, fetchRunLogs, rerunRun } from "../services/runService";
+import { getRun, fetchRunLogs, rerunRun, getRunResults } from "../services/runService";
 import { listCases } from "../services/catalogService";
 import { parseCaseResults, msLabel, logTone } from "../models/runLog";
 import { buildReportHtml } from "../models/reportHtml";
@@ -49,6 +50,7 @@ export default function TestReport() {
   const [run, setRun] = useState(null);
   const [logs, setLogs] = useState([]);
   const [titles, setTitles] = useState(new Map()); // tc_code -> title
+  const [apiResults, setApiResults] = useState(null); // tc_code -> kết quả từ /results
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [rerunning, setRerunning] = useState(false);
@@ -67,12 +69,21 @@ export default function TestReport() {
     let off = false;
     setLoading(true);
     setError("");
+    setApiResults(null);
+    // Kết quả từng case đọc thẳng bảng test_results. Lỗi ở đây KHÔNG làm trắng trang:
+    // rơi về bóc log như trước.
+    getRunResults(id)
+      .then((list) => {
+        if (off || !list.length) return;
+        setApiResults(new Map(list.map((r) => [r.code, r])));
+      })
+      .catch(() => { });
     getRun(id)
       .then((r) => {
         if (off) return;
         setRun(r);
-        // Log là nguồn duy nhất cho biết từng case đã làm gì; lỗi đọc log không
-        // được làm trắng cả trang nên bắt riêng.
+        // Log chỉ để hiển thị (và dự phòng pass/fail); lỗi đọc log không được
+        // làm trắng cả trang nên bắt riêng.
         return fetchRunLogs(id).then((d) => !off && setLogs(d.lines));
       })
       .catch((e) => !off && setError(getErrorMessage(e, "Cannot load this run.")))
@@ -82,15 +93,23 @@ export default function TestReport() {
     };
   }, [id]);
 
-  const results = parseCaseResults(logs);
-  const cases = (run?.testCodes ?? []).map((code) => ({
-    code,
-    title: titles.get(String(code).toUpperCase()) ?? "",
-    ...(results.get(String(code).toUpperCase()) ?? { status: null, ms: null, error: null }),
-  }));
+  // /results thắng log vì đọc thẳng bảng, NHƯNG dự phòng theo TỪNG case chứ không phải
+  // tất-cả-hoặc-không: run.testCodes dựng từ COALESCE(automation_ref, tc_code) còn /results
+  // chỉ trả tc_code, nên case có automation_ref riêng sẽ không khớp và phải rơi về log.
+  const fromLogs = parseCaseResults(logs);
+  const cases = (run?.testCodes ?? []).map((code) => {
+    const key = String(code).toUpperCase();
+    const hit = apiResults?.get(key) ?? fromLogs.get(key);
+    return {
+      code,
+      // Tên từ /results (backend join test_cases) chuẩn hơn; thiếu thì tra catalog.
+      title: hit?.title || titles.get(key) || "",
+      ...(hit ?? { status: null, ms: null, error: null }),
+    };
+  });
 
-  // Tổng kết chỉ tính trên các case ĐÃ có trạng thái trong log; case chưa chạy tới không
-  // được đếm là pass cũng không được đếm là fail.
+  // Tổng kết chỉ tính trên các case ĐÃ có trạng thái; case chưa chạy tới không được đếm
+  // là pass cũng không được đếm là fail.
   const done = cases.filter((c) => c.status);
   const passedCount = done.filter((c) => c.status === "PASSED").length;
   const failedCount = done.filter((c) => c.status === "FAILED" || c.status === "TIMEDOUT").length;

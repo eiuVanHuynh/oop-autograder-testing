@@ -10,7 +10,6 @@
 // (services/runService.js). Chạy local với RUNNER=playwright thì backend mở chromium thật.
 //
 // BACKEND-TODO còn lại:
-//  [1] readyCount của template -> GET /templates chưa trả, nên chưa chặn sớm được template rỗng (phải chịu 409)
 //  [2] Danh sách môi trường    -> GET /meta/options (🟡, hiện: hằng số trong models/options.js)
 //  [6] Thanh tiến độ           -> API không trả %, nên chỉ hiện trạng thái chạy/xong
 //  [7] Đơn vị timeout          -> form dùng GIÂY, backend dùng MILI-GIÂY (đã đổi khi gửi POST /runs)
@@ -168,7 +167,7 @@ export default function TestCreation() {
   const { user } = useAuth();
   const canRun = canRunTest(user?.role);
 
-  // GET /templates. BACKEND-TODO [1]: backend chưa trả readyCount.
+  // GET /templates — kèm readyCount (backend: templates.service.js gắn ready_count).
   const [templates, setTemplates] = useState([]);
   useEffect(() => {
     listTemplates()
@@ -216,7 +215,7 @@ export default function TestCreation() {
     if (!selected) return toast.error("Please select a template!");
     if (!(Number(timeout) >= 1 && Number(timeout) <= 3600))
       return toast.error("Timeout must be between 1 and 3600 seconds.");
-    // BACKEND-TODO [1]: backend trả readyCount; chặn sớm để khỏi nhận 409.
+    // Chặn sớm template không còn case nào ở trạng thái ready, thay vì để backend trả 409.
     if (selected.readyCount === 0) return toast.error(RUN_ERRORS[409]);
 
     setStarting(true);

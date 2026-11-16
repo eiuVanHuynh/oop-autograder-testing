@@ -23,7 +23,9 @@ export const toTemplate = (row) => ({
   // BACKEND-TODO: created_by chỉ là id. Cần backend join users để trả tên người tạo (api-endpoints.md mục 4: "người tạo").
   createdBy: row.created_by,
   updatedAt: dateOnly(row.updated_at || row.created_at),
-  // BACKEND-TODO: readyCount (số test case 'ready') chưa có trong response — design mục 4 yêu cầu.
+  // templates.service.js gắn ready_count cho cả danh sách lẫn chi tiết. Để undefined khi
+  // thiếu chứ KHÔNG mặc định 0: 0 nghĩa là "template rỗng" và sẽ chặn chạy nhầm.
+  readyCount: row.ready_count ?? row.readyCount,
 });
 
 // Form FE -> body POST/PUT.
