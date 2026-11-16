@@ -31,10 +31,19 @@ const cleanName = (name, id) => {
 // Backend đếm passed/failed/total trên bảng test_results (RunRepository.withStatus) và join
 // users để trả tên người chạy, nên không còn chỗ nào phải để trống hay bịa số.
 // Run chưa có kết quả nào thì cả ba số là 0 — nơi gọi phân biệt bằng total === 0.
+// 'passed' mà KHÔNG có một dòng test_results nào thì không phải là pass đã kiểm chứng:
+// FakeRunner (RUNNER=fake, mặc định khi thiếu GITHUB_TOKEN) đóng run thành 'passed' mà
+// không ghi kết quả case nào, và một CI chết sau khi gọi /finish cũng để lại y như vậy.
+// Hiện màu xanh ở đây là nói dối người đọc, nên tách thành trạng thái riêng.
+const verifiedStatus = (raw, total) => {
+  const status = String(raw ?? 'running').toUpperCase();
+  return status === 'PASSED' && total === 0 ? 'UNVERIFIED' : status;
+};
+
 export const toRun = (row = {}) => ({
   id: String(row.run_id ?? row.id),
   name: cleanName(row.run_name, row.run_id),
-  status: String(row.status ?? 'running').toUpperCase(),
+  status: verifiedStatus(row.status, Number(row.total_count ?? 0)),
   duration: durationOf(row),
   environment: row.environment || '—',
   executedAt: fmt(row.created_at || row.started_at),

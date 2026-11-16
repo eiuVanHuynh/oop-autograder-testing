@@ -70,6 +70,8 @@ export function buildReportHtml(run, cases = [], logs = [], { autoPrint = false 
   .INTERRUPTED { background: #ffedd5; color: #9a3412; }
   .TIMEDOUT { background: #fee2e2; color: #991b1b; }
   .SKIPPED { background: #f3f4f6; color: #374151; }
+  /* Run đóng là passed nhưng không có test_results — xem runService.toRun. */
+  .UNVERIFIED { background: #f3f4f6; color: #374151; }
   table { border-collapse: collapse; width: 100%; }
   th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #d7e8ea; vertical-align: top; }
   th { width: 180px; color: #3b4f59; font-weight: 600; }

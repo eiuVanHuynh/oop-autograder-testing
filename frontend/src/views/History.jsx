@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 
 // Status do backend tính: running | passed | failed | interrupted. Màu nằm ở StatusBadge.
-const RUN_STATUSES = ["PASSED", "RUNNING", "FAILED", "INTERRUPTED"];
+// UNVERIFIED do FE suy ra (passed mà không có test_results) — xem runService.toRun.
+const RUN_STATUSES = ["PASSED", "UNVERIFIED", "RUNNING", "FAILED", "INTERRUPTED"];
 
 // Tag của riêng trang History: trạng thái run + môi trường. Không dùng chung với Test Cases.
 const GROUPS = [

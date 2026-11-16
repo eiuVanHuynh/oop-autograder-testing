@@ -29,6 +29,8 @@ const STATUS_TONE = {
   CRITICAL: "red",
   RUNNING: "amber",
   QUEUED: "slate",
+  // Run đóng là "passed" nhưng không có dòng test_results nào — xem runService.toRun.
+  UNVERIFIED: "slate",
   SKIPPED: "slate",
   IDLE: "slate",
   CANCELLED: "orange",
