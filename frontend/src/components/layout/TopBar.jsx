@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bell, ChevronDown, LogOut, Menu, Search, User } from "lucide-react";
+import { Bell, Check, ChevronDown, ChevronLeft, LogOut, Search, User, Terminal, Palette } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../controllers/AuthContext";
 import { MENU, isActive } from "./Sidebar";
+import { THEMES, getTheme, setTheme } from "../../models/theme";
 
 // Badge vai trò theo Design.md (Admin tím, Tester xanh dương, Dev xanh ngọc, Viewer xám).
 const ROLE_BADGE = {
-  Admin: "bg-purple-100 text-violet-600",
+  Admin: "bg-brand-100 text-brand-700",
   Tester: "bg-blue-100 text-blue-600",
   Dev: "bg-teal-100 text-teal-700",
   Viewer: "bg-slate-100 text-slate-500",
@@ -19,14 +20,18 @@ const pageTitle = (pathname) =>
     ?.label ?? "";
 
 // Thanh trên cùng. Logout nằm ở menu avatar tại đây, không còn ở sidebar (yêu cầu v3).
-// Top bar. Logout lives in the avatar menu here, no longer in the sidebar (v3 requirement).
-// onMenuClick: mở drawer của Sidebar trên màn hình nhỏ.
-export default function TopBar({ onMenuClick = () => {} }) {
+export default function TopBar({
+  onToggleSidebar = () => {},
+  collapsed = false,
+}) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [keyword, setKeyword] = useState("");
+  // Nguồn sự thật là thuộc tính data-theme trên <html> (index.html đặt từ trước khi vẽ);
+  // state ở đây chỉ để nút biết ô nào đang được chọn.
+  const [theme, setThemeState] = useState(getTheme);
 
   // Bấm Esc cũng đóng menu avatar.
   useEffect(() => {
@@ -36,42 +41,60 @@ export default function TopBar({ onMenuClick = () => {} }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
 
+  const pickTheme = (id) => {
+    setTheme(id);
+    setThemeState(id);
+  };
+
   const handleLogout = () => {
     setMenuOpen(false);
     logout();
     navigate("/login", { replace: true });
   };
 
-  // Chưa có API tìm kiếm toàn cục nên chỉ báo cho người dùng biết.
   const handleSearch = (e) => {
     e.preventDefault();
     if (keyword.trim()) toast("Global search is not available yet");
   };
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 sm:px-6">
-      {/* Nút mở menu: chỉ hiện khi sidebar đang là drawer */}
-      <button
-        type="button"
-        onClick={onMenuClick}
-        aria-label="Open menu"
-        className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
-      >
-        <Menu size={20} />
-      </button>
+    <header className="sticky top-0 z-20 flex h-16 w-full shrink-0 items-center gap-4 border-b border-slate-200 bg-white px-4 sm:px-6">
+      <div className="flex items-center gap-3">
+        {/* 1. Click vào icon Terminal: Thu gọn / mở rộng Sidebar */}
+        <button
+          type="button"
+          onClick={onToggleSidebar}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white transition-transform duration-300 hover:bg-brand-700 cursor-pointer ${
+            !collapsed ? "rotate-90" : "rotate-0"
+          }`}
+          title={collapsed ? "Mở sidebar" : "Thu gọn sidebar"}
+        >
+          <Terminal size={18} />
+        </button>
 
+        {/* 2. Click vào chữ OOP Grader: Quay về trang Dashboard */}
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard")}
+          className="hidden sm:flex items-center gap-1.5 bg-transparent border-none p-0 cursor-pointer hover:opacity-80 transition"
+          title="Về trang Dashboard"
+        >
+          <span className="text-xl font-extrabold tracking-tight text-slate-900">
+            <span className="text-brand-600">OOP</span> Grader
+          </span>
+        </button>
+      </div>
+      <div className="h-6 w-px bg-slate-200 hidden sm:block" />
       {/* Breadcrumb */}
-      <p className="m-0 hidden shrink-0 text-sm text-slate-500 sm:block">
-        OOP Grader <span className="mx-1 text-slate-300">/</span>
-        <span className="font-medium text-slate-900">
+      <p className="m-0 hidden shrink-0 text-sm text-slate-500 md:block">
+        <span className="text-base font-bold text-slate-900">
           {pageTitle(pathname)}
         </span>
       </p>
-
       {/* Ô tìm kiếm */}
       <form
         onSubmit={handleSearch}
-        className="relative ml-4 hidden w-full max-w-md md:block"
+        className="relative ml-2 hidden w-full max-w-sm lg:block"
       >
         <Search
           size={16}
@@ -80,14 +103,12 @@ export default function TopBar({ onMenuClick = () => {} }) {
         <input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          placeholder="Search submissions, student ID..."
+          placeholder="Search templates, tests, submissions..."
           className="h-10 w-full rounded-lg bg-brand-50 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600"
         />
       </form>
-
       <div className="flex-1" />
-
-      {/* Chỉ trang trí, chưa có API: xóa hai khối dưới đây nếu không cần */}
+      {/* Cluster Status & Notifications */}
       <span className="hidden items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 font-mono text-[11px] text-slate-600 xl:inline-flex">
         <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
         Cluster v2.4 Online
@@ -100,7 +121,6 @@ export default function TopBar({ onMenuClick = () => {} }) {
       >
         <Bell size={18} />
       </button>
-
       {/* Menu avatar */}
       <div className="relative">
         <button
@@ -118,7 +138,6 @@ export default function TopBar({ onMenuClick = () => {} }) {
 
         {menuOpen && (
           <>
-            {/* Lớp trong suốt phủ màn hình: bấm ra ngoài thì đóng menu */}
             <div
               className="fixed inset-0 z-30"
               onClick={() => setMenuOpen(false)}
@@ -126,7 +145,7 @@ export default function TopBar({ onMenuClick = () => {} }) {
             />
             <div
               role="menu"
-              className="absolute right-0 z-40 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-md"
+              className="absolute right-0 z-40 mt-2 w-72 rounded-lg border border-slate-200 bg-white p-2 shadow-md"
             >
               <div className="px-3 py-2">
                 <p className="m-0 truncate text-sm font-semibold text-slate-900">
@@ -142,6 +161,50 @@ export default function TopBar({ onMenuClick = () => {} }) {
                 >
                   {user?.role}
                 </span>
+              </div>
+              <div className="my-1 h-px bg-slate-200" />
+              {/* Theme: menu con bay ra bên TRÁI như VS Code. Mở bằng hover hoặc bằng Tab
+                  (focus-within) nên không cần thêm state; đổi theme chỉ là đổi token CSS. */}
+              <div className="group relative">
+                <button
+                  type="button"
+                  role="menuitem"
+                  aria-haspopup="menu"
+                  className="flex h-9 w-full items-center justify-between gap-2 rounded-md px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 group-focus-within:bg-slate-100"
+                >
+                  <span className="flex items-center gap-2">
+                    <Palette size={16} /> Theme
+                  </span>
+                  <span className="flex items-center gap-1 text-xs text-slate-400">
+                    {THEMES.find((t) => t.id === theme)?.label}
+                    <ChevronLeft size={14} />
+                  </span>
+                </button>
+
+                {/* pr-1 (không phải mr-1) để khoảng hở vẫn nằm trong vùng hover, nếu không
+                    chuột đi ngang qua là menu con đóng mất. */}
+                <div className="absolute right-full top-0 z-50 hidden pr-1 group-hover:block group-focus-within:block">
+                  <div className="w-52 rounded-lg border border-slate-200 bg-white p-1.5 shadow-md">
+                    {THEMES.map((t) => (
+                      <button
+                        key={t.id || "default"}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={theme === t.id}
+                        onClick={() => pickTheme(t.id)}
+                        className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition ${
+                          theme === t.id
+                            ? "bg-brand-50 font-semibold text-brand-700"
+                            : "text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        <Check size={14} className={theme === t.id ? "" : "invisible"} />
+                        <span className="flex-1">{t.label}</span>
+                        <span className="text-[11px] text-slate-400">{t.hint}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
               <div className="my-1 h-px bg-slate-200" />
               <button

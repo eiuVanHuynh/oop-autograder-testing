@@ -6,29 +6,26 @@
 // không còn Expected Output, Scope, file đính kèm, Lưu nháp, Lưu thành Template
 // (tạo template là việc của trang Templates, vì cần target_json).
 //
-// Hiện dùng dữ liệu giả. Mọi chỗ cần thay bằng backend đều có nhãn "BACKEND-TODO [n]".
-// Tìm nhanh bằng cách search "BACKEND-TODO".
+// Đã nối API thật: POST /runs, GET /runs/:id/logs?after=, POST /runs/:id/cancel
+// (services/runService.js). Chạy local với RUNNER=playwright thì backend mở chromium thật.
 //
-// BACKEND-TODO – danh sách tổng hợp:
-//  [1] Danh sách template  -> ĐÃ NỐI GET /templates. Còn thiếu: readyCount để chặn sớm template rỗng
-//  [2] Danh sách môi trường -> GET /meta/options (🟡, hiện: hằng số trong models/options.js)
-//  [3] Bấm Run              -> POST /runs { templateId, env, timeout } (hiện: hàm giả startRun)
-//  [4] Log + trạng thái     -> GET /runs/:id/logs?after= (hiện: hàm giả fetchRunLogs)
-//  [5] Bấm Hủy              -> POST /runs/:id/cancel (hiện: hàm giả cancelRun)
-//  [6] Thanh tiến độ        -> API không trả %, cần tự tính hoặc bỏ
-//  [7] Đơn vị timeout       -> form dùng GIÂY, backend dùng MILI-GIÂY (đã đổi khi gửi POST /runs)
-//  [8] Trạng thái "đang chuẩn bị máy chạy" (20-60s đầu, backend-design.md mục 5)
-//  [9] Nút "View Full Report" -> /runs/:id thật (hiện: mã run giả)
+// BACKEND-TODO còn lại:
+//  [1] readyCount của template -> GET /templates chưa trả, nên chưa chặn sớm được template rỗng (phải chịu 409)
+//  [2] Danh sách môi trường    -> GET /meta/options (🟡, hiện: hằng số trong models/options.js)
+//  [6] Thanh tiến độ           -> API không trả %, nên chỉ hiện trạng thái chạy/xong
+//  [7] Đơn vị timeout          -> form dùng GIÂY, backend dùng MILI-GIÂY (đã đổi khi gửi POST /runs)
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Play,
   Square,
   FileText,
   CheckCircle2,
-  Server,
   Terminal,
+  Search,
+  ChevronDown,
+  Clock,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
@@ -37,6 +34,8 @@ import { listTemplates } from "../services/templateService";
 import { startRun, fetchRunLogs, cancelRun } from "../services/runService";
 import { getErrorMessage } from "../services/authService";
 import { ENVIRONMENTS } from "../models/options"; // BACKEND-TODO [2]: GET /meta/options
+import { logTone } from "../models/runLog";
+import StatusBadge from "../components/ui/StatusBadge";
 
 // Form dùng GIÂY; khi gửi POST /runs nhân 1000 (backend lưu mili-giây).
 const TIMEOUTS = ["15", "30", "60", "120"];
@@ -45,15 +44,8 @@ const POLL_MS = 1200; // BACKEND-TODO [4]: chu kỳ hỏi log mới (1-2 giây)
 const inputCls =
   "w-full px-3 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500";
 
-// Trạng thái hiển thị của khung log. Backend dùng: running / passed / failed / cancelled.
-// Display statuses. Backend uses: running / passed / failed / cancelled.
-const STATUS_STYLES = {
-  IDLE: "bg-gray-100 text-gray-500",
-  RUNNING: "bg-yellow-100 text-yellow-700 animate-pulse",
-  PASSED: "bg-green-100 text-green-700",
-  FAILED: "bg-red-100 text-red-700",
-  CANCELLED: "bg-orange-100 text-orange-700",
-};
+// Trạng thái hiển thị của khung log (backend dùng: running / passed / failed / cancelled)
+// lấy màu từ components/ui/StatusBadge.jsx.
 
 // Thông báo cho các mã lỗi của POST /runs (api-endpoints.md mục 6).
 const RUN_ERRORS = {
@@ -62,9 +54,114 @@ const RUN_ERRORS = {
   409: "Template này không có test case nào ở trạng thái ready.",
 };
 
-// Các thao tác tạo run, đọc log và hủy run được gọi qua runService.
-// Progress chỉ được hiển thị nếu API trả về; backend hiện chưa có trường phần trăm.
+// Component custom dropdown chọn template có tích hợp ô search
+function SearchableTemplateSelect({
+  value,
+  onChange,
+  templates = [],
+  disabled = false,
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const dropdownRef = useRef(null);
 
+  const selectedTpl = templates.find((t) => String(t.id) === String(value));
+
+  const filteredTemplates = (templates || []).filter((t) =>
+    String(t.name || "")
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase()),
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative w-full" ref={dropdownRef}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          if (!isOpen) setSearchQuery("");
+          setIsOpen(!isOpen);
+        }}
+        className={`${inputCls} flex items-center justify-between text-left bg-gray-50 cursor-pointer select-none`}
+      >
+        <span
+          className={
+            selectedTpl ? "text-gray-900 font-medium truncate" : "text-gray-400"
+          }
+        >
+          {selectedTpl ? selectedTpl.name : "-- Choose a Test Template --"}
+        </span>
+        <ChevronDown size={16} className="text-gray-400 shrink-0 ml-1" />
+      </button>
+
+      {isOpen && !disabled && (
+        <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-2 space-y-2">
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <Search
+              size={14}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+            />
+            <input
+              type="text"
+              autoFocus
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search templates..."
+              className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-900"
+            />
+          </div>
+
+          <div className="max-h-48 overflow-y-auto space-y-0.5">
+            <div
+              onClick={() => {
+                onChange("");
+                setIsOpen(false);
+                setSearchQuery("");
+              }}
+              className="px-3 py-2 text-xs text-gray-500 hover:bg-gray-100 rounded-lg cursor-pointer"
+            >
+              -- Choose a Test Template --
+            </div>
+
+            {filteredTemplates.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-gray-400 text-center">
+                No templates found
+              </div>
+            ) : (
+              filteredTemplates.map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => {
+                    onChange(String(t.id));
+                    setIsOpen(false);
+                    setSearchQuery("");
+                  }}
+                  className={`px-3 py-2 text-xs rounded-lg cursor-pointer transition ${
+                    String(value) === String(t.id)
+                      ? "bg-brand-50 text-brand-600 font-semibold"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {t.name}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function TestCreation() {
   const navigate = useNavigate();
@@ -75,6 +172,7 @@ export default function TestCreation() {
   const [templates, setTemplates] = useState([]);
   useEffect(() => {
     listTemplates()
+      // Template đã deactivate thì không cho chọn chạy (issue #41 mục 2).
       .then(setTemplates)
       .catch((err) =>
         toast.error(getErrorMessage(err, "Cannot load templates.")),
@@ -85,19 +183,18 @@ export default function TestCreation() {
   const [templateId, setTemplateId] = useState("");
   const [environment, setEnvironment] = useState("development");
   const [timeout, setTimeoutSec] = useState("30");
+  const [customTimeout, setCustomTimeout] = useState(false); // true = nhập số giây tự do
 
   // Chạy test & khung log
   const [runId, setRunId] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState([]);
   const [testStatus, setTestStatus] = useState("IDLE");
 
   const selected = templates.find((t) => String(t.id) === templateId);
 
-  const handleTemplateChange = (e) => {
-    const id = e.target.value;
+  const handleTemplateChange = (id) => {
     setTemplateId(id);
     const tpl = templates.find((t) => String(t.id) === id);
     if (!tpl) return;
@@ -107,13 +204,18 @@ export default function TestCreation() {
     }
     // defaultTimeoutMs là mili-giây, đổi sang giây cho form.
     const sec = tpl.defaultTimeoutMs ? String(tpl.defaultTimeoutMs / 1000) : "";
-    if (TIMEOUTS.includes(sec)) setTimeoutSec(sec);
+    if (sec) {
+      setTimeoutSec(sec);
+      setCustomTimeout(!TIMEOUTS.includes(sec));
+    }
   };
 
   const handleStartTest = async (e) => {
     e.preventDefault();
     if (!canRun) return toast.error(RUN_ERRORS[403]);
     if (!selected) return toast.error("Please select a template!");
+    if (!(Number(timeout) >= 1 && Number(timeout) <= 3600))
+      return toast.error("Timeout must be between 1 and 3600 seconds.");
     // BACKEND-TODO [1]: backend trả readyCount; chặn sớm để khỏi nhận 409.
     if (selected.readyCount === 0) return toast.error(RUN_ERRORS[409]);
 
@@ -125,8 +227,6 @@ export default function TestCreation() {
         timeout: Number(timeout) * 1000, // backend dùng mili-giây
       });
       setRunId(res.runId);
-      setProgress(0);
-      // BACKEND-TODO [8]: hiện "đang chuẩn bị máy chạy" trong lúc GitHub Actions khởi động.
       setLogs([]);
       setTestStatus("RUNNING");
       setIsRunning(true);
@@ -141,7 +241,7 @@ export default function TestCreation() {
     }
   };
 
-  // Hỏi log mới theo chu kỳ qua API GET /runs/:id/logs?after=.
+  // Hỏi log mới theo chu kỳ: GET /runs/:id/logs?after=<seq dòng cuối đã nhận>.
   useEffect(() => {
     if (!isRunning || !runId) return;
     let after = 0;
@@ -151,16 +251,16 @@ export default function TestCreation() {
       try {
         const res = await fetchRunLogs(runId, after);
         if (stopped) return;
-        if (res.lines.length) {
-          setLogs((prev) => [...prev, ...res.lines]);
-          after = res.nextAfter ?? after + res.lines.length;
-        }
-        setProgress(res.progress ?? 0);
-        if (res.status !== "running") {
+        if (res.lines.length) setLogs((prev) => [...prev, ...res.lines]);
+        after = res.nextAfter;
+        if (res.status && res.status !== "running") {
           setIsRunning(false);
-          const finalStatus = res.status === "canceled" ? "CANCELLED" : res.status.toUpperCase();
+          // Backend dùng 'interrupted' cho run bị hủy.
+          const finalStatus =
+            res.status === "interrupted" ? "CANCELLED" : res.status.toUpperCase();
           setTestStatus(finalStatus);
-          if (finalStatus === "PASSED") toast.success("Test execution completed!");
+          if (finalStatus === "PASSED")
+            toast.success("Test execution completed!");
           if (finalStatus === "FAILED") toast.error("Test execution failed.");
         }
       } catch {
@@ -194,12 +294,12 @@ export default function TestCreation() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-screen-2xl mx-auto space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Create New Test</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Test Execution</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Select a template, choose the sandbox environment, and execute in
+          Select a template, set up execution time, execute and monitor progress in
           real-time
         </p>
       </div>
@@ -211,26 +311,20 @@ export default function TestCreation() {
         {/* CỘT TRÁI: chọn template (chỉ đọc phần mô tả) */}
         <section className="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <FileText size={20} className="text-brand-600" /> Test Template
+            <FileText size={20} className="text-brand-600" /> Test Templates
           </h3>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Select Assignment Template *
+              Select Assignment Template <span className="text-red-500">*</span>
             </label>
-            <select
+            {/* Sử dụng component SearchableTemplateSelect thay cho thẻ select cũ */}
+            <SearchableTemplateSelect
               value={templateId}
-              onChange={handleTemplateChange}
+              templates={templates}
               disabled={isRunning}
-              className={inputCls}
-            >
-              <option value="">-- Choose a Test Template --</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+              onChange={handleTemplateChange}
+            />
           </div>
 
           {/* Thông tin template: chỉ đọc, không cho sửa ở trang này */}
@@ -246,8 +340,6 @@ export default function TestCreation() {
                   </span>
                 )}
               </div>
-              {/* BACKEND-TODO [1]: trường mô tả của backend là "description"
-                  (dữ liệu giả đang dùng "requirements"). */}
               <p className="text-gray-600">
                 {selected.description ?? selected.requirements}
               </p>
@@ -264,11 +356,19 @@ export default function TestCreation() {
         <div className="lg:col-span-5 space-y-6">
           <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Server size={20} className="text-brand-600" /> Sandbox Execution
-              Configuration
+              <Clock size={20} className="text-brand-600" /> Execution Time
+              Setup
             </h3>
-
-            {/* Môi trường */}
+            {/* Treo lại theo ghi chú gốc "Đợi Vân xác nhận". Lý do cụ thể, kiểm ngày 2026-10-30:
+                chọn môi trường KHÔNG đổi chỗ chạy test.
+                  - PlaywrightRunner.trigger({ runId, testCodes, timeout }) không nhận `env`,
+                    nó dùng this.baseUrl lấy từ config backend.
+                  - .github/workflows/run-tests.yml đặt BASE_URL từ secrets.BASE_URL, một giá trị
+                    cố định, bỏ qua input `env` được truyền vào.
+                Bật ô này lên thì người dùng chọn "Production Cert" mà test vẫn bắn vào đúng site
+                cũ, chỉ khác mỗi chuỗi ghi vào test_runs.environment -> nhãn sai, tin được mới chết.
+                Mở lại khi runner thật sự chọn BASE_URL theo env. */}
+            {/* Môi trường
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Isolated Container Environment
@@ -290,7 +390,7 @@ export default function TestCreation() {
                   </button>
                 ))}
               </div>
-            </div>
+            </div> */}
 
             {/* Timeout */}
             <div>
@@ -299,18 +399,21 @@ export default function TestCreation() {
                   Execution Timeout Limit
                 </label>
                 <span className="text-sm font-semibold text-brand-600">
-                  {timeout} seconds
+                  {timeout || 0} seconds
                 </span>
               </div>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-5 gap-2">
                 {TIMEOUTS.map((t) => (
                   <button
                     key={t}
                     type="button"
                     disabled={isRunning}
-                    onClick={() => setTimeoutSec(t)}
+                    onClick={() => {
+                      setCustomTimeout(false);
+                      setTimeoutSec(t);
+                    }}
                     className={`py-2 rounded-lg text-sm transition ${
-                      timeout === t
+                      !customTimeout && timeout === t
                         ? "bg-brand-600 text-white font-semibold"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
@@ -318,7 +421,37 @@ export default function TestCreation() {
                     {t}s
                   </button>
                 ))}
+                <button
+                  type="button"
+                  disabled={isRunning}
+                  onClick={() => setCustomTimeout(true)}
+                  className={`py-2 rounded-lg text-sm transition ${
+                    customTimeout
+                      ? "bg-brand-600 text-white font-semibold"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  Custom
+                </button>
               </div>
+              {customTimeout && (
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="3600"
+                    step="1"
+                    inputMode="numeric"
+                    autoFocus
+                    disabled={isRunning}
+                    value={timeout}
+                    onChange={(e) => setTimeoutSec(e.target.value)}
+                    placeholder="Enter seconds"
+                    className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-600 disabled:opacity-50"
+                  />
+                  <span className="text-sm text-gray-500">seconds</span>
+                </div>
+              )}
             </div>
 
             <button
@@ -341,11 +474,10 @@ export default function TestCreation() {
               <Terminal size={20} className="text-brand-600" /> Real-time
               Execution Logs
             </h3>
-            <span
-              className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[testStatus]}`}
-            >
-              {testStatus}
-            </span>
+            <StatusBadge
+              status={testStatus}
+              className={`py-1 ${testStatus === "RUNNING" ? "animate-pulse" : ""}`}
+            />
           </div>
 
           <div className="flex items-center gap-2">
@@ -358,7 +490,6 @@ export default function TestCreation() {
                 <Square size={14} /> Cancel Test
               </button>
             )}
-            {/* BACKEND-TODO [9]: runId là mã run thật do POST /runs trả về. */}
             {(testStatus === "PASSED" || testStatus === "FAILED") && (
               <button
                 type="button"
@@ -371,40 +502,43 @@ export default function TestCreation() {
           </div>
         </div>
 
-        {/* Progress. BACKEND-TODO [6]: API không trả %; tính từ số test đã xong hoặc bỏ thanh này. */}
         <div>
+          {/* BACKEND-TODO [6]: API không trả %, nên hiện trạng thái thay cho con số tự bịa. */}
           <div className="flex justify-between text-xs text-gray-500 mb-1">
             <span>Progress</span>
-            <span>{progress}%</span>
+            <span>
+              {isRunning
+                ? "Running…"
+                : testStatus === "IDLE"
+                  ? "—"
+                  : "Finished"}
+            </span>
           </div>
           <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
             <div
-              className="bg-brand-600 h-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
+              className={`bg-brand-600 h-full transition-all duration-300 ${
+                isRunning
+                  ? "w-1/3 animate-pulse"
+                  : testStatus === "IDLE"
+                    ? "w-0"
+                    : "w-full"
+              }`}
             />
           </div>
         </div>
 
-        {/* Terminal */}
-        <div className="bg-gray-900 rounded-xl p-4 font-mono text-xs h-64 overflow-y-auto space-y-2">
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 font-mono text-xs h-64 overflow-y-auto space-y-2">
           {logs.length === 0 ? (
-            <p className="text-gray-500 italic">
+            <p className="text-gray-400 italic">
               {isRunning
                 ? "Waiting for the runner to start..."
                 : 'Ready to run. Click "Run Test Now" to begin...'}
             </p>
           ) : (
+            // Tô màu theo tiền tố mức log (models/runLog.js). Trước đây dò chữ "SUCCESS"
+            // trong nội dung — đó là tàn dư của MOCK_LINES, log thật không có chữ đó.
             logs.map((log, index) => (
-              <div
-                key={index}
-                className={
-                  log.includes("SUCCESS")
-                    ? "text-green-400 font-semibold"
-                    : log.includes("WARN")
-                      ? "text-yellow-400"
-                      : "text-gray-300"
-                }
-              >
+              <div key={index} className={`whitespace-pre-wrap ${logTone(log)}`}>
                 {log}
               </div>
             ))

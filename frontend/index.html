@@ -7,10 +7,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <title>OOP Grader</title>
+    <!-- Áp theme TRƯỚC khi React vẽ, nếu không người dùng thấy nháy một nhịp theme cũ.
+         Phải là script đồng bộ ở <head>; chuyển vào main.jsx là nháy lại. -->
+    <script>
+      try {
+        var t = localStorage.getItem("theme");
+        if (t) document.documentElement.dataset.theme = t;
+      } catch (e) {
+        /* chế độ ẩn danh chặn storage -> dùng theme mặc định */
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

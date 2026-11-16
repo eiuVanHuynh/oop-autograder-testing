@@ -1,30 +1,17 @@
 // Trang Quản lý Template (/templates) – theo docs/frontend/design/08-template-management.png
 // và docs/backend/api-endpoints.md mục 4.
-// Template Management page.
-//
-// Giữ từ thiết kế: tiêu đề + nút Create, ô tìm kiếm, lọc Scope, nút làm mới, bảng
-// (tên + mô tả + ID, scope, người tạo, ngày cập nhật, hành động xem/sửa/xóa).
-// Bỏ vì API không có dữ liệu: 4 thẻ thống kê, sắp xếp, phân trang, banner Role/Policy,
-// thẻ "CLI & Headless Sync", tag, phiên bản, avatar vai trò của người tạo.
-//
-// BACKEND-TODO – tổng hợp:
-//  [1] "Created by" chỉ có id người tạo -> backend join bảng users để trả tên.
-//  [2] Ô "Test codes" nhập tay (TC-01, TC-02) -> đổi thành bộ chọn từ GET /cases, GET /suites (mục 9).
-//  [3] Danh sách môi trường lấy từ GET /meta/options (xem models/options.js).
-//  [4] GET /templates chưa trả số test case 'ready' (readyCount) để chặn sớm template rỗng.
-//  [5] GET /templates chưa có phân trang/sắp xếp; hiện lấy hết, 1 trang.
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
-  Plus,
   Pencil,
   Trash2,
   Eye,
   X,
   FileText,
   Search,
-  RefreshCw,
   Copy,
+  ChevronDown,
+  Power,
+  PowerOff,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
@@ -37,7 +24,36 @@ import {
   deleteTemplate,
   duplicateTemplate,
 } from "../services/templateService";
+import { listCases, listSuites } from "../services/catalogService";
 import { getErrorMessage } from "../services/authService";
+import CreateButton from "../components/ui/CreateButton";
+import FilterBar from "../components/ui/FilterBar";
+import FilterMenu from "../components/ui/FilterMenu";
+import RowMenu from "../components/ui/RowMenu";
+import IconButton from "../components/ui/IconButton";
+import DataTable, { TableViewToggle } from "../components/ui/DataTable";
+import StatusBadge from "../components/ui/StatusBadge";
+import { parseQuery, buildQuery } from "../models/searchTags";
+import { getTableView, setTableView } from "../models/tableView";
+
+// Tag của riêng trang Templates, dùng chung cho ô search và panel Filter.
+const GROUPS = [
+  {
+    key: "scope",
+    label: "Test scope",
+    allLabel: "All scopes",
+    options: SCOPES,
+  },
+  {
+    key: "status",
+    label: "Status",
+    allLabel: "All status",
+    options: [
+      { value: "active", label: "Active" },
+      { value: "inactive", label: "Inactive" },
+    ],
+  },
+];
 
 const EMPTY = {
   name: "",
@@ -58,27 +74,169 @@ const toForm = (t, readOnly = false) => ({
   name: t.name,
   description: t.description,
   scope: t.scope,
-  testCodes: t.targetTestIds.join(", "),
+  testCodes: t.targetTestIds ? t.targetTestIds.join(", ") : "",
   suiteId: t.suiteId,
   defaultEnv: t.defaultEnv || "development",
   timeoutSec: String((t.defaultTimeoutMs || 30000) / 1000),
+  status: t.status,
   readOnly,
 });
 
 const tplCode = (id) => `TPL-${String(id).padStart(4, "0")}`;
 
+// ==========================================
+// COMPONENT CUSTOM DROPDOWN CÓ Ô SEARCH
+// ==========================================
+function SearchableScopeSelect({
+  value,
+  onChange,
+  options = SCOPES,
+  placeholder = "All Scopes",
+  disabled = false,
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const dropdownRef = useRef(null);
+
+  // Lọc danh sách từ mảng options
+  const filteredOptions = (options || []).filter((s) =>
+    String(s).toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  // Đóng dropdown khi click ngoài vùng
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative w-full" ref={dropdownRef}>
+      {/* Nút bấm giả lập Select Box */}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          if (!isOpen) setSearchQuery("");
+          setIsOpen(!isOpen);
+        }}
+        className={`${inputCls} flex items-center justify-between text-left bg-white cursor-pointer select-none`}
+      >
+        <span
+          className={
+            value ? "text-gray-900 font-medium truncate" : "text-gray-400"
+          }
+        >
+          {value || placeholder}
+        </span>
+        <ChevronDown size={16} className="text-gray-400 shrink-0 ml-1" />
+      </button>
+
+      {/* Menu xổ xuống chứa Ô Search + Danh Sách */}
+      {isOpen && !disabled && (
+        <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-2 space-y-2">
+          {/* Ô Input Tìm Kiếm */}
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <Search
+              size={14}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+            />
+            <input
+              type="text"
+              autoFocus
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search scope..."
+              className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-900"
+            />
+          </div>
+
+          {/* Danh sách các Option */}
+          <div className="max-h-48 overflow-y-auto space-y-0.5">
+            {placeholder === "All Scopes" && (
+              <div
+                onClick={() => {
+                  onChange("");
+                  setIsOpen(false);
+                  setSearchQuery("");
+                }}
+                className="px-3 py-2 text-xs text-gray-500 hover:bg-gray-100 rounded-lg cursor-pointer"
+              >
+                -- All Scopes --
+              </div>
+            )}
+
+            {filteredOptions.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-gray-400 text-center">
+                No scopes found
+              </div>
+            ) : (
+              filteredOptions.map((s) => (
+                <div
+                  key={s}
+                  onClick={() => {
+                    onChange(s);
+                    setIsOpen(false);
+                    setSearchQuery("");
+                  }}
+                  className={`px-3 py-2 text-xs rounded-lg cursor-pointer transition ${
+                    value === s
+                      ? "bg-brand-50 text-brand-600 font-semibold"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {s}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Templates() {
   const { user } = useAuth();
+  const [readyCases, setReadyCases] = useState([]);
+  const [suites, setSuites] = useState([]);
+  useEffect(() => {
+    Promise.all([listCases({ status: "ready" }), listSuites()])
+      .then(([c, s]) => {
+        setReadyCases(c);
+        setSuites(s);
+      })
+      .catch((e) =>
+        toast.error(getErrorMessage(e, "Cannot load test catalog.")),
+      );
+  }, []);
   const canEdit = canManageTemplates(user?.role);
 
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Bảng hay thẻ: trang giữ state vì nút nằm trên FilterBar, không nằm trong DataTable.
+  const [view, setView] = useState(() => getTableView("templates"));
+  const changeView = (v) => {
+    setView(v);
+    setTableView("templates", v);
+  };
+  // Ô search là nguồn sự thật duy nhất: tag nằm trong chuỗi `q`, filter suy ra từ nó.
   const [q, setQ] = useState("");
-  const [scope, setScope] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
   const [form, setForm] = useState(null); // null = đóng
   const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState(null);
+
+  // Tag gợi ý trong ô search = chính các option của panel Filter bên cạnh.
+  const { filters: parsed, text } = useMemo(() => parseQuery(q, GROUPS), [q]);
+  // Giữ identity ổn định theo nội dung, nếu không mỗi ký tự gõ vào là một lần gọi lại API.
+  const filterKey = JSON.stringify(parsed);
+  const filters = useMemo(() => JSON.parse(filterKey), [filterKey]);
+  const { scope: scopes, status: statuses } = filters;
 
   // GET /templates?q=&scope= (tìm sau 300ms ngừng gõ)
   useEffect(() => {
@@ -86,11 +244,21 @@ export default function Templates() {
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
+        // BACKEND-TODO: GET /templates chỉ nhận 1 scope / 1 status, nên chọn nhiều
+        // giá trị thì lọc nốt ở client.
         const list = await listTemplates({
-          q: q.trim() || undefined,
-          scope: scope || undefined,
+          q: text.trim() || undefined,
+          scope: scopes.length === 1 ? scopes[0] : undefined,
+          status: statuses.length === 1 ? statuses[0] : undefined,
         });
-        if (!cancelled) setTemplates(list);
+        if (!cancelled)
+          setTemplates(
+            list.filter(
+              (t) =>
+                (scopes.length === 0 || scopes.includes(t.scope)) &&
+                (statuses.length === 0 || statuses.includes(t.status)),
+            ),
+          );
       } catch (err) {
         if (!cancelled)
           toast.error(getErrorMessage(err, "Cannot load templates."));
@@ -102,7 +270,7 @@ export default function Templates() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [q, scope, reloadKey]);
+  }, [text, scopes, statuses, reloadKey]);
 
   const refresh = () => setReloadKey((k) => k + 1);
 
@@ -128,6 +296,7 @@ export default function Templates() {
       targetTestIds: testIds,
       defaultEnv: form.defaultEnv,
       defaultTimeoutMs: Math.round(timeoutSec * 1000), // form dùng giây, backend dùng mili-giây
+      status: form.status,
     };
 
     setSaving(true);
@@ -164,6 +333,21 @@ export default function Templates() {
     }
   };
 
+  // Tắt tạm một template: không xoá, chỉ để nó không còn chọn được khi Run (issue #41 mục 2).
+  const handleToggleStatus = async (t) => {
+    if (!canEdit) return toast.error("You do not have permission.");
+    const next = t.status === "inactive" ? "active" : "inactive";
+    try {
+      await updateTemplate(t.id, { ...t, status: next }); // PUT /templates/:id
+      toast.success(
+        next === "inactive" ? "Template deactivated." : "Template activated.",
+      );
+      refresh();
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Cannot change the template status."));
+    }
+  };
+
   const handleDuplicate = async (t) => {
     if (!canEdit) return toast.error("You do not have permission.");
     try {
@@ -178,157 +362,150 @@ export default function Templates() {
   const readOnly = !!form?.readOnly;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-screen-2xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            Template Management
+            Test Case Template Management
           </h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-gray-500 mt-1">
             {canEdit
               ? "Create, organize, and reuse test configurations."
               : "You have read-only access to templates."}
           </p>
         </div>
-        {canEdit && (
-          <button
-            onClick={() => setForm({ ...EMPTY })}
-            className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-brand-500/20 flex items-center gap-2 shrink-0"
-          >
-            <Plus size={16} /> Create Template
-          </button>
-        )}
+        {canEdit && <CreateButton onClick={() => setForm({ ...EMPTY })} />}
       </div>
 
-      {/* Filter bar */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search templates by name..."
-            className={`${inputCls} pl-9`}
-          />
-        </div>
-        <select
-          value={scope}
-          onChange={(e) => setScope(e.target.value)}
-          className={`${inputCls} w-auto`}
-        >
-          <option value="">All Scopes</option>
-          {SCOPES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={refresh}
-          title="Refresh"
-          className="p-2.5 text-gray-500 hover:text-brand-600 border border-gray-200 rounded-xl"
-        >
-          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-        </button>
-      </div>
+      <FilterBar
+        value={q}
+        onChange={setQ}
+        placeholder="Search templates by name, or pick a tag"
+        onRefresh={refresh}
+        loading={loading}
+        tagGroups={GROUPS}
+        trailing={<TableViewToggle value={view} onChange={changeView} />}
+      >
+        <FilterMenu
+          groups={GROUPS}
+          value={filters}
+          onChange={(next) => setQ(buildQuery(next, text, GROUPS))}
+        />
+      </FilterBar>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        {!loading && templates.length === 0 ? (
-          <div className="text-center py-14 text-gray-400">
-            <FileText size={40} className="mx-auto mb-2 opacity-40" />
-            <p className="text-sm">No templates found.</p>
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
-              <tr>
-                <th className="text-left px-5 py-3">
-                  Template name & description
-                </th>
-                <th className="text-left px-5 py-3">Test scope</th>
-                <th className="text-left px-5 py-3">Created by</th>
-                <th className="text-left px-5 py-3">Last updated</th>
-                <th className="px-5 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading && templates.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-5 py-8 text-center text-gray-400"
-                  >
-                    Loading...
-                  </td>
-                </tr>
-              )}
-              {templates.map((t) => (
-                <tr key={t.id} className="hover:bg-gray-50">
-                  <td className="px-5 py-3">
-                    <p className="font-medium text-gray-900">{t.name}</p>
-                    <p className="text-xs text-gray-500 truncate max-w-md">
-                      {t.description || "No description"}
-                    </p>
-                    <p className="text-xs text-gray-400 font-mono">
-                      ID: {tplCode(t.id)}
-                    </p>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className="px-2 py-0.5 bg-brand-50 text-brand-600 rounded text-xs font-medium">
-                      {t.scope}
+      {/* Table */}
+      <DataTable
+        rows={templates}
+        loading={loading}
+        empty="No templates found."
+        emptyIcon={FileText}
+        maxHeight="450px"
+        cards
+        view={view}
+        onViewChange={changeView}
+        pageSize={10}
+        rowClassName={(t) => (t.status === "inactive" ? "opacity-60" : "")}
+        onRowClick={(t) => setForm(toForm(t, !canEdit))}
+        rowKey={(t) => t.id}
+        columns={[
+          {
+            key: "name",
+            header: "Template name & description",
+            card: "title",
+            sortable: true,
+            render: (t) => (
+              <div className="group cursor-pointer">
+                {/* 🌟 Dùng font-bold (hoặc font-semibold) và giữ group-hover để đổi màu tím */}
+                <span className="font-bold text-gray-900 block group-hover:text-brand-600 transition-colors">
+                  {t.name}
+                </span>
+                <p className="text-xs text-gray-500 truncate max-w-md mt-0.5">
+                  {t.description || "No description"}
+                </p>
+                <p className="text-xs text-gray-400 font-mono mt-1">
+                  ID: {tplCode(t.id)}
+                  {t.status === "inactive" && (
+                    <span className="ml-2 px-2 py-0.5 bg-gray-200 text-gray-600 rounded font-sans">
+                      Inactive
                     </span>
-                  </td>
-                  {/* BACKEND-TODO [1]: hiện tên người tạo khi backend trả. */}
-                  <td className="px-5 py-3 text-gray-600">
-                    User #{t.createdBy}
-                  </td>
-                  <td className="px-5 py-3 text-gray-600">{t.updatedAt}</td>
-                  <td className="px-5 py-3 text-right whitespace-nowrap">
-                    <button
-                      onClick={() => setForm(toForm(t, true))}
-                      className="p-2 text-gray-500 hover:text-brand-600"
-                      title="View"
-                    >
-                      <Eye size={16} />
-                    </button>
-                    {canEdit && (
-                      <>
-                        <button
-                          onClick={() => handleDuplicate(t)}
-                          className="p-2 text-gray-500 hover:text-brand-600"
-                          title="Duplicate"
-                        >
-                          <Copy size={16} />
-                        </button>
-                        <button
-                          onClick={() => setForm(toForm(t))}
-                          className="p-2 text-gray-500 hover:text-brand-600"
-                          title="Edit"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button
-                          onClick={() => setToDelete(t)}
-                          className="p-2 text-gray-500 hover:text-red-600"
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                  )}
+                </p>
+              </div>
+            ),
+          },
+          {
+            key: "scope",
+            header: "Test scope",
+            sortable: true,
+            card: "badge",
+            render: (t) => <StatusBadge status={t.scope} tone="brand" />,
+          },
+          {
+            key: "createdBy",
+            header: "Created by",
+            sortable: true,
+            className: "text-gray-600",
+            render: (t) => `User #${t.createdBy}`,
+          },
+          {
+            key: "updatedAt",
+            header: "Last updated",
+            sortable: true,
+            className: "text-gray-600",
+            render: (t) => t.updatedAt,
+          },
+          {
+            key: "actions",
+            header: "",
+            align: "right",
+            className: "whitespace-nowrap",
+            render: (t) =>
+              canEdit ? (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1"
+                >
+                  <IconButton
+                    icon={Copy}
+                    title="Duplicate"
+                    onClick={() => handleDuplicate(t)}
+                  />
+                  <IconButton
+                    icon={Pencil}
+                    title="Edit"
+                    onClick={() => setForm(toForm(t))}
+                  />
+                  <RowMenu
+                    items={[
+                      {
+                        label:
+                          t.status === "inactive" ? "Activate" : "Deactivate",
+                        icon: t.status === "inactive" ? PowerOff : Power,
+                        onClick: () => handleToggleStatus(t),
+                      },
+                      {
+                        label: "Delete",
+                        icon: Trash2,
+                        onClick: () => setToDelete(t),
+                        danger: true,
+                      },
+                    ]}
+                  />
+                </div>
+              ) : (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <IconButton
+                    icon={Eye}
+                    title="View"
+                    onClick={() => setForm(toForm(t, true))}
+                  />
+                </div>
+              ),
+          },
+        ]}
+      />
 
       {/* Modal: tạo / sửa / xem */}
       {form && (
@@ -356,7 +533,9 @@ export default function Templates() {
 
             <fieldset disabled={readOnly || saving} className="space-y-4">
               <div>
-                <label className={labelCls}>Template name *</label>
+                <label className={labelCls}>
+                  Template name <span className="text-red-500">*</span>
+                </label>
                 <input
                   className={inputCls}
                   value={form.name}
@@ -377,47 +556,79 @@ export default function Templates() {
               </div>
 
               <div>
-                <label className={labelCls}>Tests to run *</label>
-                {form.suiteId ? (
-                  <p className="text-sm text-gray-600 bg-gray-50 rounded-xl px-3 py-2">
-                    Suite #{form.suiteId}
-                  </p>
-                ) : (
-                  <>
-                    {/* BACKEND-TODO [2]: đổi thành bộ chọn test / suite. */}
-                    <input
-                      className={inputCls}
-                      placeholder="TC-01, TC-02"
-                      value={form.testCodes}
-                      onChange={(e) =>
-                        setForm({ ...form, testCodes: e.target.value })
-                      }
-                    />
-                    <p className="text-xs text-gray-400 mt-1">
-                      Separate test codes with commas.
-                    </p>
-                  </>
+                <label className={labelCls}>
+                  Tests to run <span className="text-red-500">*</span>
+                </label>
+                <select
+                  className={inputCls}
+                  value={form.suiteId ?? ""}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      suiteId: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                >
+                  <option value="">— Pick individual tests —</option>
+                  {suites.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.readyCount} ready)
+                    </option>
+                  ))}
+                </select>
+
+                {!form.suiteId && (
+                  <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-gray-200 p-2 space-y-1">
+                    {readyCases.length === 0 && (
+                      <p className="text-xs text-gray-400">
+                        No ready test cases yet.
+                      </p>
+                    )}
+                    {readyCases.map((c) => {
+                      const picked = form.testCodes
+                        .split(",")
+                        .map((x) => x.trim())
+                        .filter(Boolean);
+                      const on = picked.includes(c.code);
+                      return (
+                        <label
+                          key={c.id}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            onChange={() => {
+                              const next = on
+                                ? picked.filter((x) => x !== c.code)
+                                : [...picked, c.code];
+                              setForm({ ...form, testCodes: next.join(", ") });
+                            }}
+                          />
+                          <span className="font-mono text-xs">{c.code}</span>{" "}
+                          {c.title}
+                        </label>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className={labelCls}>Scope</label>
-                  <select
-                    className={inputCls}
+                  {/* Tích hợp Searchable Scope Select ở Modal */}
+                  <SearchableScopeSelect
                     value={form.scope}
-                    onChange={(e) =>
-                      setForm({ ...form, scope: e.target.value })
+                    disabled={readOnly || saving}
+                    onChange={(val) =>
+                      setForm({ ...form, scope: val || "API" })
                     }
-                  >
-                    {SCOPES.map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </select>
+                    placeholder="Select scope"
+                  />
                 </div>
                 <div>
                   <label className={labelCls}>Environment</label>
-                  {/* BACKEND-TODO [3]: danh sách môi trường từ GET /meta/options. */}
                   <select
                     className={inputCls}
                     value={form.defaultEnv}
