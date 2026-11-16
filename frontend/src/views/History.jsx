@@ -24,7 +24,13 @@ import {
 
 // Status do backend tính: running | passed | failed | interrupted. Màu nằm ở StatusBadge.
 // UNVERIFIED do FE suy ra (passed mà không có test_results) — xem runService.toRun.
-const RUN_STATUSES = ["PASSED", "UNVERIFIED", "RUNNING", "FAILED", "INTERRUPTED"];
+const RUN_STATUSES = [
+  "PASSED",
+  "UNVERIFIED",
+  "RUNNING",
+  "FAILED",
+  "INTERRUPTED",
+];
 
 // Tag của riêng trang History: trạng thái run + môi trường. Không dùng chung với Test Cases.
 const GROUPS = [
@@ -146,6 +152,7 @@ export default function History() {
                 key: "status",
                 header: "Status",
                 sortable: true,
+                width: "130px",
                 render: (run) => (
                   <StatusBadge
                     status={run.status}
@@ -159,6 +166,7 @@ export default function History() {
                 key: "name",
                 header: "Run",
                 sortable: true,
+                width: "35%",
                 render: (run) => (
                   <div className="group cursor-pointer">
                     <p className="font-semibold text-gray-900 group-hover:text-brand-600 transition">
@@ -172,6 +180,7 @@ export default function History() {
                 key: "env",
                 header: "Env",
                 sortable: true,
+                width: "110px",
                 render: (run) => (
                   <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
                     {run.environment}
@@ -182,6 +191,7 @@ export default function History() {
                 key: "executedAt",
                 sortable: true,
                 header: "Executed at",
+                width: "180px",
                 className: "text-xs text-gray-500 whitespace-nowrap",
                 render: (run) => run.executedAt,
               },
@@ -189,6 +199,7 @@ export default function History() {
                 key: "duration",
                 sortable: true,
                 header: "Duration",
+                width: "110px",
                 className: "text-xs text-gray-500",
                 render: (run) => run.duration ?? "—",
               },
@@ -196,6 +207,7 @@ export default function History() {
                 key: "actions",
                 header: "",
                 align: "right",
+                width: "80px",
                 render: (run) => (
                   <div onClick={(e) => e.stopPropagation()}>
                     <IconButton
