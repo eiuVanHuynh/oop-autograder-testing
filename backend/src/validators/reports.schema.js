@@ -1,10 +1,9 @@
-const { z } = require('zod');
+const { z } = require("zod");
 
-// Schema zod cho nhóm reports; middleware validate() dùng các schema này.
-// zod schemas for the reports group; the validate() middleware consumes them.
+// Zod schemas for the reports group; the validate() middleware uses them.
 //
-// Cần làm / To do:
-- exportQuerySchema: format là 'pdf' | 'html'.
+// To do:
+// - exportQuerySchema: format is 'pdf' | 'html'.
 
 // TODO
 

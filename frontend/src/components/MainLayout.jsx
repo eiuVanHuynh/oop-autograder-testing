@@ -1,17 +1,29 @@
-import { Outlet } from 'react-router-dom';
-import Sidebar from './layout/Sidebar';
-import TopBar from './layout/TopBar';
+import { useState } from "react";
+import { Outlet, useLocation } from "react-router-dom";
+import Sidebar from "./layout/Sidebar";
+import TopBar from "./layout/TopBar";
 
-// Khung chung sau khi đăng nhập. Sửa menu thì vào Sidebar.jsx, sửa thanh trên thì vào TopBar.jsx.
-// Shared frame for signed-in pages. Edit the menu in Sidebar.jsx, the top bar in TopBar.jsx.
 export default function MainLayout() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { pathname } = useLocation();
+
   return (
-    <div className="min-h-screen flex bg-gray-50 text-gray-900">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <TopBar />
-        <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
-          <Outlet />
+    <div className="flex h-screen flex-col bg-slate-50 text-slate-900 overflow-hidden">
+      {/* TopBar nằm cố định trên cùng */}
+      <TopBar
+        collapsed={sidebarCollapsed}
+        onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+      />
+
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar collapsed={sidebarCollapsed} />
+
+        {/* Chỉ phần nội dung này mới có thanh cuộn riêng khi dài */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8">
+          {/* key = đường dẫn: đổi route là khối này dựng lại, nên hoạt ảnh chạy lại từ đầu. */}
+          <div key={pathname} className="animate-page-in">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

@@ -20,7 +20,7 @@
 | **FR-9** | Theo dõi lịch sử nộp bài (Submission History) theo thời gian | `TC-22` | Lưu trữ và hiển thị chi tiết các lần nộp trước đó. |
 | **FR-10** | Quản lý Rubric, cấu trúc lớp, quan hệ MMD và Operational Testcases bởi giảng viên | `TC-23`, `TC-24`, `TC-25`, `TC-26`, `TC-27` | Cho phép giảng viên tạo/sửa/xóa và chạy thử dry-run. |
 | **FR-11** | Bảng điều khiển giảng viên (Lecturer Dashboard) real-time | `TC-28` | Thống kê số bài nộp, điểm trung bình lớp và biểu đồ phân phối. |
-| **FR-12** | Quản lý người dùng: thêm đơn lẻ, thêm hàng loạt qua CSV, cập nhật, xóa mềm | `TC-08`, `TC-09`, `TC-10`, `TC-11`, `TC-12` | Đảm bảo thao tác đầy đủ trên giao diện Quản lý Người dùng. |
+| **FR-12** | Quản lý người dùng: thêm đơn lẻ, cập nhật, đổi mật khẩu, xóa mềm (trang `Users`) + ghi danh hàng loạt qua CSV (trang `Quarters`) | `TC-08`, `TC-09`, `TC-10`, `TC-11`, `TC-12` | ⚠️ **Thêm tài khoản hàng loạt qua CSV không có trên giao diện** – `POST /api/users/bulk` tồn tại ở backend nhưng không được frontend gọi. `TC-09` đã sửa thành *ghi danh* vào quarter. |
 | **FR-13** | Xuất dữ liệu ma trận điểm (Grade Matrix & Export định dạng Excel, PDF, SVG) | `TC-29`, `TC-30` | `TC-29` xem ma trận điểm, `TC-30` xuất báo cáo kết quả học tập. |
 | **FR-14** | Phân tích cấu trúc chi tiết và bắt lỗi thành phần (Class members, modifiers) | `TC-16`, `TC-17` | Phục vụ chấm điểm trụ cột 1 và 2. |
 | **FR-15** | Cấp điểm phần trăm (Partial credit) cho các thuộc tính khớp một phần | `TC-17`, `TC-19`, `TC-20` | Tránh đánh trượt toàn bộ khi chỉ sai nhỏ; phủ cả trường hợp thiếu trụ cột / thiếu challenge. |

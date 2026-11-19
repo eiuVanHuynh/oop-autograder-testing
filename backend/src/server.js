@@ -1,6 +1,5 @@
-// Chạy local. Trên Vercel file này không được gọi tới.
-// Local run. This file is never invoked on Vercel.
+// Local run. On Vercel this file is never called.
 const app = require('./app');
 const { PORT } = require('./config/env');
 
-app.listen(PORT, () => console.log(`API: http://localhost:${PORT}/api`));
+app.listen(PORT, () => console.log(`[api] http://localhost:${PORT}/api`));

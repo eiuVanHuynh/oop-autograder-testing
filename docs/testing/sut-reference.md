@@ -26,8 +26,14 @@ Backend **Java / Spring Boot**, frontend **React (JSX)**. Khác hẳn repo test 
 | `/lecturer-users` | Quản lý người dùng | TC-08 → TC-12 |
 | `/lecturer-solution` | Trình soạn cấu trúc Lab / rubric | TC-23 → TC-27 |
 | `/lecturer-report` | Báo cáo phân tích | TC-30 |
+| `/lecturer-terms` | Quarters: ghi danh sinh viên qua CSV | **TC-09** |
+| `/lecturer-bulk-grading` | Chấm hàng loạt (tạm, **không ghi roster**) | ma trận chưa phủ |
+| `/lecturer-ranking` · `/student-ranking` | Bảng xếp hạng tuần (mới ở `b17d855`) | ma trận chưa phủ |
+| `/lecturer-feedback` | Hộp thư góp ý (mới ở `b17d855`) | ma trận chưa phủ |
+| `/staff` | **Đăng nhập giảng viên khi bật chế độ bảo trì** | xem mục 9 |
 
 > ⚠️ Không có route nào tên `/login`. Trang đăng nhập là `/`.
+> Nguồn: `frontend/src/utils/authRoutes.js:1-17`.
 
 ## 3. API của SUT
 
@@ -41,7 +47,7 @@ Mọi endpoint bắt đầu bằng `/api`.
 | `SubmissionController` | `/api/submissions` | Upload, chấm, lịch sử sinh viên |
 | `UserController` | `/api/users` | CRUD user (chỉ giảng viên) |
 | `AnalyticsController` | `/api/analytics` | Dashboard, báo cáo sinh viên |
-| `MasterDataController` | `/api/master-data` | Tra cứu scope / type / relation |
+| `MasterDataController` | `/api/master-data/by-category?category=<SCOPE\|DECLARING_TYPE\|RELATION_TYPE>` | Tra cứu scope / type / relation. ⚠️ **Không có** endpoint `/api/master-data` trần; cần role **LECTURER** (`SecurityConfig.java:56`); host là `VITE_API_URL` (mặc định `http://localhost:8002`, bản deploy trỏ Render) – **không nằm trên host Vercel** |
 | `TermController` | `/api/terms` | Học kỳ |
 | `RootController` | `/` | Liveness probe |
 
@@ -72,7 +78,7 @@ Các giá trị trong `db/migrations/002_auth_steps_data.sql` **đều khớp v�
 
 | Nhãn thật trong SUT | Ghi chú |
 | --- | --- |
-| `MMD Relationships` | ⚠️ Ma trận TC-25 đang ghi **"MMD Relations"** – sai, thiếu chữ `hips` |
+| `MMD Relations` (tên tab) · `MMD Relationships` (tiêu đề panel bên trong) | ✅ **Cả hai đều có thật** – ma trận TC-25 ghi `MMD Relations` là **đúng**. Ghi chú cũ *"sai, thiếu chữ hips"* đã bỏ (`ChallengeDetailPanel.jsx:86` vs `MmdRelationsPanel.jsx:57`) |
 | `Operational Testcases` | Khớp TC-26 |
 | `Create Lab` · `Lab name` · `Quarter` · `Create` · `Cancel` | Modal tạo lab (TC-23) |
 | `Copy lab` · `Target quarter` | Chức năng ma trận chưa phủ |
@@ -83,6 +89,11 @@ Các giá trị trong `db/migrations/002_auth_steps_data.sql` **đều khớp v�
 
 Nhãn thẻ thống kê: `Total Submissions` · `Students Submitted` · `Average Score` · `Highest Score` · `Lowest Score` ·
 `Completion Rate` · `Enrolled Students` · `Live` · `Hidden`
+
+Thanh điều hướng giảng viên – **9 mục** (`NavBar.jsx:5-13`):
+`Dashboard` · `Score` · `Ranking` · `Grading` · `Users` · `Quarters` · `Solution` · `Reports` · `Feedback`
+
+Phân trang bảng roster: **10 dòng/trang** (`ROSTER_PAGE_SIZE`, đã đổi từ 5 ở `b17d855`).
 
 ## 6. Thông báo lỗi – backend ≠ giao diện là CỐ Ý
 
@@ -134,3 +145,28 @@ Nhãn thẻ thống kê: `Total Submissions` · `Students Submitted` · `Average
 > ⚠️ Repo SUT **không có tài liệu đánh số FR-1…FR-16 hay "Section 3.2.1"**. Cột `Source Reference` trong
 > [`test-case-matrix.md`](./test-case-matrix.md) trỏ tới một tài liệu đặc tả **nằm ngoài cả hai repo** – cần xác định
 > đó là tài liệu nào và lưu lại, nếu không thì cột đó không kiểm chứng được.
+
+---
+
+## 9. ⚠️ Chế độ bảo trì có thể khóa mọi test của sinh viên
+
+SUT `b17d855` (23/10/2026) thêm cờ build `VITE_MAINTENANCE_MODE` / `NEXT_PUBLIC_MAINTENANCE_MODE`
+(`frontend/src/utils/maintenanceMode.js`). Khi bật:
+
+| Hậu quả | Nguồn |
+| --- | --- |
+| Sinh viên **không đăng nhập được**: `The site is under maintenance. Only lecturers can sign in right now.` | `App.jsx:73-76` |
+| Phiên sinh viên đang mở **bị xóa ngay khi tải trang** (xóa JWT, rời presence) | `App.jsx:56-69` |
+| Giảng viên đăng nhập ở route **`/staff`** | `authRoutes.js:17` |
+| Bản desktop (`VITE_APP_MODE=desktop`) **không** bị khóa | `maintenanceMode.js:13-15` |
+
+→ Cờ bật là **TC-01 → TC-22 và TC-31 đứng hết** (mọi TC cần phiên sinh viên).
+
+**Trạng thái bản deploy 23/10/2026: cờ CHƯA bật.** Kiểm bằng cách tải
+`https://oop-autograder-test.vercel.app/assets/App-Bfrn40nF.js` (493 KB) rồi dò chuỗi:
+không có `under maintenance`, không có `/staff`, nhưng có `currentQuarter` và `Save Lab Structure`
+→ deploy mới hơn commit bỏ Ngày sinh, cũ hơn 4 commit bảo trì.
+
+> Cách kiểm lại nhanh mỗi khi test bỗng fail hàng loạt ở bước đăng nhập:
+> `curl -s <BASE_URL>/ | grep -o '/assets/index-[^"]*\.js'` → tải chunk `App-*.js` → `grep "under maintenance"`.
+> Có chuỗi đó là cờ đã bật.

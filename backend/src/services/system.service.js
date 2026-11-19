@@ -1,15 +1,12 @@
-// Kiểm tra sức khỏe hệ thống.
 // System health check.
-// Quy tắc nghiệp vụ nằm ở đây. Không require pg, không chạm req/res.
-// Business rules live here. Never require pg, never touch req/res.
-// Nhận repository qua constructor để test thay được bằng bản giả.
-// Takes its repositories through the constructor so tests can pass fakes.
+// Business rules live here. No pg require, no touching req/res.
+// Takes repositories through the constructor so tests can swap in fakes.
 //
-// Cần làm / To do:
-- Chạy một câu SELECT 1 qua repository/db, đừng chỉ trả 200 cứng.
+// To do:
+// - Run a real SELECT 1 through the repository/db, do not just hard-code a 200.
 class SystemService {
   constructor(deps = {}) {
-    // TODO: nhận repository cần dùng từ config/container.js
+    // TODO: take the repositories it needs from config/container.js
   }
 
   // TODO

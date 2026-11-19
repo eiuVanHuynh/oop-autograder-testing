@@ -5,7 +5,9 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "node src/server.js",
-    "test": "node --test tests/"
+    "test": "node --test tests/",
+    "routes": "node scripts/routes.js",
+    "migrate": "node ../migrate.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -14,6 +16,7 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
+    "playwright": "^1.64.1",
     "zod": "^3.24.1"
   },
   "devDependencies": {

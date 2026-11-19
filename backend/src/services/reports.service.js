@@ -1,17 +1,14 @@
-// Xuất báo cáo PDF/HTML và link chia sẻ.
-// PDF/HTML report export and share links.
-// Quy tắc nghiệp vụ nằm ở đây. Không require pg, không chạm req/res.
-// Business rules live here. Never require pg, never touch req/res.
-// Nhận repository qua constructor để test thay được bằng bản giả.
-// Takes its repositories through the constructor so tests can pass fakes.
+// Export PDF/HTML reports and share links.
+// Business rules live here. No pg require, no touching req/res.
+// Takes repositories through the constructor so tests can swap in fakes.
 //
-// Cần làm / To do:
-- Dùng lại logic từ automation/scripts/export-report.js, đừng viết lại.
-// - Vercel chỉ ghi được /tmp → stream thẳng về client.
-// - Run chưa xong → 409. Link chia sẻ hết hạn → 410.
+// To do:
+// - Reuse the logic from automation/scripts/export-report.js, do not rewrite it.
+// - Vercel can only write to /tmp → stream straight back to the client.
+// - Run not finished → 409. Expired share link → 410.
 class ReportsService {
   constructor(deps = {}) {
-    // TODO: nhận repository cần dùng từ config/container.js
+    // TODO: take the repositories it needs from config/container.js
   }
 
   // TODO

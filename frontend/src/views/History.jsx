@@ -1,7 +1,15 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../controllers/AuthContext";
-import { canRunTest } from "../models/permissions";
+import { useState, useEffect, useMemo } from "react";
+import toast from "react-hot-toast";
 import { getRuns } from "../services/runService";
+import { getErrorMessage } from "../services/authService";
+import { ENVIRONMENTS } from "../models/options";
+import { parseQuery, buildQuery } from "../models/searchTags";
+import { getTableView, setTableView } from "../models/tableView";
+import FilterBar from "../components/ui/FilterBar";
+import FilterMenu from "../components/ui/FilterMenu";
+import DataTable, { TableViewToggle } from "../components/ui/DataTable";
+import StatusBadge from "../components/ui/StatusBadge";
+import IconButton from "../components/ui/IconButton";
 import { useNavigate } from "react-router-dom";
 import {
   History as HistoryIcon,
@@ -12,154 +20,273 @@ import {
   ArrowRight,
   Eye,
   Calendar,
-  Server,
 } from "lucide-react";
+
+// Status do backend tính: running | passed | failed | interrupted. Màu nằm ở StatusBadge.
+// UNVERIFIED do FE suy ra (passed mà không có test_results) — xem runService.toRun.
+const RUN_STATUSES = [
+  "PASSED",
+  "UNVERIFIED",
+  "RUNNING",
+  "FAILED",
+  "INTERRUPTED",
+];
+
+// Tag của riêng trang History: trạng thái run + môi trường. Không dùng chung với Test Cases.
+const GROUPS = [
+  {
+    key: "status",
+    label: "Status",
+    allLabel: "All status",
+    options: RUN_STATUSES,
+  },
+  {
+    key: "env",
+    label: "Environment",
+    allLabel: "All environments",
+    options: ENVIRONMENTS,
+  },
+];
 
 export default function History() {
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   // Dữ liệu dùng chung với Dashboard (runService)
   const [testRuns, setTestRuns] = useState([]);
   const [selectedRun, setSelectedRun] = useState(null);
+  const [loading, setLoading] = useState(true);
+  // Bảng hay thẻ: trang giữ state vì nút nằm trên FilterBar, không nằm trong DataTable.
+  const [view, setView] = useState(() => getTableView("history"));
+  const changeView = (v) => {
+    setView(v);
+    setTableView("history", v);
+  };
+  const [q, setQ] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Ô search là nguồn sự thật duy nhất: tag nằm trong `q`, filter suy ra từ nó.
+  const { filters, text } = useMemo(() => parseQuery(q, GROUPS), [q]);
+
+  // GET /runs chỉ nhận 1 giá trị mỗi nhóm nên lọc hẳn ở client, như Templates đang làm.
+  const shown = useMemo(() => {
+    const k = text.trim().toLowerCase();
+    return testRuns.filter(
+      (r) =>
+        (filters.status.length === 0 || filters.status.includes(r.status)) &&
+        (filters.env.length === 0 || filters.env.includes(r.environment)) &&
+        (!k ||
+          r.name.toLowerCase().includes(k) ||
+          String(r.id).includes(k.replace(/^#/, ""))),
+    );
+  }, [testRuns, filters, text]);
 
   useEffect(() => {
-    getRuns().then((data) => {
-      setTestRuns(data);
-      setSelectedRun(data[0] || null);
-    });
-  }, []);
-
-  const badge = (status) =>
-    status === "PASSED"
-      ? "bg-emerald-100 text-emerald-700"
-      : status === "RUNNING"
-        ? "bg-amber-100 text-amber-700"
-        : "bg-red-100 text-red-700";
+    setLoading(true);
+    getRuns()
+      .then((data) => {
+        setTestRuns(data);
+      })
+      .catch((e) => toast.error(getErrorMessage(e, "Cannot load test runs.")))
+      .finally(() => setLoading(false));
+  }, [reloadKey]);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-screen-2xl mx-auto space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900">
             Execution History & Reports
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             Review past test runs, statuses, and performance analytics.
           </p>
         </div>
-        {canRunTest(user?.role) && (
-          <button
-            onClick={() => navigate("/tests/new")}
-            className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-purple-500/20 transition flex items-center gap-2"
-          >
-            <span>+ New Test Run</span>
-          </button>
-        )}
       </div>
 
+      <FilterBar
+        value={q}
+        onChange={setQ}
+        placeholder="Search run name / #id, or pick a tag"
+        onRefresh={() => setReloadKey((k) => k + 1)}
+        loading={loading}
+        tagGroups={GROUPS}
+        trailing={<TableViewToggle value={view} onChange={changeView} />}
+      >
+        <FilterMenu
+          groups={GROUPS}
+          value={filters}
+          onChange={(next) => setQ(buildQuery(next, text, GROUPS))}
+        />
+      </FilterBar>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* LEFT: Danh sách lịch sử chạy test */}
-        <div className="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
-              <HistoryIcon size={18} className="text-purple-600" /> Past Test
-              Runs
-            </h3>
-            <span className="text-xs text-gray-400 font-medium">
-              {testRuns.length} runs recorded
-            </span>
-          </div>
-
-          <div className="divide-y divide-gray-100">
-            {testRuns.map((run) => {
-              const isSelected = selectedRun?.id === run.id;
-              return (
-                <div
-                  key={run.id}
-                  onClick={() => setSelectedRun(run)}
-                  className={`p-4 transition cursor-pointer flex items-center justify-between ${
-                    isSelected
-                      ? "bg-purple-50/60 border-l-4 border-purple-600"
-                      : "hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1 ${badge(
-                          run.status,
-                        )}`}
-                      >
-                        {run.status === "PASSED" ? (
-                          <CheckCircle2 size={12} />
-                        ) : (
-                          <AlertTriangle size={12} />
-                        )}
-                        {run.status}
-                      </span>
-                      <span className="text-xs text-gray-400 font-mono">
-                        #{run.id}
-                      </span>
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
-                        {run.environment}
-                      </span>
-                    </div>
-                    <h4 className="text-sm font-semibold text-gray-900">
+        {/* LEFT: Danh sách lịch sử chạy test – xem dạng bảng hoặc dạng thẻ */}
+        <div className="lg:col-span-12">
+          <DataTable
+            rows={shown}
+            loading={loading}
+            empty={
+              testRuns.length === 0
+                ? "No test runs yet."
+                : "No run matches this filter."
+            }
+            emptyIcon={HistoryIcon}
+            maxHeight="500px"
+            pageSize={8}
+            view={view}
+            onViewChange={changeView}
+            rowKey={(run) => run.id}
+            onRowClick={(run) => navigate(`/runs/${run.id}`)}
+            rowClassName={(run) =>
+              selectedRun?.id === run.id ? "bg-brand-50/60" : ""
+            }
+            toolbar={
+              <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                <HistoryIcon size={18} className="text-brand-600" /> Past Test
+                Runs
+              </h3>
+            }
+            columns={[
+              {
+                key: "status",
+                header: "Status",
+                sortable: true,
+                width: "130px",
+                render: (run) => (
+                  <StatusBadge
+                    status={run.status}
+                    icon={
+                      run.status === "PASSED" ? CheckCircle2 : AlertTriangle
+                    }
+                  />
+                ),
+              },
+              {
+                key: "name",
+                header: "Run",
+                sortable: true,
+                width: "35%",
+                render: (run) => (
+                  <div className="group cursor-pointer">
+                    <p className="font-semibold text-gray-900 group-hover:text-brand-600 transition">
                       {run.name}
-                    </h4>
-                    <p className="text-xs text-gray-500 flex items-center gap-2">
-                      <span>
-                        <Calendar size={12} className="inline mr-1" />
-                        {run.executedAt}
-                      </span>
-                      <span>•</span>
-                      <span>
-                        <Clock size={12} className="inline mr-1" />
-                        {run.duration}
-                      </span>
                     </p>
+                    <p className="text-xs text-gray-400 font-mono">#{run.id}</p>
                   </div>
-
-                  {/* Nút bấm xem Report chi tiết */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/runs/${run.id}`);
-                      }}
-                      className="px-3 py-1.5 bg-white border border-gray-200 hover:border-purple-600 text-gray-700 hover:text-purple-600 rounded-lg text-xs font-medium shadow-sm transition flex items-center gap-1"
-                    >
-                      <Eye size={14} /> Report
-                    </button>
+                ),
+              },
+              {
+                key: "env",
+                header: "Env",
+                sortable: true,
+                width: "110px",
+                render: (run) => (
+                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
+                    {run.environment}
+                  </span>
+                ),
+              },
+              {
+                key: "executedAt",
+                sortable: true,
+                header: "Executed at",
+                width: "180px",
+                className: "text-xs text-gray-500 whitespace-nowrap",
+                render: (run) => run.executedAt,
+              },
+              {
+                key: "duration",
+                sortable: true,
+                header: "Duration",
+                width: "110px",
+                className: "text-xs text-gray-500",
+                render: (run) => run.duration ?? "—",
+              },
+              {
+                key: "actions",
+                header: "",
+                align: "right",
+                width: "80px",
+                render: (run) => (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <IconButton
+                      icon={Eye}
+                      title="Open full report"
+                      onClick={() => navigate(`/runs/${run.id}`)}
+                    />
                   </div>
+                ),
+              },
+            ]}
+            renderCard={(run) => (
+              <div
+                className={`h-full rounded-xl border p-4 transition cursor-pointer ${
+                  selectedRun?.id === run.id
+                    ? "border-brand-600 bg-brand-50/60"
+                    : "border-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge
+                    status={run.status}
+                    icon={
+                      run.status === "PASSED" ? CheckCircle2 : AlertTriangle
+                    }
+                  />
+                  <span className="text-xs text-gray-400 font-mono">
+                    #{run.id}
+                  </span>
+                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
+                    {run.environment}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+                <h4 className="text-sm font-semibold text-gray-900 mt-2 break-words">
+                  {run.name}
+                </h4>
+                <p className="text-xs text-gray-500 flex flex-wrap items-center gap-x-2 mt-1">
+                  <span>
+                    <Calendar size={12} className="inline mr-1" />
+                    {run.executedAt}
+                  </span>
+                  <span>•</span>
+                  <span>
+                    <Clock size={12} className="inline mr-1" />
+                    {run.duration ?? "—"}
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/runs/${run.id}`);
+                  }}
+                  className="mt-3 px-3 py-1.5 bg-white border border-gray-200 hover:border-brand-600 text-gray-700 hover:text-brand-600 rounded-lg text-xs font-medium shadow-sm transition flex items-center gap-1 cursor-pointer"
+                >
+                  <Eye size={14} /> Report
+                </button>
+              </div>
+            )}
+          />
         </div>
 
         {/* RIGHT: Bảng Preview Report nhanh ngay tại History */}
-        <div className="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between">
+        {/* <div className="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between">
           {selectedRun ? (
             <div className="space-y-6">
               <div className="flex items-center justify-between pb-4 border-b border-gray-100">
                 <div>
-                  <span className="text-xs text-purple-600 font-mono font-semibold">
+                  <span className="text-xs text-brand-600 font-mono font-semibold">
                     QUICK REPORT PREVIEW
                   </span>
                   <h3 className="text-lg font-bold text-gray-900 mt-0.5">
                     Run #{selectedRun.id}
                   </h3>
                 </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${badge(
-                    selectedRun.status,
-                  )}`}
-                >
-                  {selectedRun.status}
-                </span>
+                <StatusBadge
+                  status={selectedRun.status}
+                  className="px-3 py-1"
+                />
               </div>
 
               <div>
@@ -175,37 +302,37 @@ export default function History() {
                 <p className="text-xs text-gray-500 mt-0.5">
                   Executed at: {selectedRun.executedAt}
                 </p>
-              </div>
+              </div> */}
 
-              {/* Thống kê tỉ lệ */}
-              <div className="grid grid-cols-3 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">
+        {/* Chỉ các trường GET /runs thật sự trả về. Số case passed/failed nằm ở
+                  bảng test_results nhưng chưa có endpoint nào đọc -> không hiển thị. */}
+        {/* <div className="grid grid-cols-3 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">
                 <div>
-                  <p className="text-xs text-gray-500">Total Cases</p>
+                  <p className="text-xs text-gray-500">Planned</p>
                   <p className="text-base font-bold text-gray-900">
-                    {selectedRun.total}
+                    {selectedRun.testCodes.length || "—"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-emerald-600 font-medium">Passed</p>
-                  <p className="text-base font-bold text-emerald-600">
-                    {selectedRun.passed}
+                  <p className="text-xs text-gray-500">Duration</p>
+                  <p className="text-base font-bold text-gray-900">
+                    {selectedRun.duration ?? "—"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-red-500 font-medium">Failed</p>
-                  <p className="text-base font-bold text-red-500">
-                    {selectedRun.failed}
+                  <p className="text-xs text-gray-500">Run by</p>
+                  <p className="text-base font-bold text-gray-900">
+                    {selectedRun.runBy}
                   </p>
                 </div>
-              </div>
+              </div> */}
 
-              {/* Nút hành động chuyển đến trang chi tiết Report đầy đủ */}
-              <button
+        {/* Nút hành động chuyển đến trang chi tiết Report đầy đủ */}
+        {/* <button
                 onClick={() => navigate(`/runs/${selectedRun.id}`)}
-                className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 transition"
+                className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-brand-500/25 flex items-center justify-center gap-2 transition cursor-pointer"
               >
-                <span>View Full Report & Diff Viewer</span>{" "}
-                <ArrowRight size={16} />
+                <span>View Full Report</span> <ArrowRight size={16} />
               </button>
             </div>
           ) : (
@@ -216,7 +343,7 @@ export default function History() {
               </p>
             </div>
           )}
-        </div>
+        </div> */}
       </div>
     </div>
   );

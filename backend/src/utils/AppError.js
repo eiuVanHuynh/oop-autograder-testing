@@ -1,7 +1,5 @@
-// Lỗi có chủ đích của ứng dụng: errorHandler đọc status + code để trả JSON đúng dạng.
-// Deliberate application error: errorHandler reads status + code to shape the JSON reply.
-// Lỗi không phải AppError coi như lỗi lập trình → 500, không lộ chi tiết ra ngoài.
-// Anything that is not an AppError counts as a bug → 500, with no details leaked.
+// Deliberate application error: errorHandler reads status + code to shape the JSON response.
+// A non-AppError counts as a programming bug → 500, with no details leaked.
 class AppError extends Error {
   constructor(status, code, message, details) {
     super(message);
@@ -11,6 +9,6 @@ class AppError extends Error {
   }
 }
 
-// Cần làm / To do:
-// - Thêm các helper hay dùng: notFound(), forbidden(), conflict()… cho gọn chỗ gọi.
+// To do:
+// - Add the common helpers: notFound(), forbidden(), conflict()… to shorten call sites.
 module.exports = AppError;

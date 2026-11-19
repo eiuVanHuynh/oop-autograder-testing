@@ -1,6 +1,14 @@
 -- 004_lecturer_steps_data.sql
 -- Steps + Data cho TC-23 ... TC-30 (Sinh vien: MMD/Testcase/History; Giang vien: Dashboard/Matrix/Export).
 --
+-- !! SAI MA TC (chot ngay 20/10/2026) !!
+-- Theo docs/testing/test-case-matrix.md, TC-23..TC-27 la nghiep vu GIANG VIEN (tao Lab, khai class,
+-- MMD, testcase, dry-run). 5 khoi step sinh vien ben duoi dang muon nham cac ma do.
+-- Huong xu ly: KHONG sua de file nay (da chay). Viet 007_fix_tc_code_conflict.sql de:
+--   1) them 5 dong test_cases cho TC-34..TC-38 (MMD view, missing class, example TC, hidden TC, history);
+--   2) tro lai tc_code cua cac step/data dang mang TC-23..TC-27 sang TC-34..TC-38.
+-- TC-28, TC-29, TC-30 trong file nay DUNG, giu nguyen.
+--
 -- Quy uoc:
 --  * tc_code duoc gia dinh la 'TC-23' ... 'TC-30' (neu migration 002/003 dat ma khac, sua lai cot tc_code trong cac khoi UNION ben duoi).
 --  * test_data la dang key-value: field_name la KHOA co dinh, spec Playwright doc qua helper,

@@ -1,14 +1,12 @@
-const asyncHandler = require('../utils/asyncHandler');
+const asyncHandler = require("../utils/asyncHandler");
 
-// Xuất báo cáo PDF/HTML và link chia sẻ.
-// PDF/HTML report export and share links.
-// Controller mỏng: đọc req → gọi service → res.json({ data }). Không có quy tắc nghiệp vụ.
-// Thin controller: read req → call the service → res.json({ data }). No business rules here.
+// Export PDF/HTML reports and share links.
+// Thin controller: read req → call service → res.json({ data }). No business rules.
 //
-// Cần làm / To do:
-- GET /runs/:id/export?format=, POST /runs/export (nhiều run → .zip), share + GET /share/:token.
-// - Trả đúng status code ghi trong api-endpoints.md mục 7.
+// To do:
+// - GET /runs/:id/export?format=, POST /runs/export (several runs → .zip), share + GET /share/:token.
+// - Return the status codes listed in api-endpoints.md section 7.
 
-// TODO: các hàm xử lý, bọc trong asyncHandler
+// TODO: handlers, wrapped in asyncHandler
 
 module.exports = {};

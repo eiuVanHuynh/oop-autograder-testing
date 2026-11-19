@@ -1,11 +1,36 @@
-const { z } = require('zod');
+const { z } = require("zod");
+const { emailField } = require("./options");
 
-// Schema zod cho nhóm auth; middleware validate() dùng các schema này.
-// zod schemas for the auth group; the validate() middleware consumes them.
+// Zod schemas for the auth group; the validate() middleware uses them.
 //
-// Cần làm / To do:
-- registerSchema, loginSchema, forgotSchema, resetSchema.
+// To do:
+// - registerSchema, loginSchema, forgotSchema, resetSchema.
 
-// TODO
+const registerSchema = z.object({
+  email: emailField, // lowercased: see the emailField note in validators/options.js
+  password: z.string().min(6, "Password must be at least 6 characters long"),
+  fullName: z.string().min(2, "Full name cannot be empty"),
+});
 
-module.exports = {};
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password cannot be empty"),
+});
+
+const forgotSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+const resetSchema = z.object({
+  token: z.string().min(1, "Token cannot be empty"),
+  newPassword: z
+    .string()
+    .min(6, "New password must be at least 6 characters long"),
+});
+
+module.exports = {
+  registerSchema,
+  loginSchema,
+  forgotSchema,
+  resetSchema,
+};

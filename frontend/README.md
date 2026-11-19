@@ -1,16 +1,34 @@
-# React + Vite
+# `frontend/` – Dashboard quản lý test
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Giao diện React + Vite + Tailwind cho nền tảng test automation trong repo này.
+Yêu cầu giao diện: [`docs/frontend/03-yeu-cau-giao-dien-v3.md`](../docs/frontend/03-yeu-cau-giao-dien-v3.md) (bản được ưu tiên).
 
-Currently, two official plugins are available:
+## Chạy
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev      # Vite dev server
+npm run lint     # oxlint
+npm run check    # self-check cho src/models/ (chạy bằng node:assert, không cần cài gì thêm)
+npm run build
+```
 
-## React Compiler
+Backend API mặc định là `http://localhost:5000/api`; đổi bằng biến `VITE_API_URL`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Cấu trúc
 
-## Expanding the Oxlint configuration
+| Thư mục | Nội dung |
+| --- | --- |
+| `src/views/` | Một file cho mỗi màn hình (Login, Dashboard, TestCreation, History, …) |
+| `src/components/layout/` | `Sidebar`, `TopBar` và `MainLayout` / `AuthLayout` |
+| `src/components/ui/` | Component dùng lại: `Button`, `Panel`, `FormField`, `FilterBar`, … |
+| `src/models/` | Logic thuần, không JSX: `api.js`, `permissions.js`, `testSteps.js`, `runLog.js`, `reportHtml.js` |
+| `src/services/` | Gọi API và map dữ liệu backend → shape của frontend |
+| `src/controllers/` | `AuthContext` – phiên đăng nhập và `useAuth()` |
+| `checks/` | Self-check cho 3 file `models/` giữ hợp đồng với backend |
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Lưu ý
+
+- Ba file `src/models/testSteps.js`, `runLog.js`, `reportHtml.js` giữ **hợp đồng với backend**: sai thì build vẫn xanh mà giao diện hỏng âm thầm. Sửa một trong ba, hoặc sửa câu log bên backend → chạy lại `npm run check`.
+- Hằng số trạng thái: frontend dùng chữ HOA (`PASSED`), DB dùng chữ thường (`passed`). Chuyển đổi **chỉ ở một chỗ**: `backend/src/utils/mappers.js`.
+- Ẩn nút là chưa đủ: mọi hạn chế quyền trên giao diện phải có 403 tương ứng ở backend.

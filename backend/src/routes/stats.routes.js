@@ -1,14 +1,12 @@
 const router = require('express').Router();
 
-// Số liệu cho Dashboard.
-// Numbers for the Dashboard.
-// Endpoint đầy đủ: api-endpoints.md mục 3.
+// Dashboard metrics.
 // Full endpoint list: api-endpoints.md section 3.
 //
-// Cần làm / To do:
-// - Mỗi dòng theo đúng thứ tự: requireAuth → requireRole → validate → controller.
-// - Route chỉ khai báo URL, không có logic.
+// To do:
+// - Every line in this order: requireAuth → requireRole → validate → controller.
+// - A route only declares the URL, it holds no logic.
 
-// TODO: khai báo các route của nhóm stats
+// TODO: declare the routes of the stats group
 
 module.exports = router;

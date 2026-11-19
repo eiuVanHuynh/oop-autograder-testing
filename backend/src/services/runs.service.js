@@ -1,22 +1,182 @@
-// Chạy test, theo dõi log, lịch sử, hủy, chạy lại.
-// Running tests, log tailing, history, cancel, re-run.
-// Quy tắc nghiệp vụ nằm ở đây. Không require pg, không chạm req/res.
-// Business rules live here. Never require pg, never touch req/res.
-// Nhận repository qua constructor để test thay được bằng bản giả.
-// Takes its repositories through the constructor so tests can pass fakes.
-//
-// Cần làm / To do:
-- Chọn test: nhờ services/target/ (Strategy) đổi template thành danh sách tc_code → biểu thức grep.
-// - Gọi CI qua services/runner/ (Adapter), không require thẳng GitHub API ở đây.
-// - Không ra test 'ready' nào → 409, KHÔNG gọi workflow (tránh báo passed giả).
-// - Lưu grep vào test_runs.config_json; 'Chạy lại' gửi lại y nguyên config_json cũ.
-// - Hủy: gọi runner.cancel(ci_run_id), ghi kết quả dở thành 'interrupted'.
+const AppError = require("../utils/AppError");
+const { buildGrep } = require("./target");
+const { ENVIRONMENTS } = require("../validators/options");
+
+// Run tests, follow logs, history, cancel, rerun.
+// Business rules live here. No pg require, no touching req/res.
+// Takes every dependency through the constructor (wired in config/container.js) so tests can swap in fakes.
+
+const RUN_STATUSES = ["running", "passed", "failed", "interrupted"];
+
+const parseJson = (value) => {
+  if (value == null) return null;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
 class RunsService {
-  constructor(deps = {}) {
-    // TODO: nhận repository cần dùng từ config/container.js
+  constructor({
+    runRepository,
+    templateRepository,
+    logRepository,
+    targetResolver,
+    testRunner,
+    resultRepository,
+  }) {
+    Object.entries({
+      runRepository,
+      templateRepository,
+      logRepository,
+      targetResolver,
+      testRunner,
+      resultRepository,
+    }).forEach(([name, dep]) => {
+      if (!dep) throw new Error(`RunsService is missing a dependency: ${name}`);
+    });
+    this.runRepository = runRepository;
+    this.templateRepository = templateRepository;
+    this.logRepository = logRepository;
+    this.targetResolver = targetResolver;
+    this.testRunner = testRunner;
+    this.resultRepository = resultRepository;
   }
 
-  // TODO
+  async getAllRuns(filters = {}) {
+    if (filters.status && !RUN_STATUSES.includes(String(filters.status).toLowerCase())) {
+      throw new AppError(400, "VALIDATION_ERROR", `status must be one of: ${RUN_STATUSES.join(", ")}`);
+    }
+    return this.runRepository.findAllWithFilters(filters);
+  }
+
+  async getRunById(id) {
+    const run = await this.runRepository.findById(id);
+    if (!run) throw new AppError(404, "NOT_FOUND", "Run not found");
+    run.config_json = parseJson(run.config_json);
+    return run;
+  }
+
+  // Per-case results of a run. No such run → 404 (not an empty list).
+  async getRunResults(id) {
+    await this.getRunById(id);
+    return this.resultRepository.findByRun(id);
+  }
+
+  async createRun(userId, data) {
+    let template = null;
+    let testCodes = [];
+    let runName = data.run_name || `Run_${Date.now()}`;
+
+    if (data.templateId) {
+      template = await this.templateRepository.findById(data.templateId);
+      if (!template) throw new AppError(404, "NOT_FOUND", "Template not found");
+      runName = data.run_name || `Template_${template.template_name}_${Date.now()}`;
+      testCodes = await this.targetResolver.resolveToTestCodes(parseJson(template.target_json));
+    } else if (Array.isArray(data.testIds) && data.testIds.length > 0) {
+      testCodes = await this.targetResolver.resolveExplicitTestCodes(data.testIds);
+    }
+
+    if (testCodes.length === 0) {
+      throw new AppError(409, "NO_READY_TESTS", "No ready test cases found for this execution target");
+    }
+
+    // What the user picked when pressing Run beats the template default.
+    const env = data.env || template?.env || "development";
+
+    // A template's env does NOT go through zod (it is an old value in the DB, possibly 'dev'), so
+    // check the list here to keep the message identical whatever runner is plugged in.
+    if (!ENVIRONMENTS.includes(env)) {
+      throw new AppError(
+        400,
+        "VALIDATION_ERROR",
+        `Environment "${env}" is invalid; it must be one of: ${ENVIRONMENTS.join(", ")}`,
+      );
+    }
+
+    // An environment must point at a real site. env used to be just a label: a run tagged
+    // "production" still hit the old site. Block it here, BEFORE creating the test_runs row.
+    const envProblem = this.testRunner.checkEnv(env);
+    if (envProblem) throw new AppError(400, "VALIDATION_ERROR", envProblem);
+
+    const timeout = data.timeout || template?.timeout || 30000;
+    const grep = buildGrep(testCodes);
+
+    const configJson = {
+      templateId: data.templateId || null,
+      testIds: data.testIds || null,
+      // The resolved test codes, for the runner / GET /ingest/runs/:id/plan to reuse.
+      // Never parse them back out of `grep`: grep is a string for GitHub Actions, not data.
+      testCodes,
+      grep,
+      env,
+      timeout,
+    };
+
+    const runId = await this.runRepository.createRun({
+      run_name: runName,
+      user_id: userId,
+      environment: env,
+      config_json: JSON.stringify(configJson),
+    });
+
+    try {
+      const ciRunId = await this.testRunner.trigger({ runId, testCodes, grep, env, timeout });
+      if (ciRunId) await this.runRepository.setCiRunId(runId, ciRunId);
+    } catch (ciError) {
+      await this.runRepository.markFinished(runId, "failed");
+      throw new AppError(500, "RUNNER_FAILED", `Failed to trigger test runner: ${ciError.message}`);
+    }
+
+    return this.getRunById(runId);
+  }
+
+  async cancelRun(id) {
+    const run = await this.getRunById(id);
+    if (run.status !== "running") {
+      throw new AppError(409, "RUN_FINISHED", "Cannot cancel a run that has already finished");
+    }
+
+    // Cancelling on the runner side is best-effort: a failure there must not leave the run 'running' forever.
+    try {
+      await this.testRunner.cancel(run.ci_run_id);
+    } catch (err) {
+      console.warn(`[runs] cancel runner failed for run ${id}: ${err.message}`);
+    }
+
+    await this.runRepository.markFinished(id, "interrupted");
+    return this.getRunById(id);
+  }
+
+  async rerun(id, userId) {
+    const oldRun = await this.getRunById(id);
+    const config = oldRun.config_json;
+    if (!config) {
+      throw new AppError(400, "VALIDATION_ERROR", "Run configuration metadata not found for rerun");
+    }
+
+    return this.createRun(userId, {
+      templateId: config.templateId || undefined,
+      testIds: config.testIds || undefined,
+      env: config.env,
+      timeout: config.timeout,
+      run_name: `Rerun_${oldRun.run_name || id}`,
+    });
+  }
+
+  // Log polling: return the lines with seq > after, plus the run status so the UI knows when to stop asking.
+  async getRunLogs(id, after = 0) {
+    const run = await this.getRunById(id);
+    const rows = await this.logRepository.findAfter(id, after);
+    const lines = rows.map((r) => ({ seq: Number(r.seq), level: r.level, message: r.message }));
+    return {
+      lines,
+      nextAfter: lines.length ? lines[lines.length - 1].seq : after,
+      status: run.status,
+    };
+  }
 }
 
 module.exports = RunsService;

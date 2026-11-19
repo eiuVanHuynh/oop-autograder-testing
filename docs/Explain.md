@@ -25,7 +25,7 @@ Giải thích đầy đủ: [`database/phan-biet-cac-loai-database.md`](./databa
 | [`testing/`](./testing/) | Test plan, ma trận `TC-01` → `TC-31`, ánh xạ FR ↔ TC, **tham chiếu SUT** (route, API, selector thật) | Khi viết spec Playwright hoặc kiểm tra độ phủ |
 | [`database/`](./database/) | Phân biệt các loại DB + bảng phân công công việc DB & dữ liệu test (hướng b) | Khi làm migration, seed, fixture hoặc không rõ mình phụ trách việc nào |
 | [`backend/`](./backend/) | Thiết kế backend dashboard + danh sách API endpoint | Khi code `backend/` hoặc gọi API từ `frontend/` |
-| `frontend/` 🔒 | Yêu cầu giao diện bản 1 và bản 2 | Khi code `frontend/` |
+| [`frontend/`](./frontend/) | Yêu cầu giao diện bản 1 → bản 3 (bản 3 được ưu tiên) + 11 ảnh thiết kế trong `design/` | Khi code `frontend/` |
 | `parallel/` 🔒 | Brief cho hướng tiếp cận song song (AI agent) – dùng ở **repo khác** | Khi so sánh hai hướng làm đồ án |
 
 🔒 = **không commit lên git** (`.gitignore`). Chỉ có trên máy từng người, hỏi trong nhóm nếu bạn chưa có.
@@ -59,8 +59,8 @@ sửa file nguồn chuẩn **trước**, rồi mới cập nhật tài liệu ph
 | Khoảng cách | Theo nguồn chuẩn | Chi tiết ở |
 | --- | --- | --- |
 | Code là MySQL, SRS ghi **Supabase/PostgreSQL** | Theo SRS → đích là Supabase | [`architecture/kien-truc-va-luong-du-lieu.md`](./architecture/kien-truc-va-luong-du-lieu.md) mục 4 |
-| `seed.sql`, migration `001`, `002` dùng tên bảng chữ hoa và cột `description` | Theo schema → `test_suites`, `suite_description`, chữ thường | [`GIT_WORKFLOW.md`](./GIT_WORKFLOW.md) mục 9 |
-| `permissions.js` xếp `Dev` ngang `Tester` | Theo SRS → **giữ 4 vai trò**, `dev` chỉ được xem + request chạy lại *(đảo lại đề xuất bỏ `dev` ở `backend/backend-design.md`)* | `frontend/Explain.md` 🔒 |
+| `seed.sql`, migration `001`, `002`, `005` và `verify.sql` dùng tên bảng chữ hoa (`Test_Suites`); riêng `seed.sql` và `001` còn dùng cột `description` | Theo schema → `test_suites`, `suite_description`, chữ thường | [`GIT_WORKFLOW.md`](./GIT_WORKFLOW.md) mục 9 |
+| `permissions.js` xếp `Dev` ngang `Tester` | Theo SRS → **giữ 4 vai trò**, `dev` chỉ được xem + request chạy lại *(đảo lại đề xuất bỏ `dev` ở `backend/backend-design.md`)* | [`frontend/Explain.md`](./frontend/Explain.md) |
 | Thiếu `db/migrations/003_submission_steps_data.sql` | — | [`database/phan-cong-db-va-du-lieu.md`](./database/phan-cong-db-va-du-lieu.md) mục D6 |
 | `seed.sql` có `DELETE FROM Test_Suites` | — | [`GIT_WORKFLOW.md`](./GIT_WORKFLOW.md) mục 8 và 9 |
 
