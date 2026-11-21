@@ -48,6 +48,7 @@ jobs:
       TEST_LECTURER_PASSWORD: ${{ secrets.TEST_LECTURER_PASSWORD }}
 
     steps:
+      - uses: actions/checkout@v4
       # Thiếu secret cho môi trường đang chọn thì dừng ngay, thay vì để Playwright chạy
       # với BASE_URL rỗng rồi fail bằng một thông báo không ai hiểu.
       - name: Kiểm BASE_URL của môi trường
@@ -56,8 +57,6 @@ jobs:
             echo "::error::Thiếu secret BASE_URL_$(echo '${{ inputs.env }}' | tr 'a-z' 'A-Z') cho môi trường '${{ inputs.env }}'"
             exit 1
           }
-
-      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
@@ -96,6 +95,7 @@ jobs:
       # 'running' mãi. 409 ở đây là bình thường — nghĩa là reporter đã báo xong rồi.
       - name: Đóng run nếu reporter chưa kịp báo
         if: always()
+        working-directory: .
         run: |
           curl -s -o /dev/null -w '%{http_code}\n' -X PATCH \
             -H "x-api-key: $INGEST_API_KEY" -H 'content-type: application/json' \
