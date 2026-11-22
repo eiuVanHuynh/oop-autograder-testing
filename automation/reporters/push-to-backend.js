@@ -39,7 +39,7 @@ class PushToBackendReporter {
     // workflow_dispatch không trả id lần chạy, nên backend chỉ biết nó khi CI tự báo về.
     // Không có id này thì POST /runs/:id/cancel không hủy được workflow.
     if (GITHUB_RUN_ID) await send('POST', '/ci-run-id', { ciRunId: String(GITHUB_RUN_ID) });
-    await send('POST', '/logs', { lines: [{ level: 'info', message: '[CI] Bắt đầu chạy test.' }] });
+    await send('POST', '/logs', { lines: [{ level: 'info', message: '[CI] Test run started.' }] });
   }
 
   onTestEnd(test, result) {
@@ -74,7 +74,7 @@ class PushToBackendReporter {
     const finalStatus = items.length ? null : 'failed';
     if (!items.length) {
       await send('POST', '/logs', {
-        lines: [{ level: 'error', message: `[CI] Không có kết quả nào (playwright status=${run.status}).` }],
+        lines: [{ level: 'error', message: `[CI] No result reported (playwright status=${run.status}).` }],
       });
     }
     await send('PATCH', '/finish', { final_status: finalStatus });

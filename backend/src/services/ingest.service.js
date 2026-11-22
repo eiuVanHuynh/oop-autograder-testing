@@ -63,8 +63,9 @@ class IngestService {
     await this._getRun(runId);
     const ok = await this.runRepository.markFinished(runId, finalStatus);
     if (!ok) throw new AppError(409, 'RUN_FINISHED', 'This run was already reported as finished');
-    // Logs are only kept for the live log panel; purge them once the run ends (api-endpoints.md section 8).
-    await this.logRepository.purge(runId).catch(() => {});
+    // Logs are NOT purged here any more: the report page (GET /runs/:id/logs) is the only place the
+    // step-by-step log can be read, and purging on finish left every finished run with an empty log panel.
+    // shortcut: run_logs now grows without bound — add a scheduled purge of rows older than N days when it hurts.
     return this.runRepository.findById(runId);
   }
 
