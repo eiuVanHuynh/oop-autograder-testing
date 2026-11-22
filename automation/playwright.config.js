@@ -15,6 +15,5 @@ module.exports = defineConfig({
     screenshot: 'on',
     trace: 'on',
   },
-  // test-result-logger.js (ghi thẳng MySQL) đã bỏ: backend là nơi duy nhất viết SQL.
   reporter: [['list'], ['./reporters/push-to-backend.js']],
 });
