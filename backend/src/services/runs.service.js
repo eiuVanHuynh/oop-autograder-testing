@@ -125,6 +125,11 @@ class RunsService {
     try {
       const ciRunId = await this.testRunner.trigger({ runId, testCodes, grep, env, timeout });
       if (ciRunId) await this.runRepository.setCiRunId(runId, ciRunId);
+      // GitHub Actions needs 1-3 minutes to queue, npm ci and install chromium before the CI reporter
+      // writes its first line. Without this the log panel stays empty that whole time and reads as frozen.
+      await this.logRepository
+        .append(runId, 'info', `[BACKEND] Queued ${testCodes.length} test case(s); the runner takes 1-3 min to start.`)
+        .catch(() => {});
     } catch (ciError) {
       await this.runRepository.markFinished(runId, "failed");
       throw new AppError(500, "RUNNER_FAILED", `Failed to trigger test runner: ${ciError.message}`);
