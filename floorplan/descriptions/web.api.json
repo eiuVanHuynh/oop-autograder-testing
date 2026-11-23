@@ -1,0 +1,24 @@
+{
+  "files": {
+    "frontend/src/services/authService.js": {
+      "name": "Gọi đăng nhập",
+      "description": "Gửi email và mật khẩu cho máy chủ để đăng nhập, và đổi mọi lỗi từ máy chủ thành câu tiếng người để hiện lên màn hình."
+    },
+    "frontend/src/services/catalogService.js": {
+      "name": "Gọi kho ca kiểm thử",
+      "description": "Lấy và lưu các ca kiểm thử cùng các bước và dữ liệu của chúng; bỏ một ca là chuyển sang trạng thái ngừng dùng chứ không xoá."
+    },
+    "frontend/src/services/runService.js": {
+      "name": "Gọi lần chạy",
+      "description": "Bắt đầu, chạy lại, dừng và theo dõi các lần chạy kiểm thử, lấy kết quả từng ca, rồi tính các con số cho trang tổng quan."
+    },
+    "frontend/src/services/templateService.js": {
+      "name": "Gọi bộ kiểm thử",
+      "description": "Lấy, tạo, sửa, nhân bản và xoá các bộ kiểm thử, đổi qua lại giữa dạng của biểu mẫu và dạng máy chủ cần."
+    },
+    "frontend/src/services/userService.js": {
+      "name": "Gọi người dùng",
+      "description": "Lấy danh sách thành viên, tạo, sửa, xoá tài khoản, đổi vai trò và khoá hoặc mở khoá tài khoản."
+    }
+  }
+}

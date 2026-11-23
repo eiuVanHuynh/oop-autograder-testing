@@ -1,0 +1,8 @@
+{
+  "files": {
+    "migrate.js": {
+      "name": "Dựng và cập nhật cơ sở dữ liệu",
+      "description": "Chạy lần lượt các tệp dựng bảng và nạp dữ liệu mẫu, tự bỏ qua phần dữ liệu mẫu khi cơ sở dữ liệu đã được dùng thật."
+    }
+  }
+}

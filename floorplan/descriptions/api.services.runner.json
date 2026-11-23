@@ -1,0 +1,28 @@
+{
+  "files": {
+    "backend/src/services/runner/FakeRunner.js": {
+      "name": "Chạy giả để thử",
+      "description": "Giả lập một lần chạy mà không gọi GitHub: chỉ ghi vài dòng log rồi đánh dấu lần chạy là đạt, không có kết quả thật."
+    },
+    "backend/src/services/runner/GithubActionsRunner.js": {
+      "name": "Chạy nhờ GitHub",
+      "description": "Nhờ GitHub chạy bộ kiểm thử bằng cách gửi sang mã ca cần chạy, môi trường và thời gian chờ; cũng hủy được lần chạy."
+    },
+    "backend/src/services/runner/index.js": {
+      "name": "Chọn nơi chạy",
+      "description": "Chọn chỗ chạy kiểm thử theo cài đặt — nhờ GitHub, chạy tại máy hay chạy giả — và báo lỗi rõ ràng khi thiếu cài đặt."
+    },
+    "backend/src/services/runner/PlaywrightRunner.js": {
+      "name": "Chạy ngay tại máy",
+      "description": "Mở trình duyệt ngay trong máy chủ để chạy từng ca rồi ghi log và kết quả; chỉ dùng khi thử trên máy cá nhân."
+    },
+    "backend/src/services/runner/steps.js": {
+      "name": "Thực hiện từng bước",
+      "description": "Thực hiện các bước của một ca kiểm thử — mở trang, điền, bấm, đối chiếu — và chỉ lấy mật khẩu ngay tại nơi chạy."
+    },
+    "backend/src/services/runner/TestRunner.js": {
+      "name": "Khuôn chung cho nơi chạy",
+      "description": "Đặt ra khuôn chung mà mọi nơi chạy phải theo, và kiểm tra môi trường đã khai địa chỉ trang web cần kiểm thử chưa."
+    }
+  }
+}

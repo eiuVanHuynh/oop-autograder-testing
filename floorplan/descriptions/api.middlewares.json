@@ -1,0 +1,28 @@
+{
+  "files": {
+    "backend/src/middlewares/errorHandler.js": {
+      "name": "Gom lỗi về một chỗ",
+      "description": "Đổi mọi lỗi thành một câu trả lời gọn gàng, chỉ ghi chi tiết với lỗi ngoài dự tính và không để lộ nội tình."
+    },
+    "backend/src/middlewares/requestLog.js": {
+      "name": "Ghi lại mỗi lượt gọi",
+      "description": "Ghi một dòng cho mỗi yêu cầu gồm đường dẫn, mã trả về và thời gian xử lý; im lặng khi đang chạy kiểm thử."
+    },
+    "backend/src/middlewares/requireApiKey.js": {
+      "name": "Đòi khóa cho máy đẩy kết quả",
+      "description": "Chỉ cho nơi chạy kiểm thử gửi dữ liệu vào khi kèm đúng khóa bí mật, và so khóa theo cách không để lộ."
+    },
+    "backend/src/middlewares/requireAuth.js": {
+      "name": "Đòi đăng nhập",
+      "description": "Kiểm tra thẻ ra vào của mỗi yêu cầu, đọc lại tài khoản trong cơ sở dữ liệu và chặn ngay nếu tài khoản đã bị khóa."
+    },
+    "backend/src/middlewares/requireRole.js": {
+      "name": "Đòi đúng vai trò",
+      "description": "Từ chối yêu cầu khi vai trò của người đang đăng nhập không nằm trong danh sách được phép làm việc đó."
+    },
+    "backend/src/middlewares/validate.js": {
+      "name": "Kiểm tra dữ liệu gửi lên",
+      "description": "Soi dữ liệu mỗi yêu cầu theo khuôn đã khai, chỉ rõ từng chỗ sai, và chuẩn hóa dữ liệu trước khi xử lý tiếp."
+    }
+  }
+}

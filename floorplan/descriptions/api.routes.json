@@ -1,0 +1,270 @@
+{
+  "files": {
+    "backend/src/routes/auth.routes.js": {
+      "name": "Địa chỉ đăng nhập",
+      "description": "Khai báo địa chỉ đăng nhập; đăng ký, đăng xuất, quên mật khẩu và Google vẫn chưa được khai báo."
+    },
+    "backend/src/routes/bugs.routes.js": {
+      "name": "Địa chỉ phiếu lỗi",
+      "description": "Khai báo ba địa chỉ cho phiếu lỗi, đòi đăng nhập và chỉ cho quản trị hoặc người kiểm thử sửa lỗi."
+    },
+    "backend/src/routes/catalog.routes.js": {
+      "name": "Địa chỉ kho ca kiểm thử",
+      "description": "Khai báo các địa chỉ xem và sửa bộ kiểm thử, đặc tả, ca, bước và dữ liệu mẫu; chỉ quản trị và người kiểm thử được sửa."
+    },
+    "backend/src/routes/index.js": {
+      "name": "Bảng gom địa chỉ",
+      "description": "Gom mọi nhóm địa chỉ về dưới /api; phiếu lỗi và kiểm tra sức khoẻ gắn ở gốc vì địa chỉ không theo tên nhóm."
+    },
+    "backend/src/routes/ingest.routes.js": {
+      "name": "Cửa sau cho máy chạy",
+      "description": "Khai báo các địa chỉ dành cho máy chạy kiểm thử, mở bằng khoá bí mật thay vì đăng nhập người dùng."
+    },
+    "backend/src/routes/meta.routes.js": {
+      "name": "Địa chỉ danh sách lựa chọn",
+      "description": "Khai báo một địa chỉ trả danh sách lựa chọn cho trang, dành cho mọi người đã đăng nhập."
+    },
+    "backend/src/routes/reports.routes.js": {
+      "name": "Địa chỉ báo cáo chưa làm",
+      "description": "Chưa khai báo địa chỉ nào: phần xuất báo cáo và liên kết chia sẻ vẫn để trống."
+    },
+    "backend/src/routes/runs.routes.js": {
+      "name": "Địa chỉ lần chạy",
+      "description": "Khai báo các địa chỉ xem, tạo, huỷ và chạy lại lần chạy; chỉ quản trị và người kiểm thử được chạy."
+    },
+    "backend/src/routes/stats.routes.js": {
+      "name": "Địa chỉ thống kê chưa làm",
+      "description": "Chưa khai báo địa chỉ nào: phần số liệu cho bảng tổng quan vẫn để trống."
+    },
+    "backend/src/routes/system.routes.js": {
+      "name": "Địa chỉ kiểm tra sức khoẻ",
+      "description": "Khai báo địa chỉ công khai hỏi máy chủ và cơ sở dữ liệu còn sống, bằng một câu truy vấn thử ngay tại đây."
+    },
+    "backend/src/routes/templates.routes.js": {
+      "name": "Địa chỉ mẫu chạy",
+      "description": "Khai báo sáu địa chỉ cho mẫu chạy kiểm thử; ai đã đăng nhập cũng xem được, chỉ quản trị và người kiểm thử sửa."
+    },
+    "backend/src/routes/users.routes.js": {
+      "name": "Địa chỉ thành viên",
+      "description": "Khai báo các địa chỉ quản lý thành viên, tất cả chỉ dành cho quản trị."
+    }
+  },
+  "routes": {
+    "POST /api/auth/login": {
+      "name": "Đăng nhập",
+      "description": "Kiểm email và mật khẩu rồi trả về thẻ đăng nhập cùng thông tin người dùng."
+    },
+    "POST /api/results/:id/bugs": {
+      "name": "Lập phiếu lỗi từ kết quả",
+      "description": "Tạo phiếu lỗi gắn với một kết quả kiểm thử thất bại, ghi lại người báo."
+    },
+    "GET /api/bugs": {
+      "name": "Danh sách lỗi",
+      "description": "Liệt kê các phiếu lỗi, lọc được theo trạng thái và mức nghiêm trọng."
+    },
+    "PATCH /api/bugs/:id": {
+      "name": "Cập nhật phiếu lỗi",
+      "description": "Sửa tiêu đề, mô tả, mức nghiêm trọng hoặc trạng thái của một phiếu lỗi; chỉ quản trị và người kiểm thử."
+    },
+    "PUT /api/catalog/cases/:id/steps": {
+      "name": "Thay toàn bộ bước của ca",
+      "description": "Ghi đè toàn bộ danh sách bước thao tác của một ca kiểm thử bằng danh sách mới."
+    },
+    "POST /api/catalog/cases/:id/steps": {
+      "name": "Thêm bước cho ca",
+      "description": "Thêm một bước thao tác mới vào ca kiểm thử."
+    },
+    "DELETE /api/catalog/teststeps/:stepId": {
+      "name": "Xoá một bước",
+      "description": "Xoá hẳn một bước thao tác khỏi ca kiểm thử."
+    },
+    "PUT /api/catalog/cases/:id/steps/reorder": {
+      "name": "Sắp lại thứ tự bước",
+      "description": "Đổi thứ tự các bước của một ca kiểm thử theo danh sách gửi lên."
+    },
+    "PUT /api/catalog/cases/:id/data": {
+      "name": "Thay dữ liệu mẫu của ca",
+      "description": "Ghi đè toàn bộ dữ liệu mẫu của ca; từ chối nếu một tên trường được gửi hai lần."
+    },
+    "DELETE /api/catalog/cases/:id/data/:field": {
+      "name": "Xoá một trường dữ liệu mẫu",
+      "description": "Xoá một trường dữ liệu mẫu khỏi ca kiểm thử."
+    },
+    "POST /api/catalog/cases": {
+      "name": "Tạo ca kiểm thử",
+      "description": "Tạo ca kiểm thử mới thuộc một đặc tả, với mã ca, tiêu đề, mức ưu tiên và kết quả mong đợi."
+    },
+    "GET /api/catalog/cases/:id": {
+      "name": "Chi tiết ca kiểm thử",
+      "description": "Trả chi tiết một ca kiểm thử cho người đã đăng nhập."
+    },
+    "GET /api/catalog/cases": {
+      "name": "Danh sách ca kiểm thử",
+      "description": "Liệt kê ca kiểm thử, lọc theo bộ kiểm thử, loại, mức ưu tiên và trạng thái."
+    },
+    "DELETE /api/catalog/cases/:id": {
+      "name": "Xoá ca kiểm thử",
+      "description": "Xoá một ca kiểm thử khỏi kho."
+    },
+    "PUT /api/catalog/cases/:id": {
+      "name": "Sửa ca kiểm thử",
+      "description": "Sửa thông tin một ca kiểm thử; mã ca và đặc tả của nó thì không đổi được."
+    },
+    "PATCH /api/catalog/cases/:id/status": {
+      "name": "Đổi trạng thái ca",
+      "description": "Đổi trạng thái ca kiểm thử sang bản nháp, sẵn sàng hoặc ngừng dùng."
+    },
+    "GET /api/catalog/cases/:id/steps": {
+      "name": "Các bước của ca",
+      "description": "Liệt kê các bước thao tác của một ca kiểm thử."
+    },
+    "GET /api/catalog/cases/:id/data": {
+      "name": "Dữ liệu mẫu của ca",
+      "description": "Liệt kê các trường dữ liệu mẫu của một ca kiểm thử."
+    },
+    "GET /api/catalog/suites": {
+      "name": "Danh sách bộ kiểm thử",
+      "description": "Liệt kê toàn bộ bộ kiểm thử để người dùng chọn thứ cần chạy."
+    },
+    "GET /api/catalog/suites/:id/specs": {
+      "name": "Đặc tả trong bộ kiểm thử",
+      "description": "Liệt kê các đặc tả thuộc một bộ kiểm thử."
+    },
+    "POST /api/catalog/suites": {
+      "name": "Tạo bộ kiểm thử",
+      "description": "Tạo một bộ kiểm thử mới với tên và mô tả."
+    },
+    "PUT /api/catalog/suites/:id": {
+      "name": "Sửa bộ kiểm thử",
+      "description": "Đổi tên hoặc mô tả của một bộ kiểm thử."
+    },
+    "DELETE /api/catalog/suites/:id": {
+      "name": "Xoá bộ kiểm thử",
+      "description": "Xoá một bộ kiểm thử rồi trả lời là đã xoá."
+    },
+    "POST /api/catalog/testspecs": {
+      "name": "Tạo đặc tả",
+      "description": "Tạo một đặc tả mới trong bộ kiểm thử, kèm người tạo."
+    },
+    "PUT /api/catalog/testspecs/:id": {
+      "name": "Sửa đặc tả",
+      "description": "Sửa thông tin một đặc tả; mã đặc tả và bộ kiểm thử của nó thì không đổi được."
+    },
+    "DELETE /api/catalog/testspecs/:id": {
+      "name": "Xoá đặc tả",
+      "description": "Xoá một đặc tả khỏi bộ kiểm thử."
+    },
+    "GET /api/catalog/suites/:id": {
+      "name": "Chi tiết bộ kiểm thử",
+      "description": "Trả thông tin của một bộ kiểm thử."
+    },
+    "GET /api/ingest/runs/:id/plan": {
+      "name": "Lấy kế hoạch chạy",
+      "description": "Trả cho máy chạy danh sách ca kèm bước và dữ liệu mẫu của một lần chạy, mở bằng khoá bí mật."
+    },
+    "POST /api/ingest/runs/:id/ci-run-id": {
+      "name": "Báo mã lần chạy GitHub",
+      "description": "Nhận mã lần chạy trên GitHub để sau này có thể huỷ lần chạy đó."
+    },
+    "POST /api/ingest/runs/:id/logs": {
+      "name": "Gửi log về",
+      "description": "Nhận từng đợt dòng log của lần chạy và lưu lại."
+    },
+    "POST /api/ingest/runs/:id/results": {
+      "name": "Gửi kết quả từng ca",
+      "description": "Nhận kết quả của từng ca kiểm thử và lưu vào lần chạy."
+    },
+    "PATCH /api/ingest/runs/:id/finish": {
+      "name": "Báo đã chạy xong",
+      "description": "Đánh dấu lần chạy đã kết thúc, kèm trạng thái cuối nếu máy chạy gửi lên."
+    },
+    "GET /api/meta/options": {
+      "name": "Các lựa chọn cho trang",
+      "description": "Trả danh sách lựa chọn cho trang, chỉ gồm những môi trường thật sự chạy được."
+    },
+    "GET /api/runs": {
+      "name": "Lịch sử lần chạy",
+      "description": "Liệt kê các lần chạy theo trang, lọc theo từ khoá, trạng thái và khoảng ngày."
+    },
+    "GET /api/runs/:id": {
+      "name": "Chi tiết lần chạy",
+      "description": "Trả thông tin của một lần chạy cho người đã đăng nhập."
+    },
+    "POST /api/runs": {
+      "name": "Chạy kiểm thử",
+      "description": "Tạo lần chạy mới và đặt lệnh chạy kiểm thử; chỉ quản trị và người kiểm thử."
+    },
+    "POST /api/runs/:id/cancel": {
+      "name": "Huỷ lần chạy",
+      "description": "Huỷ một lần chạy đang diễn ra; chỉ quản trị và người kiểm thử."
+    },
+    "POST /api/runs/:id/rerun": {
+      "name": "Chạy lại",
+      "description": "Tạo lần chạy mới dùng đúng cấu hình của lần chạy cũ; chỉ quản trị và người kiểm thử."
+    },
+    "GET /api/runs/:id/logs": {
+      "name": "Log của lần chạy",
+      "description": "Trả các dòng log của lần chạy, lấy tiếp từ dòng cuối mà trang đã nhận."
+    },
+    "GET /api/runs/:id/results": {
+      "name": "Kết quả từng ca",
+      "description": "Trả kết quả của từng ca kiểm thử trong lần chạy, kèm bằng chứng nếu có."
+    },
+    "GET /api/health": {
+      "name": "Máy chủ còn sống?",
+      "description": "Thử một câu truy vấn tới cơ sở dữ liệu và báo ngay khi không kết nối được; không cần đăng nhập."
+    },
+    "GET /api/templates": {
+      "name": "Danh sách mẫu chạy",
+      "description": "Liệt kê mẫu chạy kiểm thử, lọc theo từ khoá, phạm vi và trạng thái."
+    },
+    "GET /api/templates/:id": {
+      "name": "Chi tiết mẫu chạy",
+      "description": "Trả thông tin của một mẫu chạy kiểm thử."
+    },
+    "POST /api/templates": {
+      "name": "Tạo mẫu chạy",
+      "description": "Tạo mẫu chạy kiểm thử mới và ghi lại ai tạo; chỉ quản trị và người kiểm thử."
+    },
+    "PUT /api/templates/:id": {
+      "name": "Sửa mẫu chạy",
+      "description": "Sửa một mẫu chạy kiểm thử; chỉ quản trị và người kiểm thử."
+    },
+    "DELETE /api/templates/:id": {
+      "name": "Xoá mẫu chạy",
+      "description": "Xoá một mẫu chạy kiểm thử; chỉ quản trị và người kiểm thử."
+    },
+    "POST /api/templates/:id/duplicate": {
+      "name": "Nhân bản mẫu chạy",
+      "description": "Tạo một bản sao của mẫu chạy và ghi người sao làm chủ; chỉ quản trị và người kiểm thử."
+    },
+    "GET /api/users": {
+      "name": "Danh sách thành viên",
+      "description": "Liệt kê thành viên theo trang, lọc theo từ khoá, vai trò và trạng thái; chỉ quản trị."
+    },
+    "POST /api/users": {
+      "name": "Tạo tài khoản thành viên",
+      "description": "Tạo tài khoản thay cho người khác và báo trùng nếu email đã có; chỉ quản trị."
+    },
+    "GET /api/users/:id": {
+      "name": "Chi tiết thành viên",
+      "description": "Trả thông tin của một thành viên; chỉ quản trị."
+    },
+    "PATCH /api/users/:id": {
+      "name": "Sửa thành viên",
+      "description": "Đổi họ tên hoặc email của một thành viên; chỉ quản trị."
+    },
+    "DELETE /api/users/:id": {
+      "name": "Xoá thành viên",
+      "description": "Xoá hẳn một tài khoản và không cho tự xoá chính mình; chỉ quản trị."
+    },
+    "PATCH /api/users/:id/role": {
+      "name": "Đổi vai trò",
+      "description": "Đổi vai trò của một thành viên và không cho tự hạ vai trò của mình; chỉ quản trị."
+    },
+    "PATCH /api/users/:id/status": {
+      "name": "Khoá hoặc mở tài khoản",
+      "description": "Khoá hay mở lại một tài khoản và không cho tự khoá chính mình; chỉ quản trị."
+    }
+  }
+}

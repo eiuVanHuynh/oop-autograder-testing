@@ -1,0 +1,28 @@
+{
+  "files": {
+    "automation/tests/fixtures/auth.fixture.js": {
+      "name": "Phiên đăng nhập sẵn",
+      "description": "Mở sẵn trang đã đăng nhập bằng tài khoản sinh viên hoặc giảng viên để bài kiểm thử khỏi tự đăng nhập; chưa có file nào dùng."
+    },
+    "automation/tests/helper/testData.ts": {
+      "name": "Lấy dữ liệu nhập của ca",
+      "description": "Đọc giá trị nhập liệu của một ca kiểm thử từ cơ sở dữ liệu, tách được chuỗi nhiều giá trị; chưa có file nào dùng."
+    },
+    "automation/tests/models/auth.model.js": {
+      "name": "Khuôn ca đăng nhập",
+      "description": "Mô tả cách ghi một ca kiểm thử đăng nhập và một ca kiểm tra quyền truy cập, kèm các giá trị được phép dùng."
+    },
+    "automation/tests/models/submission.model.js": {
+      "name": "Khuôn ca nộp bài",
+      "description": "Mô tả cách ghi ca kiểm thử cấu trúc thư mục nộp, ca sửa bảng điểm và ca chấm từng trụ cột, kèm các giá trị được phép."
+    },
+    "automation/tests/models/test-case.model.js": {
+      "name": "Khuôn ca kiểm thử chung",
+      "description": "Mô tả cách ghi một ca kiểm thử và kết quả chạy của nó, kèm các loại kiểm thử và trạng thái được phép."
+    },
+    "automation/tests/models/ui.model.js": {
+      "name": "Khuôn thành phần giao diện",
+      "description": "Mô tả nút, ô nhập, vùng kéo thả, thẻ, bảng và biểu đồ trên website cần kiểm thử, cùng ca kiểm thử tương ứng của từng thứ."
+    }
+  }
+}

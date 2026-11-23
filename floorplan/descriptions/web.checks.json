@@ -1,0 +1,20 @@
+{
+  "files": {
+    "frontend/checks/report.check.mjs": {
+      "name": "Kiểm tra bản báo cáo",
+      "description": "Kiểm tra tự động rằng bản báo cáo tải về được dựng đúng và không bị lỗi khi tên hay nội dung có ký tự đặc biệt."
+    },
+    "frontend/checks/runlog.check.mjs": {
+      "name": "Kiểm tra đọc diễn biến chạy",
+      "description": "Kiểm tra tự động rằng phần đọc diễn biến một lần chạy bóc đúng kết quả đạt hay không của từng ca."
+    },
+    "frontend/checks/searchtags.check.mjs": {
+      "name": "Kiểm tra tìm kiếm kiểu nhãn",
+      "description": "Kiểm tra tự động rằng chữ gõ vào ô tìm kiếm biến thành đúng các nhãn lọc và phần chữ tìm tự do."
+    },
+    "frontend/checks/steps.check.mjs": {
+      "name": "Kiểm tra các bước kiểm thử",
+      "description": "Kiểm tra tự động rằng các bước soạn trong biểu mẫu vẫn khớp với những gì bộ chạy kiểm thử hiểu được."
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "files": {
+    "backend/src/validators/auth.schema.js": {
+      "name": "Dữ liệu đăng nhập",
+      "description": "Mô tả dữ liệu hợp lệ cho đăng nhập, đăng ký, quên và đặt lại mật khẩu; mật khẩu tối thiểu 6 ký tự."
+    },
+    "backend/src/validators/bugs.schema.js": {
+      "name": "Dữ liệu phiếu lỗi",
+      "description": "Buộc phiếu lỗi có tiêu đề và mức nghiêm trọng hợp lệ, và khi sửa phải có ít nhất một thông tin thay đổi."
+    },
+    "backend/src/validators/catalog.schema.js": {
+      "name": "Dữ liệu kho ca kiểm thử",
+      "description": "Kiểm dữ liệu bộ kiểm thử, đặc tả, ca, bước và dữ liệu mẫu; chặn hai dòng dữ liệu trùng tên trường trong cùng một ca."
+    },
+    "backend/src/validators/ingest.schema.js": {
+      "name": "Dữ liệu máy chạy gửi về",
+      "description": "Kiểm log, kết quả từng ca và trạng thái kết thúc do máy chạy gửi về, chặn trạng thái lạ trước khi lưu."
+    },
+    "backend/src/validators/options.js": {
+      "name": "Danh mục giá trị hợp lệ",
+      "description": "Giữ một chỗ duy nhất các giá trị được phép — môi trường, mức ưu tiên, loại ca, vai trò, trạng thái — và hạ email về chữ thường."
+    },
+    "backend/src/validators/reports.schema.js": {
+      "name": "Dữ liệu báo cáo chưa làm",
+      "description": "Chưa mô tả quy tắc nào; dự định kiểm định dạng xuất báo cáo là PDF hay HTML."
+    },
+    "backend/src/validators/runs.schema.js": {
+      "name": "Dữ liệu lần chạy",
+      "description": "Buộc mỗi lần chạy chọn đúng một trong hai: một mẫu chạy hoặc danh sách ca, và môi trường phải nằm trong danh mục."
+    },
+    "backend/src/validators/stats.schema.js": {
+      "name": "Dữ liệu thống kê chưa làm",
+      "description": "Chưa mô tả quy tắc nào; dự định giới hạn số ngày xem thống kê trong khoảng 1 đến 90."
+    },
+    "backend/src/validators/system.schema.js": {
+      "name": "Dữ liệu kiểm tra hệ thống",
+      "description": "Để trống có chủ ý: việc hỏi máy chủ còn sống không cần dữ liệu gửi lên."
+    },
+    "backend/src/validators/templates.schema.js": {
+      "name": "Dữ liệu mẫu chạy",
+      "description": "Buộc mẫu chạy có tên, phạm vi, môi trường và trạng thái hợp lệ, và phải chỉ ra bộ kiểm thử hoặc danh sách ca cần chạy."
+    },
+    "backend/src/validators/users.schema.js": {
+      "name": "Dữ liệu thành viên",
+      "description": "Kiểm họ tên, email, mật khẩu, vai trò và trạng thái khi tạo hay sửa thành viên, và các bộ lọc khi xem danh sách."
+    }
+  }
+}

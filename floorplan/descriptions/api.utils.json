@@ -1,0 +1,16 @@
+{
+  "files": {
+    "backend/src/utils/AppError.js": {
+      "name": "Lỗi có chủ ý",
+      "description": "Mô tả lỗi cố tình báo ra kèm mã và mức độ, để chỗ gom lỗi biết phải trả lại gì cho người dùng."
+    },
+    "backend/src/utils/asyncHandler.js": {
+      "name": "Bắt lỗi trong xử lý",
+      "description": "Đưa lỗi của một bước xử lý chạy ngầm về chỗ gom lỗi, tránh để yêu cầu treo cho tới khi hết thời gian chờ."
+    },
+    "backend/src/utils/mappers.js": {
+      "name": "Đổi dạng dữ liệu",
+      "description": "Chỗ duy nhất đổi tên và dạng dữ liệu giữa cơ sở dữ liệu và câu trả lời cho các màn hình, luôn bỏ mật khẩu ra."
+    }
+  }
+}

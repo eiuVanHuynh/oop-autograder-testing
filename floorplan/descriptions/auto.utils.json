@@ -1,0 +1,20 @@
+{
+  "files": {
+    "automation/tests/utils/db-client.js": {
+      "name": "Kết nối cơ sở dữ liệu",
+      "description": "Giữ sẵn kết nối tới cơ sở dữ liệu kiểm thử theo thiết lập đã cấu hình, để các file khác tra cứu và ghi dữ liệu."
+    },
+    "automation/tests/utils/fixture-builder.js": {
+      "name": "Dựng bài nộp mẫu",
+      "description": "Chép một kịch bản bài nộp mẫu sang thư mục tạm và đổi tên thư mục gốc theo tài khoản sinh viên thử; chưa có file nào dùng."
+    },
+    "automation/tests/utils/test-case-loader.js": {
+      "name": "Tải một ca kiểm thử",
+      "description": "Lấy toàn bộ bước và dữ liệu nhập của một ca kiểm thử từ cơ sở dữ liệu, thay chỗ ghi \"env:\" bằng giá trị thật trong cấu hình."
+    },
+    "automation/tests/utils/test-data.js": {
+      "name": "Sinh dữ liệu không trùng",
+      "description": "Tạo mã số, tên, email và tên lớp mang tiền tố AUTOTEST kèm 6 số cuối của thời điểm chạy, nên mỗi lần chạy không trùng nhau."
+    }
+  }
+}

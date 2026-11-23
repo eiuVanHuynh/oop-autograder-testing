@@ -1,0 +1,16 @@
+{
+  "files": {
+    "backend/src/config/container.js": {
+      "name": "Lắp các phần lại",
+      "description": "Nối các lớp đọc ghi dữ liệu với phần nghiệp vụ và phần nhận yêu cầu; là chỗ duy nhất quyết định ai dùng cái gì."
+    },
+    "backend/src/config/db.js": {
+      "name": "Kết nối cơ sở dữ liệu",
+      "description": "Mở một kết nối dùng chung tới cơ sở dữ liệu, chạy các câu lệnh và ghi lại lỗi; chỉ lớp đọc ghi dữ liệu được gọi."
+    },
+    "backend/src/config/env.js": {
+      "name": "Đọc cài đặt",
+      "description": "Đọc toàn bộ cài đặt một lần khi khởi động, dừng ngay nếu thiếu cài đặt bắt buộc, và gom địa chỉ trang của từng môi trường."
+    }
+  }
+}

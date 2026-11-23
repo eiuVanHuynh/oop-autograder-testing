@@ -1,0 +1,20 @@
+{
+  "files": {
+    "automation/scripts/apply-autotest-data.js": {
+      "name": "Chuẩn hoá dữ liệu ca TC-08",
+      "description": "Sửa dữ liệu nhập của ca TC-08 trong cơ sở dữ liệu về đúng quy tắc đặt tên AUTOTEST; chạy kèm --dry-run thì chỉ in ra, không ghi."
+    },
+    "automation/scripts/check-x1-x3.js": {
+      "name": "Tự soát quy tắc dữ liệu",
+      "description": "Soát tài liệu, tệp cấu hình mẫu và cơ sở dữ liệu xem quy tắc dữ liệu kiểm thử có đủ không; chỉ đọc, không sửa gì."
+    },
+    "automation/scripts/export-report.js": {
+      "name": "Xuất báo cáo PDF",
+      "description": "Lấy kết quả các lần chạy từ cơ sở dữ liệu và kết xuất thành báo cáo PDF có bảng biểu và màu theo trạng thái."
+    },
+    "automation/scripts/fetch-plan.js": {
+      "name": "Tải kế hoạch chạy",
+      "description": "Tải danh sách ca kiểm thử của một lần chạy từ máy chủ về tệp kế hoạch; tệp này cố ý không chứa mật khẩu thật."
+    }
+  }
+}

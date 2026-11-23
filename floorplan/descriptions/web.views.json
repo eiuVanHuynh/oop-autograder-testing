@@ -1,0 +1,52 @@
+{
+  "files": {
+    "frontend/src/views/Dashboard.jsx": {
+      "name": "Trang tổng quan",
+      "description": "Hiện số lần chạy đạt, không đạt, đang chạy và bị ngắt theo ngày, tháng, quý hay năm bằng biểu đồ và bảng, kèm các lần chạy gần đây."
+    },
+    "frontend/src/views/Forbidden.jsx": {
+      "name": "Trang không đủ quyền",
+      "description": "Báo cho người dùng rằng họ không được vào trang vừa mở; hiện chỉ có tiêu đề, phần giải thích và nút điều hướng vẫn để trống."
+    },
+    "frontend/src/views/ForgotPassword.jsx": {
+      "name": "Trang quên mật khẩu",
+      "description": "Nhận địa chỉ email để đặt lại mật khẩu, nhưng hiện chỉ hiện lời báo đã gửi chứ chưa gửi email nào."
+    },
+    "frontend/src/views/History.jsx": {
+      "name": "Trang lịch sử chạy",
+      "description": "Liệt kê mọi lần chạy kiểm thử, cho tìm và lọc theo trạng thái và môi trường, xem dạng bảng hay thẻ, rồi mở chi tiết một lần chạy."
+    },
+    "frontend/src/views/Login.jsx": {
+      "name": "Trang đăng nhập",
+      "description": "Nhận email và mật khẩu, giữ người dùng đăng nhập nếu họ chọn ghi nhớ, rồi đưa vào trang tổng quan."
+    },
+    "frontend/src/views/Register.jsx": {
+      "name": "Trang tạo tài khoản",
+      "description": "Nhận thông tin đăng ký và kiểm tra mật khẩu nhập lại có khớp, nhưng chưa tạo tài khoản: chỉ báo thành công rồi về trang đăng nhập."
+    },
+    "frontend/src/views/Templates.jsx": {
+      "name": "Trang bộ kiểm thử",
+      "description": "Quản lý các bộ kiểm thử dùng để chạy: tạo, sửa, nhân bản, xoá, bật tắt và chọn những ca kiểm thử nằm trong mỗi bộ."
+    },
+    "frontend/src/views/TestCaseForm.jsx": {
+      "name": "Trang soạn ca kiểm thử",
+      "description": "Tạo, sửa, nhân bản hay chỉ xem một ca kiểm thử qua ba phần: thông tin chung, từng bước thao tác và dữ liệu nhập."
+    },
+    "frontend/src/views/TestCases.jsx": {
+      "name": "Trang danh sách ca kiểm thử",
+      "description": "Liệt kê các ca kiểm thử, cho tìm, lọc, xem chi tiết, cho ngừng dùng và thêm ca vào một bộ kiểm thử."
+    },
+    "frontend/src/views/TestExecution.jsx": {
+      "name": "Trang chạy kiểm thử",
+      "description": "Chọn một bộ kiểm thử, môi trường và thời gian chờ rồi bắt đầu chạy, xem diễn biến cập nhật liên tục và dừng giữa chừng."
+    },
+    "frontend/src/views/TestReport.jsx": {
+      "name": "Trang báo cáo lần chạy",
+      "description": "Hiện kết quả chi tiết của một lần chạy: từng ca đạt hay không, diễn biến chạy, tải báo cáo về và chạy lại."
+    },
+    "frontend/src/views/UserManagement.jsx": {
+      "name": "Trang quản lý người dùng",
+      "description": "Cho quản trị viên xem danh sách thành viên, tạo, sửa, xoá, đổi vai trò và khoá hoặc mở khoá tài khoản."
+    }
+  }
+}

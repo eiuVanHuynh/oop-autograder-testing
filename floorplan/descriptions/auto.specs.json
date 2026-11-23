@@ -1,0 +1,24 @@
+{
+  "files": {
+    "automation/tests/auth/auth-db.spec.js": {
+      "name": "Kiểm thử đăng nhập sai",
+      "description": "Thử đăng nhập bằng tài khoản sai lấy từ cơ sở dữ liệu và đòi website báo đúng thông báo lỗi; hiện không được đưa vào lần chạy."
+    },
+    "automation/tests/auth/auth.spec.js": {
+      "name": "Kiểm thử đăng nhập",
+      "description": "Chạy 13 ca về đăng nhập, quên mật khẩu và quản lý người dùng của giảng viên; các ca dùng Google và nhập danh sách đang bị bỏ qua."
+    },
+    "automation/tests/db/db-connection.spec.js": {
+      "name": "Kiểm thử kết nối dữ liệu",
+      "description": "Đọc danh sách ca kiểm thử trong cơ sở dữ liệu rồi in ra để chắc kết nối còn hoạt động; hiện không được đưa vào lần chạy."
+    },
+    "automation/tests/srs/plan.spec.js": {
+      "name": "Chạy theo kế hoạch",
+      "description": "Chạy lần lượt từng ca trong kế hoạch đã tải về, diễn giải từng bước đã lưu; đây là nhóm kiểm thử duy nhất đang thực sự được chạy."
+    },
+    "automation/tests/submission/submission.spec.js": {
+      "name": "Kiểm thử nộp bài",
+      "description": "Chạy 10 ca nộp bài của sinh viên: chọn bài, tải thư mục lên, xem điểm và lịch sử; hiện không được đưa vào lần chạy."
+    }
+  }
+}

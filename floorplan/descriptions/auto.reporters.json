@@ -1,0 +1,12 @@
+{
+  "files": {
+    "automation/reporters/push-to-backend.js": {
+      "name": "Đẩy kết quả về máy chủ",
+      "description": "Gửi nhật ký và kết quả từng ca kiểm thử về máy chủ của hệ thống; gửi thất bại thì chỉ cảnh báo, không làm sập lần chạy."
+    },
+    "automation/reporters/test-result-logger.js": {
+      "name": "Ghi kết quả bản cũ",
+      "description": "Ghi thẳng kết quả từng ca và đường dẫn ảnh chụp màn hình vào cơ sở dữ liệu; bản cũ, đã bị bỏ khỏi cấu hình chạy."
+    }
+  }
+}
