@@ -83,7 +83,7 @@ export default function Sidebar({ collapsed = false }) {
       className={`relative z-40 flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out shrink-0 sticky top-0 h-[calc(100vh-4rem)] overflow-y-auto ${
         collapsed
           ? "w-0 overflow-hidden border-r-0 opacity-0"
-          : "w-48 opacity-100"
+          : "w-72 opacity-100"
       }`}
     >
       {/* Danh sách các mục menu */}
