@@ -3,7 +3,8 @@
 // Takes repositories through the constructor so tests can swap in fakes.
 //
 // To do:
-// - Reuse the logic from automation/scripts/export-report.js, do not rewrite it.
+// - Reuse the pdfkit layout from automation/scripts/export-report.js (deleted; last present in commit 995bfcc),
+//   do not rewrite it from scratch.
 // - Vercel can only write to /tmp → stream straight back to the client.
 // - Run not finished → 409. Expired share link → 410.
 class ReportsService {
