@@ -11,7 +11,8 @@ class SuiteTargetStrategy {
 
   async resolve({ suiteId }) {
     const codes = await this.catalogRepository.findReadyCaseCodes(suiteId);
-    return codes.sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+    // Copy before sorting: never reorder the array the repository handed over.
+    return [...codes].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
   }
 }
 

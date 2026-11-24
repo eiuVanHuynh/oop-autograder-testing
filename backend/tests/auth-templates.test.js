@@ -345,3 +345,78 @@ test('every write/edit/delete templates route has requireAuth + requireRole(admi
   assert.ok(login, 'POST /api/auth/login is missing');
   assert.strictEqual(login.hasAuth, false, 'login must not require a token');
 });
+
+// ---------------------------------------------------------------------------
+// Register (issue #70). At the service layer with a fake repository: what matters is that a new
+// account is ALWAYS viewer/active whatever the request says, that the password is hashed and that
+// the hash never leaves the service.
+const AuthService = require('../src/services/auth.service');
+
+const registerService = (existingEmail = null) => {
+  const created = [];
+  const svc = new AuthService({
+    userRepository: {
+      findByEmail: async (email) => (email === existingEmail ? { user_id: 1, email } : null),
+      create: async (row) => {
+        created.push(row);
+        return { user_id: 9, auth_provider: 'LOCAL', created_at: new Date(), ...row };
+      },
+    },
+  });
+  return { svc, created };
+};
+
+test('register: a new account is viewer + active, with a hashed password', async () => {
+  const { svc, created } = registerService();
+  const out = await svc.register({
+    fullName: 'Nguyen Van A',
+    email: 'van.a@eiu.edu.vn',
+    password: PASSWORD,
+    // Even if the caller sends these, they must not reach the repository.
+    user_role: 'admin',
+    user_status: 'inactive',
+  });
+
+  assert.equal(created.length, 1);
+  assert.equal(created[0].user_role, 'viewer');
+  assert.equal(created[0].user_status, 'active');
+  assert.equal(created[0].full_name, 'Nguyen Van A');
+  assert.notEqual(created[0].password_hash, PASSWORD); // hashed, not the plain password
+  assert.ok(bcrypt.compareSync(PASSWORD, created[0].password_hash));
+
+  assert.ok(out.token);
+  assert.equal(jwt.verify(out.token, 'test-secret').role, 'viewer');
+  assert.equal(out.user.user_role, 'viewer');
+  assert.equal(out.user.password_hash, undefined); // the hash never leaves the service
+});
+
+test('register: an email that already exists → 409, nothing written', async () => {
+  const { svc, created } = registerService('van.a@eiu.edu.vn');
+  await assert.rejects(
+    () => svc.register({ fullName: 'Khac Ten', email: 'van.a@eiu.edu.vn', password: PASSWORD }),
+    { statusCode: 409, code: 'EMAIL_TAKEN' },
+  );
+  assert.equal(created.length, 0);
+});
+
+// The two tests below only check the ROUTE (wired up, validation, status code): the pg stub at the
+// top of this file treats every INSERT as a template insert, so it cannot show what lands in `users`.
+// What a new account looks like is covered by the two service tests above.
+test('POST /auth/register: the route is wired up and returns 201', async () => {
+  const res = await request(app)
+    .post('/api/auth/register')
+    .send({ fullName: 'Nguyen Van A', email: 'Van.A@Eiu.Edu.Vn', password: PASSWORD });
+  assert.equal(res.status, 201);
+  assert.ok(res.body.data.token);
+  // emailField lowercases before the DB, because uq_users_email is UNIQUE(lower(email)).
+  assert.equal(lastSql.some((q) => q.params.includes('van.a@eiu.edu.vn')), true);
+});
+
+test('POST /auth/register: a short password is a 400 before anything is written', async () => {
+  const res = await request(app)
+    .post('/api/auth/register')
+    .send({ fullName: 'A', email: 'b@eiu.edu.vn', password: '123' });
+  assert.equal(res.status, 400);
+  // validate() runs before the controller, so the request must not have reached an INSERT at all.
+  assert.equal(lastSql.some((q) => q.sql.startsWith('INSERT')), false);
+});
