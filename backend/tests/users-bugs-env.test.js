@@ -42,6 +42,59 @@ test('users: unknown user → 404; UPDATE refused (is an admin) → 409', async 
   assert.equal((await ok.changeRole(3, 'tester', 1)).userRole, 'tester');
 });
 
+// Đổi mật khẩu là luồng "quên mật khẩu" của hệ thống (không có email service), nên các nhánh
+// từ chối ở đây là thứ bảo vệ tài khoản — sai mà không ai thấy ngay.
+test('users: tự đổi mật khẩu — sai mật khẩu cũ, trùng mật khẩu cũ, tài khoản Google', async () => {
+  const bcrypt = require('bcryptjs');
+  const hash = await bcrypt.hash('cu-ro-ri', 10);
+  const svc = (user, onWrite = () => assert.fail('must not write')) =>
+    new UsersService({ userRepository: { findById: async () => user, updatePassword: onWrite } });
+
+  await assert.rejects(
+    () => svc(null).changeOwnPassword(1, { currentPassword: 'x', newPassword: 'moi12345' }),
+    { status: 404 },
+  );
+  // Tài khoản Google: password_hash NULL — bcrypt.compare(null) sẽ nổ thành 500 nếu không chặn.
+  await assert.rejects(
+    () => svc({ user_id: 1, password_hash: null }).changeOwnPassword(1, { currentPassword: 'x', newPassword: 'moi12345' }),
+    { status: 409, code: 'NO_PASSWORD' },
+  );
+  await assert.rejects(
+    () => svc({ user_id: 1, password_hash: hash }).changeOwnPassword(1, { currentPassword: 'sai', newPassword: 'moi12345' }),
+    { status: 401, code: 'INVALID_CREDENTIALS' },
+  );
+  await assert.rejects(
+    () => svc({ user_id: 1, password_hash: hash }).changeOwnPassword(1, { currentPassword: 'cu-ro-ri', newPassword: 'cu-ro-ri' }),
+    { status: 400 },
+  );
+
+  let written;
+  await svc({ user_id: 1, password_hash: hash }, async (id, h) => ((written = { id, h }), true))
+    .changeOwnPassword(1, { currentPassword: 'cu-ro-ri', newPassword: 'moi12345' });
+  assert.equal(written.id, 1);
+  assert.notEqual(written.h, 'moi12345'); // đã hash trước khi tới repository
+  assert.ok(await bcrypt.compare('moi12345', written.h));
+});
+
+test('users: admin đặt lại mật khẩu — không cho chính mình, không cho admin khác', async () => {
+  const svc = (user, onWrite = () => assert.fail('must not write')) =>
+    new UsersService({ userRepository: { findPublicById: async () => user, updatePassword: onWrite } });
+
+  // Tự mình thì dùng /users/me/password, vì đường này không đòi mật khẩu hiện tại.
+  await assert.rejects(() => svc({}).resetUserPassword(5, 'moi12345', 5), { status: 400 });
+  await assert.rejects(() => svc(null).resetUserPassword(9, 'moi12345', 1), { status: 404 });
+  await assert.rejects(
+    () => svc({ user_id: 2, user_role: 'admin' }).resetUserPassword(2, 'moi12345', 1),
+    { status: 409, code: 'ADMIN_PROTECTED' },
+  );
+
+  let written;
+  await svc({ user_id: 3, user_role: 'tester' }, async (id, h) => ((written = { id, h }), true))
+    .resetUserPassword(3, 'moi12345', 1);
+  assert.equal(written.id, 3);
+  assert.notEqual(written.h, 'moi12345');
+});
+
 test('users: create / edit / delete', async () => {
   const admin = { user_id: 2, user_role: 'admin' };
   const svc = (repo) => new UsersService({ userRepository: repo });

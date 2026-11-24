@@ -37,8 +37,31 @@ const finishSchema = z.object({
   final_status: z.enum(['passed', 'failed', 'interrupted']).nullish(),
 });
 
+// test_evidences.evidence_type has a CHECK in the DB; file_path is VARCHAR(500).
+const EVIDENCE_TYPES = ['screenshot', 'trace'];
+
+const addEvidencesSchema = z.object({
+  evidences: z
+    .array(
+      z.object({
+        type: z.enum(EVIDENCE_TYPES),
+        // A location (GitHub artifact URL or a path inside it), not the file itself — see ResultRepository.
+        path: z.string().trim().min(1).max(500),
+      }),
+    )
+    .nonempty("evidences must not be empty"),
+});
+
 const setCiRunIdSchema = z.object({
   ciRunId: z.string().min(1),
 });
 
-module.exports = { addResultsSchema, addLogsSchema, finishSchema, setCiRunIdSchema, RESULT_STATUS };
+module.exports = {
+  addResultsSchema,
+  addLogsSchema,
+  finishSchema,
+  setCiRunIdSchema,
+  addEvidencesSchema,
+  RESULT_STATUS,
+  EVIDENCE_TYPES,
+};

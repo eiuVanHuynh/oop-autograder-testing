@@ -18,6 +18,12 @@ module.exports = asyncHandler(async (req, res, next) => {
     throw new AppError(401, 'UNAUTHORIZED', 'Token is invalid or expired');
   }
 
+  // A token minted for another purpose (the 15-minute password-reset token carries typ: 'reset')
+  // verifies against the same secret, so the purpose must be checked, not just the signature.
+  if (payload.typ) {
+    throw new AppError(401, 'UNAUTHORIZED', 'This token cannot be used to authenticate');
+  }
+
   // The DB must be read: a token issued before an admin locked the account still has a valid signature.
   const user = await userRepository.findById(payload.user_id);
   if (!user) {

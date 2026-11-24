@@ -32,7 +32,7 @@ class PlaywrightRunner extends TestRunner {
   // testCodes are resolved by runs.service from the template/suite — never parsed back out of the grep expression.
   async trigger({ runId, testCodes, timeout, env }) {
     const ciRunId = `pw-${runId}`;
-    this._run(runId, ciRunId, { codes: testCodes || [], timeout, env }); // not awaited: runs in the background
+    void this._run(runId, ciRunId, { codes: testCodes || [], timeout, env }); // not awaited: runs in the background
     return ciRunId;
   }
 

@@ -31,7 +31,19 @@ const deleteUser = asyncHandler(async (req, res) => {
   return res.status(204).end();
 });
 
-// 6. PATCH /users/:id/role (200)
+// 6. PATCH /users/me/password (204) — tự đổi mật khẩu
+const changeOwnPassword = asyncHandler(async (req, res) => {
+  await usersService.changeOwnPassword(req.user.user_id, req.body);
+  return res.status(204).end();
+});
+
+// 7. PATCH /users/:id/password (204) — admin đặt lại mật khẩu cho người quên
+const resetUserPassword = asyncHandler(async (req, res) => {
+  await usersService.resetUserPassword(req.params.id, req.body.newPassword, req.user.user_id);
+  return res.status(204).end();
+});
+
+// 8. PATCH /users/:id/role (200)
 const changeRole = asyncHandler(async (req, res) => {
   const user = await usersService.changeRole(
     req.params.id,
@@ -41,7 +53,7 @@ const changeRole = asyncHandler(async (req, res) => {
   return res.status(200).json({ data: user });
 });
 
-// 7. PATCH /users/:id/status (200)
+// 9. PATCH /users/:id/status (200)
 const changeStatus = asyncHandler(async (req, res) => {
   const user = await usersService.changeStatus(
     req.params.id,
@@ -51,4 +63,14 @@ const changeStatus = asyncHandler(async (req, res) => {
   return res.status(200).json({ data: user });
 });
 
-module.exports = { getUsers, getUser, createUser, updateUser, deleteUser, changeRole, changeStatus };
+module.exports = {
+  getUsers,
+  getUser,
+  createUser,
+  updateUser,
+  deleteUser,
+  changeOwnPassword,
+  resetUserPassword,
+  changeRole,
+  changeStatus,
+};

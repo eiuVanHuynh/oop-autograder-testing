@@ -11,6 +11,12 @@ const runIdParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
+// /runs/:id/results/:resultId/evidences — cả hai id phải là số.
+const resultParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  resultId: z.coerce.number().int().positive(),
+});
+
 const createRunSchema = z
   .object({
     templateId: z.number().int().positive().optional(),
@@ -38,4 +44,5 @@ const createRunSchema = z
 module.exports = {
   createRunSchema,
   runIdParamsSchema,
+  resultParamsSchema,
 };

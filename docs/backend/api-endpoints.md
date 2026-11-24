@@ -77,10 +77,10 @@ Phục vụ các trang: **Login, Register, Forgot password**.
 | :-: | --- | --- | --- | --- |
 | 🔴 | `POST /auth/register` | Công khai | `201`, `400`, `409`, `429` | **Đăng ký tài khoản mới.** Gửi lên: họ tên, email, mật khẩu, nhập lại mật khẩu. Tài khoản mới **luôn là Viewer**, Admin sẽ nâng quyền sau. Trả `409` nếu email đã có người dùng. |
 | 🔴 | `POST /auth/login` | Công khai | `200`, `400`, `401`, `423`, `429` | **Đăng nhập.** Gửi email + mật khẩu (+ "Ghi nhớ đăng nhập"). Thành công thì trả về **"vé vào cửa" (token)** và thông tin user kèm vai trò. Sai mật khẩu → `401`. Tài khoản bị khóa → `423`. Thử sai quá nhiều lần → `429`. |
-| 🔴 | `GET /auth/me` | Mọi user | `200`, `401` | **"Tôi là ai?"** Khi người dùng mở lại web (F5), giao diện gọi cái này để biết họ còn đăng nhập không và có vai trò gì, từ đó ẩn/hiện nút cho đúng. |
+| 🟢 | `GET /auth/me` | Mọi user | `200`, `401` | **"Tôi là ai?"** Khi người dùng mở lại web (F5), giao diện gọi cái này để biết họ còn đăng nhập không và có vai trò gì, từ đó ẩn/hiện nút cho đúng. |
 | 🔴 | `POST /auth/logout` | Mọi user | `204`, `401` | **Đăng xuất.** Hủy "vé vào cửa" hiện tại. |
-| 🔴 | `POST /auth/forgot-password` | Công khai | `200`, `400`, `429` | **Quên mật khẩu.** Gửi email lên, hệ thống gửi link đặt lại mật khẩu về email. Luôn trả `200` **kể cả khi email không tồn tại** – để kẻ xấu không dò được email nào có trong hệ thống. |
-| 🔴 | `POST /auth/reset-password` | Công khai | `200`, `400`, `410` | **Đặt mật khẩu mới** bằng mã trong link email. Link quá hạn hoặc đã dùng rồi → `410`. *(Không cần lưu vào DB: mã là token có hạn 15 phút, tự mất hiệu lực sau khi đổi mật khẩu.)* |
+| ⚪ | `POST /auth/forgot-password` | Công khai | `200`, `400`, `429` | **CHƯA NỐI ROUTE — nhóm chốt không dùng dịch vụ ngoài, nên không có email service để gửi link.** Đường quên mật khẩu đang dùng là `PATCH /users/:id/password` (Admin đặt lại hộ) + `PATCH /users/me/password`. Code service vẫn còn, xem ô cảnh báo trong `services/auth.service.js`. **Quên mật khẩu.** Gửi email lên, hệ thống gửi link đặt lại mật khẩu về email. Luôn trả `200` **kể cả khi email không tồn tại** – để kẻ xấu không dò được email nào có trong hệ thống. |
+| ⚪ | `POST /auth/reset-password` | Công khai | `200`, `400`, `410` | **CHƯA NỐI ROUTE** (xem dòng trên). **Đặt mật khẩu mới** bằng mã trong link email. Link quá hạn hoặc đã dùng rồi → `410`. *(Không cần lưu vào DB: mã là token có hạn 15 phút, tự mất hiệu lực sau khi đổi mật khẩu.)* |
 | 🔴 | `GET /auth/google` | Công khai | `302` | **Đăng nhập bằng Google** – chuyển người dùng sang trang của Google. |
 | 🔴 | `GET /auth/google/callback` | Công khai | `302`, `401` | Google **trả người dùng về** đây sau khi họ đồng ý. Backend tạo/tìm tài khoản rồi chuyển về Dashboard. Người dùng bấm "Hủy" trên Google → `401`. |
 
@@ -99,7 +99,8 @@ Phục vụ trang: **User Management** (tab trong trang Lịch sử).
 | 🔴 | `POST /users` | Admin | `201`, `400`, `401`, `403`, `409` | **Admin tạo tài khoản hộ** (`fullName`, `email`, `password`, tùy chọn `role` + `status`; mặc định Viewer / active). Email trùng → `409` (ràng buộc `uq_users_email`, không kiểm-rồi-ghi). |
 | 🔴 | `PATCH /users/:id` | Admin | `200`, `400`, `401`, `403`, `404`, `409` | **Sửa họ tên / email.** Vai trò và trạng thái đi qua hai endpoint riêng bên dưới. |
 | 🟡 | `PATCH /users/me` | Mọi user | `200`, `400`, `401` | **Tự sửa hồ sơ cá nhân** (họ tên, ảnh đại diện). |
-| 🟡 | `PATCH /users/me/password` | Mọi user | `200`, `400`, `401` | **Đổi mật khẩu** (phải nhập đúng mật khẩu cũ). Sai mật khẩu cũ → `400`. |
+| 🟢 | `PATCH /users/me/password` | Mọi user | `204`, `400`, `401`, `409` | **Tự đổi mật khẩu** (phải nhập đúng mật khẩu hiện tại). Sai mật khẩu hiện tại → `401`; mật khẩu mới trùng mật khẩu cũ → `400`; tài khoản Google chưa có mật khẩu → `409`. Thành công trả `204` (không có gì để trả về). |
+| 🟢 | `PATCH /users/:id/password` | Admin | `204`, `400`, `401`, `403`, `404`, `409` | **Admin đặt lại mật khẩu hộ người đã quên.** Đây là đường "quên mật khẩu" dùng được của hệ thống, vì không có email service (mục 1). Admin nói lại mật khẩu tạm cho người đó, họ tự đổi bằng `PATCH /users/me/password`. Tự đặt lại cho mình → `400` (dùng đường trên); đặt lại cho một Admin khác → `409` (cùng luật `ADMIN_PROTECTED` với đổi vai trò / khóa / xóa). |
 | 🟡 | `DELETE /users/:id` | Admin | `204`, `400`, `401`, `403`, `404`, `409` | **Xóa hẳn tài khoản.** Không tự xóa mình → `400`; xóa một Admin → `409` (như đổi vai trò / khóa). Khuyến nghị: nên **khóa** thay vì xóa, để lịch sử "ai đã chạy test nào" không bị mất. |
 
 ---
@@ -107,6 +108,10 @@ Phục vụ trang: **User Management** (tab trong trang Lịch sử).
 ## 3. Thống kê cho Dashboard
 
 Phục vụ trang: **Dashboard** (các thẻ số liệu + biểu đồ).
+
+> ⚪ **Cả nhóm này chưa viết dòng code nào.** `/api/stats` không được mount trong `routes/index.js`;
+> các tệp controller/service/validator rỗng của nhóm đã bị xoá (tệp rỗng được mount vẫn trả 404 y như
+> không có tệp, nhưng lại làm người đọc tưởng đã có). Dashboard hiện tự tính số liệu từ `GET /runs`.
 
 | Ưu tiên | Endpoint | Quyền hạn | Status code | Ghi chú |
 | :-: | --- | --- | --- | --- |
@@ -168,7 +173,7 @@ Phục vụ trang: **Create new test** (nút Run + khung log), **RunDetail**, **
 | 🔴 | `GET /runs/:id/logs?after=` | Mọi user | `200`, `401`, `404` | **Phương án dự phòng** cho cái trên: giao diện **cứ vài giây hỏi một lần** "có log mới không?". `after` = "lấy các dòng sau dòng số X". Cần vì khi deploy lên **Vercel**, kết nối giữ mở lâu có thể bị cắt. |
 | 🔴 | `POST /runs/:id/cancel` | Admin, Tester | `200`, `401`, `403`, `404`, `409` | **Bấm "Hủy"** để dừng test đang chạy. Test đã chạy xong rồi thì không hủy được → `409`. |
 | 🔴 | `POST /runs/:id/rerun` | Admin, Tester | `202`, `401`, `403`, `404` | **Bấm "Chạy lại"** – đọc `test_runs.config_json` của lần chạy cũ và gửi lại y nguyên, tạo một lần chạy **mới**. Lần chạy cũ vẫn giữ trong lịch sử. |
-| 🔴 | `GET /runs/:id/results/:resultId/evidences` | Mọi user | `200`, `401`, `404` | **Xem bằng chứng** của một bước – cả bước lỗi lẫn bước đạt: ảnh chụp màn hình, file ghi lại quá trình chạy (trace). |
+| 🟢 | `GET /runs/:id/results/:resultId/evidences` | Mọi user | `200`, `401`, `404` | **Xem bằng chứng** của một bước – cả bước lỗi lẫn bước đạt: ảnh chụp màn hình, file ghi lại quá trình chạy (trace). Trả về **đường dẫn**, không trả file (xem mục 8). `resultId` không thuộc run này → `404`, không phải danh sách rỗng. *(`GET /:id/results` cũng đã kèm mảng `evidences` của từng case; đường riêng này để báo sai `resultId`.)* |
 | 🟡 | `DELETE /runs/:id` | Admin | `204`, `401`, `403`, `404`, `409` | **Xóa một lần chạy** khỏi lịch sử. Đang chạy dở → `409` (phải hủy trước). |
 
 ---
@@ -176,6 +181,10 @@ Phục vụ trang: **Create new test** (nút Run + khung log), **RunDetail**, **
 ## 7. Báo cáo, Xuất file & Chia sẻ
 
 Phục vụ trang: **RunDetail** (nút Tải PDF / Export HTML / Copy link) và **Test History** (cột tick chọn để xuất nhiều cái).
+
+> ⚪ **Cả nhóm này chưa viết dòng code nào.** `/api/reports` không được mount trong `routes/index.js`;
+> các tệp rỗng của nhóm đã bị xoá (xem ghi chú ở mục 3). Trang báo cáo hiện tự sinh HTML ở phía
+> frontend (`models/reportHtml.js`), nên nút Export vẫn chạy; link chia sẻ thì chưa có.
 
 | Ưu tiên | Endpoint | Quyền hạn | Status code | Ghi chú |
 | :-: | --- | --- | --- | --- |
@@ -200,7 +209,7 @@ Phục vụ trang: **RunDetail** (nút Tải PDF / Export HTML / Copy link) và 
 | 🔴 | `POST /ingest/runs/:id/results` | Máy (API key) | `201`, `400`, `401`, `404` | **Gửi kết quả từng test case**: đạt/lỗi, kết quả thực tế, thời gian chạy, thông báo lỗi. Có thể gửi nhiều kết quả một lúc. |
 | 🔴 | `POST /ingest/runs/:id/logs` | Máy (API key) | `202`, `400`, `401`, `404` | **Gửi từng dòng log** khi đang chạy, để người xem trên web thấy chữ chạy trực tiếp (mục 6). *(Log chỉ lưu tạm, bị xóa sau khi lần chạy kết thúc.)* |
 | 🔴 | `PATCH /ingest/runs/:id/finish` | Máy (API key) | `200`, `400`, `401`, `404`, `409` | **Báo "đã chạy xong"** – ghi giờ kết thúc và kết quả chung. Gọi 2 lần cho cùng một lần chạy → `409`. |
-| ⚪ | `POST /ingest/results/:id/evidences` | Máy (API key) | `201`, `400`, `401`, `404`, `413` | **Gửi ảnh chụp màn hình / file trace** của test bị lỗi. *Chưa làm — chốt là để `test_evidences` rỗng ở bản này; trace/screenshot hiện chỉ nằm trong artifact của GitHub Actions (7 ngày).* |
+| 🟢 | `POST /ingest/results/:id/evidences` | Máy (API key) | `201`, `400`, `401`, `404` | **Gửi ảnh chụp màn hình / file trace** của test bị lỗi. **Chỉ gửi ĐƯỜNG DẪN, không gửi file**: Vercel không ghi được đĩa và dự án không dùng dịch vụ lưu trữ ngoài, nên CI đẩy file lên artifact của GitHub Actions rồi gửi URL về đây — vì vậy **không có `413`**. ⚠️ URL artifact hết hạn (mặc định 90 ngày) thì link của run cũ sẽ 404; muốn giữ lâu phải có object storage. |
 
 ---
 

@@ -28,10 +28,16 @@ const finish = asyncHandler(async (req, res) => {
   return res.status(200).json({ data });
 });
 
+// POST /ingest/results/:id/evidences - Push screenshot/trace locations of one result
+const addEvidences = asyncHandler(async (req, res) => {
+  const data = await ingestService.addEvidences(req.params.id, req.body.evidences);
+  return res.status(201).json({ data });
+});
+
 // POST /ingest/runs/:id/ci-run-id - CI reports GITHUB_RUN_ID so the backend can cancel the workflow
 const setCiRunId = asyncHandler(async (req, res) => {
   const data = await ingestService.setCiRunId(req.params.id, req.body.ciRunId);
   return res.status(200).json({ data });
 });
 
-module.exports = { getPlan, addLogs, addResults, finish, setCiRunId };
+module.exports = { getPlan, addLogs, addResults, finish, setCiRunId, addEvidences };

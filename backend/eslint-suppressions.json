@@ -1,0 +1,42 @@
+{
+  "src/controllers/meta.controller.js": {
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "src/services/runner/FakeRunner.js": {
+    "@typescript-eslint/require-await": {
+      "count": 2
+    }
+  },
+  "src/services/runner/PlaywrightRunner.js": {
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "src/services/runner/TestRunner.js": {
+    "@typescript-eslint/require-await": {
+      "count": 2
+    }
+  },
+  "src/services/runner/index.js": {
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "src/services/runs.service.js": {
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "src/services/target/TestIdsTargetStrategy.js": {
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "tests/ingest.test.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  }
+}

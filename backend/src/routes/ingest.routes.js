@@ -3,7 +3,7 @@ const ingestController = require('../controllers/ingest.controller');
 const requireApiKey = require('../middlewares/requireApiKey');
 const validate = require('../middlewares/validate');
 const {
-  addResultsSchema, addLogsSchema, finishSchema, setCiRunIdSchema,
+  addResultsSchema, addLogsSchema, finishSchema, setCiRunIdSchema, addEvidencesSchema,
 } = require('../validators/ingest.schema');
 
 // Back door for machines: Playwright pushes results and logs back.
@@ -27,7 +27,9 @@ router.post('/runs/:id/results', validate(addResultsSchema), ingestController.ad
 // PATCH /api/ingest/runs/:id/finish - Report that the run has finished
 router.patch('/runs/:id/finish', validate(finishSchema), ingestController.finish);
 
-// Evidence (screenshot/trace) is deliberately left out: the decision is to keep test_evidences empty in this version.
-// POST /api/ingest/results/:id/evidences
+// POST /api/ingest/results/:id/evidences - Push screenshot/trace LOCATIONS of one result.
+// The body carries URLs/paths, never file bytes (see ResultRepository), so there is no 413 here:
+// uploading the files themselves needs object storage, which this project does not have.
+router.post('/results/:id/evidences', validate(addEvidencesSchema), ingestController.addEvidences);
 
 module.exports = router;

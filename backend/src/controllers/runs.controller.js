@@ -44,6 +44,12 @@ const getRunResults = asyncHandler(async (req, res) => {
   return res.status(200).json({ data: result });
 });
 
+// 4c. GET /runs/:id/results/:resultId/evidences - Screenshot / trace of one result (200, 404)
+const getResultEvidences = asyncHandler(async (req, res) => {
+  const data = await runsService.getResultEvidences(req.params.id, req.params.resultId);
+  return res.status(200).json({ data });
+});
+
 // 5. GET /runs/:id/logs/stream - Live logs over SSE (Status code: 200 OK)
 const streamRunLogs = asyncHandler(async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
@@ -78,6 +84,7 @@ module.exports = {
   getRunById,
   getRunLogs,
   getRunResults,
+  getResultEvidences,
   streamRunLogs,
   cancelRun,
   rerunRun,

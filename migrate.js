@@ -38,6 +38,8 @@ const migrationFiles = [
   "db/migrations/012_template_status.sql",
   // 013 tạo bảng bugs (Bug_Feedbacks cũ đã bị xoá khỏi schema).
   "db/migrations/013_bugs.sql",
+  // 014 index cho các khóa ngoại mà endpoint lọc theo (Postgres không tự tạo).
+  "db/migrations/014_indexes.sql",
 ];
 
 // File SEED: ghi dữ liệu mẫu, và 010 còn DELETE sạch test_steps + test_data của TC-01…TC-12,

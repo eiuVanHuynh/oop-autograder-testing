@@ -1,8 +1,8 @@
 // Deliberate application error: errorHandler reads status + code to shape the JSON response.
 // A non-AppError counts as a programming bug → 500, with no details leaked.
 class AppError extends Error {
-  constructor(status, code, message, details) {
-    super(message);
+  constructor(status, code, message, details, options) {
+    super(message, options);
     this.status = status;
     this.code = code;
     this.details = details;
