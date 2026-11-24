@@ -178,82 +178,91 @@ function ScopeSelect({
   );
 }
 
-// Chọn test case VÀ xếp thứ tự chạy (issue #67). Thứ tự = thứ tự mảng `codes`, nên phần
-// "Execution order" đi kèm nút lên/xuống; danh sách dưới chỉ để tick thêm/bỏ.
+// Chọn test case VÀ xếp thứ tự chạy, trong MỘT danh sách (issue #67).
+// Trước đây mỗi case hiện hai lần — một lần ở khung thứ tự, một lần ở khung tick — nên modal dài
+// gấp đôi và người dùng phải đối chiếu hai danh sách. Giờ case đã chọn nổi lên đầu kèm số thứ tự và
+// nút lên/xuống, case chưa chọn nằm dưới vạch; bỏ tick là gỡ khỏi thứ tự, nên không cần nút xoá riêng.
 function OrderedCasePicker({ codes, cases, disabled = false, onChange }) {
-  const titleOf = (code) => cases.find((c) => c.code === code)?.title ?? "";
+  const byCode = new Map(cases.map((c) => [c.code, c]));
   const toggle = (code) =>
-    onChange(
-      codes.includes(code)
-        ? codes.filter((x) => x !== code)
-        : [...codes, code],
-    );
+    onChange(codes.includes(code) ? codes.filter((x) => x !== code) : [...codes, code]);
+
+  // Một case đã chọn rồi bị chuyển sang 'deprecated' không còn trong `cases`: vẫn phải hiện ra,
+  // nếu không người dùng không thấy nó để bỏ đi.
+  const picked = codes.map((code) => byCode.get(code) ?? { id: code, code, title: "" });
+  const rest = cases.filter((c) => !codes.includes(c.code));
+
+  // order: số thứ tự chạy (null với case chưa chọn). extra: hai nút lên/xuống.
+  const row = (c, order, extra) => (
+    <li
+      key={c.id}
+      className="flex cursor-pointer items-center gap-3 rounded-lg px-1 py-1 text-base"
+    >
+      <input
+        type="checkbox"
+        id={`case-${c.id}`}
+        checked={codes.includes(c.code)}
+        disabled={disabled}
+        onChange={() => toggle(c.code)}
+      />
+      <label htmlFor={`case-${c.id}`} className="flex min-w-0 flex-1 items-center gap-2">
+        {/* Chừa chỗ cho số cả ở dòng chưa chọn, để hai nhóm thẳng cột với nhau. */}
+        <span className="w-5 shrink-0 text-right text-xs text-gray-400">
+          {order ? `${order}.` : ""}
+        </span>
+        <span className="font-mono text-xs">{c.code}</span>
+        <span className="min-w-0 flex-1 truncate text-gray-700">{c.title}</span>
+      </label>
+      {extra}
+    </li>
+  );
 
   return (
-    <>
-      {codes.length > 0 && (
-        <div className="mt-2 rounded-xl border border-gray-200 p-2">
-          <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-            Execution order
-          </p>
-          <ol className="m-0 max-h-40 list-none space-y-1 overflow-y-auto p-0">
-            {codes.map((code, i) => (
-              <li
-                key={code}
-                className="flex items-center gap-1 rounded-lg bg-gray-50 px-2 py-1 text-sm"
-              >
-                <span className="w-5 shrink-0 text-xs text-gray-400">
-                  {i + 1}.
-                </span>
-                <span className="font-mono text-xs">{code}</span>
-                <span className="min-w-0 flex-1 truncate text-gray-600">
-                  {titleOf(code)}
-                </span>
-                <IconButton
-                  icon={ChevronUp}
-                  title="Move up"
-                  size={14}
-                  disabled={disabled || i === 0}
-                  onClick={() => onChange(moveAt(codes, i, i - 1))}
-                />
-                <IconButton
-                  icon={ChevronDown}
-                  title="Move down"
-                  size={14}
-                  disabled={disabled || i === codes.length - 1}
-                  onClick={() => onChange(moveAt(codes, i, i + 1))}
-                />
-                <IconButton
-                  icon={X}
-                  title="Remove"
-                  size={14}
-                  danger
-                  disabled={disabled}
-                  onClick={() => toggle(code)}
-                />
-              </li>
-            ))}
-          </ol>
-        </div>
+    <ol className="m-0 mt-2 h-80 max-h-[50vh] list-none space-y-1 overflow-y-auto rounded-xl border border-gray-200 p-3">
+      {cases.length === 0 && codes.length === 0 && (
+        <li className="text-xs text-gray-400">No ready test cases yet.</li>
       )}
 
-      <div className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-xl border border-gray-200 p-2">
-        {cases.length === 0 && (
-          <p className="text-xs text-gray-400">No ready test cases yet.</p>
-        )}
-        {cases.map((c) => (
-          <label key={c.id} className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={codes.includes(c.code)}
-              disabled={disabled}
-              onChange={() => toggle(c.code)}
+      {picked.length > 0 && (
+        <li className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+          Execution order — runs top to bottom
+        </li>
+      )}
+
+      {picked.map((c, i) =>
+        row(
+          c,
+          i + 1,
+          <>
+            <IconButton
+              icon={ChevronUp}
+              title="Move up"
+              size={14}
+              disabled={disabled || i === 0}
+              onClick={() => onChange(moveAt(codes, i, i - 1))}
             />
-            <span className="font-mono text-xs">{c.code}</span> {c.title}
-          </label>
-        ))}
-      </div>
-    </>
+            <IconButton
+              icon={ChevronDown}
+              title="Move down"
+              size={14}
+              disabled={disabled || i === picked.length - 1}
+              onClick={() => onChange(moveAt(codes, i, i + 1))}
+            />
+          </>,
+        ),
+      )}
+
+      {picked.length > 0 && rest.length > 0 && (
+        <li className="flex items-center gap-2 px-1 pb-1 pt-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Not selected
+          </span>
+          <span className="h-px flex-1 bg-gray-200" />
+        </li>
+      )}
+
+      {rest.map((c) => row(c, null, null))}
+    </ol>
   );
 }
 
