@@ -273,7 +273,7 @@ export default function TestCases() {
                   key: "sel",
                   header: "",
                   card: "footer",
-                  width: "2rem",
+                  width: "50px",
                   render: (c) => (
                     <input
                       type="checkbox"
@@ -288,6 +288,7 @@ export default function TestCases() {
           {
             key: "code",
             header: "Code",
+            width: "110px",
             className: "font-mono text-xs",
             sortable: true,
             render: (c) => c.code,
@@ -296,6 +297,7 @@ export default function TestCases() {
             key: "title",
             header: "Title",
             card: "title",
+            width: "30%",
             sortable: true,
             render: (c) => (
               <div className="group cursor-pointer">
@@ -309,11 +311,13 @@ export default function TestCases() {
             key: "spec",
             header: "Spec",
             sortable: true,
+            width: "110px",
             className: "text-xs text-gray-500",
             render: (c) => c.specCode,
           },
           {
             key: "type",
+            width: "110px",
             header: "Type",
             sortable: true,
             render: (c) => c.type,
@@ -322,12 +326,14 @@ export default function TestCases() {
             key: "priority",
             header: "Priority",
             sortable: true,
+            width: "110px",
             card: "badge",
             render: (c) => <StatusBadge status={c.priority} />,
           },
           {
             key: "status",
             header: "Status",
+            width: "120px",
             sortable: true,
             card: "badge",
             render: (c) => <StatusBadge status={c.status} />,
@@ -336,6 +342,7 @@ export default function TestCases() {
             key: "actions",
             header: "",
             align: "right",
+            width: "130px",
             className: "whitespace-nowrap",
             render: (c) =>
               canEdit ? (

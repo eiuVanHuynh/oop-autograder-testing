@@ -1,0 +1,68 @@
+{
+  "files": {
+    "backend/src/controllers/auth.controller.js": {
+      "name": "Đăng nhập và tài khoản",
+      "description": "Chuyển yêu cầu đăng nhập, đăng ký, quên mật khẩu và đăng nhập Google cho phần nghiệp vụ; hiện chỉ đăng nhập được nối vào."
+    },
+    "backend/src/controllers/bug.controller.js": {
+      "name": "Tệp lỗi bỏ trống",
+      "description": "Không có nội dung nào và không chỗ nào dùng tới."
+    },
+    "backend/src/controllers/bugs.controller.js": {
+      "name": "Báo lỗi tìm được",
+      "description": "Nhận yêu cầu lập phiếu lỗi từ một kết quả thất bại, xem danh sách lỗi và cập nhật phiếu lỗi."
+    },
+    "backend/src/controllers/catalog.controller.js": {
+      "name": "Kho ca kiểm thử",
+      "description": "Nhận yêu cầu xem, thêm, sửa, xoá bộ kiểm thử, đặc tả, ca kiểm thử cùng các bước và dữ liệu mẫu của ca."
+    },
+    "backend/src/controllers/ingest.controller.js": {
+      "name": "Nhận kết quả từ máy chạy",
+      "description": "Trả kế hoạch chạy cho máy chạy kiểm thử và nhận lại log, kết quả từng ca, mã lần chạy GitHub và tin đã chạy xong."
+    },
+    "backend/src/controllers/meta.controller.js": {
+      "name": "Danh sách lựa chọn",
+      "description": "Trả về các lựa chọn cho trang: môi trường chạy được, mức ưu tiên, loại ca, vai trò và trạng thái người dùng."
+    },
+    "backend/src/controllers/report.controller.js": {
+      "name": "Tệp báo cáo bỏ trống",
+      "description": "Không có nội dung nào và không chỗ nào dùng tới."
+    },
+    "backend/src/controllers/reports.controller.js": {
+      "name": "Xuất báo cáo chưa làm",
+      "description": "Chưa xử lý gì: dự định xuất báo cáo PDF hoặc HTML và tạo liên kết chia sẻ, hiện vẫn để trống."
+    },
+    "backend/src/controllers/runs.controller.js": {
+      "name": "Lần chạy kiểm thử",
+      "description": "Nhận yêu cầu tạo lần chạy mới, xem lịch sử và chi tiết, lấy log cùng kết quả, huỷ hoặc chạy lại."
+    },
+    "backend/src/controllers/stats.controller.js": {
+      "name": "Thống kê chưa làm",
+      "description": "Chưa xử lý gì: dự định trả số liệu tổng quan và theo ngày cho bảng tổng quan."
+    },
+    "backend/src/controllers/system.controller.js": {
+      "name": "Kiểm tra hệ thống chưa làm",
+      "description": "Chưa xử lý gì; việc kiểm tra máy chủ còn sống hiện làm trực tiếp ở nơi khai báo địa chỉ."
+    },
+    "backend/src/controllers/templates.controller.js": {
+      "name": "Mẫu chạy kiểm thử",
+      "description": "Nhận yêu cầu xem, tạo, sửa, xoá và nhân bản mẫu chạy kiểm thử, có ghi lại ai tạo."
+    },
+    "backend/src/controllers/testcase.controller.js": {
+      "name": "Tệp ca kiểm thử bỏ trống",
+      "description": "Không có nội dung nào và không chỗ nào dùng tới."
+    },
+    "backend/src/controllers/testrun.controller.js": {
+      "name": "Tệp lần chạy bỏ trống",
+      "description": "Không có nội dung nào và không chỗ nào dùng tới."
+    },
+    "backend/src/controllers/testsuite.controller.js": {
+      "name": "Tệp bộ kiểm thử bỏ trống",
+      "description": "Không có nội dung nào và không chỗ nào dùng tới."
+    },
+    "backend/src/controllers/users.controller.js": {
+      "name": "Quản lý thành viên",
+      "description": "Nhận yêu cầu xem, tạo, sửa, xoá thành viên và đổi vai trò hay khoá, mở tài khoản."
+    }
+  }
+}

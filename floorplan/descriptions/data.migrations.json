@@ -1,0 +1,68 @@
+{
+  "files": {
+    "db/migrations/001_srs_test_cases.sql": {
+      "name": "Nạp 31 ca kiểm thử theo tài liệu",
+      "description": "Thêm ba bộ kiểm thử, các bản đặc tả và 31 ca TC-01 đến TC-31 theo bảng ca kiểm thử trong tài liệu, chưa kèm bước nào."
+    },
+    "db/migrations/002_auth_steps_data.sql": {
+      "name": "Nạp bước cho ca đăng nhập",
+      "description": "Xoá rồi nạp lại các bước và dữ liệu nhập của 13 ca đăng nhập và quản lý người dùng; mật khẩu để dạng tên biến cấu hình."
+    },
+    "db/migrations/004_lecturer_steps_data.sql": {
+      "name": "Nạp bước cho ca giảng viên",
+      "description": "Nạp bước và dữ liệu cho các ca TC-23 đến TC-30 về biểu đồ, bảng điểm, lịch sử và xuất báo cáo; ghi chú là TC-23 đến TC-27 bị gán sai mã."
+    },
+    "db/migrations/005_autotest_data_rules.sql": {
+      "name": "Chuẩn hoá dữ liệu ca TC-08",
+      "description": "Sửa ba giá trị nhập của ca TC-08 về đúng quy tắc đặt tên AUTOTEST; chạy lại nhiều lần vẫn an toàn."
+    },
+    "db/migrations/006_seed_auth_real_schema.sql": {
+      "name": "Nạp lại ca đăng nhập theo bảng thật",
+      "description": "Gộp ba bước nạp trước thành một và dùng đúng tên bảng, tên cột của cấu trúc thật; ghi chú là chưa từng chạy thử."
+    },
+    "db/migrations/007_seed_users.sql": {
+      "name": "Thêm 5 tài khoản thử",
+      "description": "Thêm năm tài khoản dùng chung một mật khẩu để thử đăng nhập và phân quyền, trong đó có tài khoản bị khoá và tài khoản chỉ xem."
+    },
+    "db/migrations/008_dashboard_runs_templates.sql": {
+      "name": "Thêm bộ mẫu và nhật ký chạy",
+      "description": "Thêm tên, cấu hình và trạng thái chốt cho mỗi lần chạy, bảng lưu các bộ kiểm thử mẫu và bảng nhật ký hiện trực tiếp khi đang chạy."
+    },
+    "db/migrations/009_seed_sample_template.sql": {
+      "name": "Thêm bộ kiểm thử mẫu",
+      "description": "Thêm một bộ, một đặc tả, hai ca kiểm thử và hai bộ mẫu để thử các trang quản lý; không dùng trên dữ liệu thật."
+    },
+    "db/migrations/010_add_pages_and_items.sql": {
+      "name": "Thêm trang và thành phần mẫu",
+      "description": "Thêm ba trang web mẫu, năm thành phần giao diện mẫu và liên kết giữa chúng."
+    },
+    "db/migrations/010_seed_auth_postgres.sql": {
+      "name": "Nạp ca đăng nhập bản Postgres",
+      "description": "Nạp lại 31 ca cùng bước và dữ liệu của 13 ca đăng nhập theo cú pháp Postgres; chỉ ba ca được đánh dấu sẵn sàng chạy."
+    },
+    "db/migrations/011_test_steps_field_name.sql": {
+      "name": "Thêm cột tên ô cần nhập",
+      "description": "Thêm chỗ lưu tên ô cần nhập của mỗi bước và điền từ chuỗi \"(field …)\" đã có trong phần kết quả mong đợi."
+    },
+    "db/migrations/012_template_status.sql": {
+      "name": "Thêm trạng thái bộ mẫu",
+      "description": "Thêm chỗ lưu trạng thái bật hoặc tắt của mỗi bộ kiểm thử mẫu, để giao diện bật/tắt sẵn có dùng được."
+    },
+    "db/migrations/013_bugs.sql": {
+      "name": "Thêm bảng lỗi tìm được",
+      "description": "Tạo bảng lưu lỗi được báo lên kèm mức độ và trạng thái; mỗi lỗi luôn gắn với một kết quả chạy và bị xoá cùng lần chạy đó."
+    },
+    "db/seed-dev-users.sh": {
+      "name": "Dữ liệu thử cho máy dev (bản .sh)",
+      "description": "Chứa đúng nội dung câu lệnh của tệp dữ liệu thử cho máy phát triển, dù phần mở rộng trông như một tệp lệnh chạy được."
+    },
+    "db/seed/dev_seed.sql": {
+      "name": "Dữ liệu thử cho máy dev",
+      "description": "Thêm hai tài khoản thử và một bộ gồm bốn ca kiểm thử để thử hệ thống; chỉ dành cho máy phát triển."
+    },
+    "db/seed/seed.sql": {
+      "name": "Dữ liệu mẫu ban đầu",
+      "description": "Xoá sạch rồi nạp lại các bộ, đặc tả và ca kiểm thử mẫu; chạy lại là mất mọi ca đã thêm sau đó."
+    }
+  }
+}

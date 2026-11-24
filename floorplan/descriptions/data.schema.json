@@ -1,0 +1,12 @@
+{
+  "files": {
+    "db/schema/test_automation_db_schema.sql": {
+      "name": "Cấu trúc bảng gốc",
+      "description": "Tạo toàn bộ bảng của hệ thống: người dùng, bộ và ca kiểm thử, các bước, lần chạy, kết quả, bằng chứng, báo cáo, trang và thành phần."
+    },
+    "db/verify.sql": {
+      "name": "Câu lệnh soát dữ liệu",
+      "description": "Gồm các câu tra cứu chạy tay để kiểm tra 13 ca đăng nhập đã có đủ bước và dữ liệu nhập; không sửa gì."
+    }
+  }
+}

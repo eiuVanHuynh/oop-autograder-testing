@@ -1,0 +1,20 @@
+{
+  "files": {
+    "frontend/index.html": {
+      "name": "Trang khởi đầu",
+      "description": "Trang trống mà trình duyệt mở trước tiên: đặt tiêu đề, tải phông chữ và áp bộ màu người dùng đã chọn trước khi màn hình được vẽ."
+    },
+    "frontend/postcss.config.js": {
+      "name": "Thiết lập xử lý kiểu dáng",
+      "description": "Bật hai bước xử lý kiểu dáng khi dựng trang, gồm việc thêm tiền tố cho các trình duyệt cũ."
+    },
+    "frontend/tailwind.config.js": {
+      "name": "Thiết lập màu và cỡ chữ",
+      "description": "Trỏ các màu thương hiệu, nền, đường kẻ, phông chữ và hiệu ứng của giao diện vào bộ màu đổi được mà không cần dựng lại."
+    },
+    "frontend/vite.config.js": {
+      "name": "Thiết lập dựng trang",
+      "description": "Thiết lập công cụ chạy và đóng gói giao diện cho máy lập trình và cho bản chạy thật."
+    }
+  }
+}

@@ -245,8 +245,13 @@ export default function TestCreation() {
     if (!isRunning || !runId) return;
     let after = 0;
     let stopped = false;
+    // Một lần hỏi đang bay thì bỏ nhịp kế tiếp: trên Vercel một lần GET /logs có thể lâu hơn
+    // POLL_MS, hai lần hỏi chồng nhau cùng mang after=0 và cùng append -> log lặp y hệt.
+    let busy = false;
 
     const tick = async () => {
+      if (busy) return;
+      busy = true;
       try {
         const res = await fetchRunLogs(runId, after);
         if (stopped) return;
@@ -264,6 +269,8 @@ export default function TestCreation() {
         }
       } catch {
         // Mất mạng thoáng qua: bỏ qua, lần hỏi sau sẽ thử lại.
+      } finally {
+        busy = false;
       }
     };
 

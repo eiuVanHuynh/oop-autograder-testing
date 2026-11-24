@@ -1,0 +1,44 @@
+{
+  "files": {
+    "backend/src/services/auth.service.js": {
+      "name": "Đăng nhập và đăng ký",
+      "description": "Tạo tài khoản mới ở quyền chỉ xem, kiểm tra mật khẩu khi đăng nhập và cấp thẻ ra vào; phần quên mật khẩu chưa dùng được."
+    },
+    "backend/src/services/bugs.service.js": {
+      "name": "Lỗi tìm được",
+      "description": "Ghi lỗi từ một ca kiểm thử thất bại, chỉ nhận khi kết quả thật sự thất bại, rồi liệt kê và cập nhật các lỗi đó."
+    },
+    "backend/src/services/catalog.service.js": {
+      "name": "Bộ và ca kiểm thử",
+      "description": "Quản lý bộ kiểm thử, nhóm ca, từng ca và các bước; tự hạ ca về bản nháp khi sửa khiến ca không còn chạy được."
+    },
+    "backend/src/services/ingest.service.js": {
+      "name": "Nhận kết quả từ nơi chạy",
+      "description": "Giao danh sách ca cho nơi chạy kiểm thử, nhận log và kết quả gửi về, rồi đóng lần chạy và dọn log tạm."
+    },
+    "backend/src/services/reports.service.js": {
+      "name": "Xuất báo cáo",
+      "description": "Khung trống dành cho việc xuất báo cáo và tạo liên kết chia sẻ; chưa viết gì và chưa chỗ nào dùng đến."
+    },
+    "backend/src/services/runs.service.js": {
+      "name": "Lần chạy kiểm thử",
+      "description": "Tạo lần chạy từ mẫu hoặc danh sách ca, đặt lệnh chạy, theo dõi log, hủy, chạy lại và tra kết quả từng ca."
+    },
+    "backend/src/services/stats.service.js": {
+      "name": "Thống kê bảng điều khiển",
+      "description": "Khung trống dành cho các con số trên bảng điều khiển; chưa viết gì và chưa chỗ nào dùng đến."
+    },
+    "backend/src/services/system.service.js": {
+      "name": "Kiểm tra hệ thống còn sống",
+      "description": "Khung trống dành cho việc kiểm tra máy chủ và cơ sở dữ liệu còn sống; chưa viết gì và chưa chỗ nào dùng đến."
+    },
+    "backend/src/services/templates.service.js": {
+      "name": "Mẫu chạy kiểm thử",
+      "description": "Tạo, sửa, xóa và nhân bản các mẫu chọn sẵn ca kiểm thử, chặn trùng tên và kèm số ca sẵn sàng chạy."
+    },
+    "backend/src/services/users.service.js": {
+      "name": "Quản lý thành viên",
+      "description": "Cho quản trị viên thêm, sửa, đổi quyền, khóa hay xóa thành viên; chặn tự hạ quyền mình và bảo vệ tài khoản quản trị."
+    }
+  }
+}

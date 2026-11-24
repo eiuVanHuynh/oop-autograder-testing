@@ -1,0 +1,16 @@
+{
+  "files": {
+    "backend/api/index.js": {
+      "name": "Điểm vào trên Vercel",
+      "description": "Giao sẵn ứng dụng máy chủ cho Vercel khi chạy trên nền tảng này, không tự mở cổng nào."
+    },
+    "backend/src/app.js": {
+      "name": "Ứng dụng máy chủ",
+      "description": "Lắp máy chủ lại: ghi log mỗi yêu cầu, nhận dữ liệu gửi lên, chuyển vào các địa chỉ /api rồi gom mọi lỗi về một chỗ."
+    },
+    "backend/src/server.js": {
+      "name": "Chạy máy chủ ở máy",
+      "description": "Mở cổng để máy chủ nhận yêu cầu khi chạy trên máy cá nhân; khi chạy trên Vercel thì không dùng tới."
+    }
+  }
+}

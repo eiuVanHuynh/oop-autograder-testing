@@ -1,7 +1,7 @@
 {
   "name": "oop-autograder-testing",
   "version": "1.0.0",
-  "description": "",
+  "description": "Playwright runner: fetches a run plan from the backend, executes it, pushes logs and results back.",
   "main": "index.js",
   "directories": {
     "doc": "docs",
@@ -9,23 +9,16 @@
   },
   "scripts": {
     "test": "playwright test",
-    "data:apply": "node scripts/apply-autotest-data.js",
-    "check:x1x3": "node scripts/check-x1-x3.js",
-    "plan": "node scripts/fetch-plan.js",
-    "report:db": "node scripts/export-report.js"
+    "plan": "node scripts/fetch-plan.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "@playwright/test": "^1.63.0",
-    "@types/node": "^26.6.5",
-    "md-to-pdf": "^5.2.5"
+    "@playwright/test": "^1.63.0"
   },
   "dependencies": {
-    "dotenv": "^17.4.2",
-    "pdfkit": "^0.20.2",
-    "mysql2": "^3.24.6"
+    "dotenv": "^17.4.2"
   }
 }

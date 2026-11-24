@@ -63,11 +63,9 @@ class IngestService {
     await this._getRun(runId);
     const ok = await this.runRepository.markFinished(runId, finalStatus);
     if (!ok) throw new AppError(409, 'RUN_FINISHED', 'This run was already reported as finished');
-    // Logs are KEPT after the run ends (issue #79): the report page reads GET /runs/:id/logs, and the
-    // live panel's last poll arrives after finish — purging here wiped both. logRepository.purge() stays
-    // for an explicit cleanup.
-    // shortcut: nothing trims run_logs now, so the table only grows; add a retention job (delete logs of
-    // runs finished over N days ago) once run volume matters.
+    // Logs are NOT purged here any more: the report page (GET /runs/:id/logs) is the only place the
+    // step-by-step log can be read, and purging on finish left every finished run with an empty log panel.
+    // shortcut: run_logs now grows without bound — add a scheduled purge of rows older than N days when it hurts.
     return this.runRepository.findById(runId);
   }
 

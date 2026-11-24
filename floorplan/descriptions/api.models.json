@@ -1,0 +1,24 @@
+{
+  "files": {
+    "backend/src/models/Bug.js": {
+      "name": "Lỗi tìm được",
+      "description": "File trống: chưa mô tả gì về lỗi tìm được và chưa chỗ nào dùng đến."
+    },
+    "backend/src/models/TestCase.js": {
+      "name": "Ca kiểm thử",
+      "description": "File trống: chưa mô tả gì về ca kiểm thử và chưa chỗ nào dùng đến."
+    },
+    "backend/src/models/TestResult.js": {
+      "name": "Kết quả kiểm thử",
+      "description": "File trống: chưa mô tả gì về kết quả kiểm thử và chưa chỗ nào dùng đến."
+    },
+    "backend/src/models/TestRun.js": {
+      "name": "Lần chạy kiểm thử",
+      "description": "File trống: chưa mô tả gì về lần chạy kiểm thử và chưa chỗ nào dùng đến."
+    },
+    "backend/src/models/TestSuite.js": {
+      "name": "Bộ kiểm thử",
+      "description": "File trống: chưa mô tả gì về bộ kiểm thử và chưa chỗ nào dùng đến."
+    }
+  }
+}

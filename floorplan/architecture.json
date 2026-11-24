@@ -1,0 +1,89 @@
+{
+  "$schema": "floorplan/architecture@1",
+  "audience": "everyone",
+  "project": {
+    "name": "OOP AutoGrader – Hệ thống kiểm thử tự động",
+    "summary": "Nền tảng tự chạy kiểm thử cho website OOP AutoGrader: người dùng chọn bộ kiểm thử trên trang quản lý, máy chủ đặt lệnh chạy, các bài kiểm thử Playwright chạy trên GitHub Actions rồi đẩy kết quả về để xem báo cáo. Gồm trang quản lý React, máy chủ Node/Express, bộ kiểm thử Playwright và cơ sở dữ liệu Postgres.",
+    "entrypoints": ["backend/src/server.js", "backend/api/index.js", "frontend/src/main.jsx", "automation/tests/auth/auth.spec.js"]
+  },
+  "ignore": ["tmp/**", "floorplan/**", "**/dist/**", "docs/**"],
+  "nodes": [
+    { "id": "web", "label": "Trang quản lý", "kind": "ui", "summary": "Nơi người dùng đăng nhập, chọn bộ kiểm thử để chạy, xem lịch sử và báo cáo kết quả.", "paths": ["frontend/**"] },
+    { "id": "web.views", "parent": "web", "label": "Các trang", "kind": "feature", "summary": "Từng trang người dùng thấy: đăng nhập, bảng tổng quan, danh sách ca kiểm thử, tạo lần chạy, lịch sử, báo cáo, quản lý người dùng.", "paths": ["frontend/src/views/**"] },
+    { "id": "web.shell", "parent": "web", "label": "Khung và điều hướng", "kind": "feature", "summary": "Bộ khung chung của trang: chuyển trang, giữ phiên đăng nhập, chặn trang không đủ quyền.", "paths": ["frontend/src/App.jsx", "frontend/src/main.jsx", "frontend/src/routes/**", "frontend/src/controllers/**", "frontend/src/index.css"] },
+    { "id": "web.ui", "parent": "web", "label": "Bộ phần tử dùng lại", "kind": "library", "summary": "Nút, bảng, thẻ, bộ lọc, phân trang và các mảnh giao diện mọi trang dùng chung.", "paths": ["frontend/src/components/**"] },
+    { "id": "web.api", "parent": "web", "label": "Lớp gọi máy chủ", "kind": "library", "summary": "Mọi lời gọi từ trình duyệt sang máy chủ đi qua đây và được đổi về dạng trang dễ dùng.", "paths": ["frontend/src/services/**"] },
+    { "id": "web.models", "parent": "web", "label": "Quy tắc hiển thị", "kind": "library", "summary": "Quy ước dùng chung của giao diện: ai được làm gì, nhãn môi trường, dựng báo cáo HTML, đọc kết quả từng ca, lọc và chủ đề sáng/tối.", "paths": ["frontend/src/models/**"] },
+    { "id": "web.checks", "parent": "web", "label": "Kiểm tra nhanh giao diện", "kind": "test", "summary": "Mấy đoạn kiểm tra tự chạy cho phần dựng báo cáo, log và bước kiểm thử.", "paths": ["frontend/checks/**"] },
+    { "id": "web.build", "parent": "web", "label": "Cấu hình đóng gói", "kind": "config", "summary": "Thiết lập công cụ dựng trang và kiểu dáng.", "paths": ["frontend/vite.config.js", "frontend/tailwind.config.js", "frontend/postcss.config.js", "frontend/index.html"] },
+
+    { "id": "api", "label": "Máy chủ", "kind": "service", "summary": "Bộ não ở giữa: nhận yêu cầu từ trang quản lý, kiểm tra quyền, đặt lệnh chạy kiểm thử và lưu mọi thứ vào cơ sở dữ liệu.", "paths": ["backend/**"] },
+    { "id": "api.entry", "parent": "api", "label": "Điểm khởi động", "kind": "config", "summary": "Dựng ứng dụng Express, mở cổng khi chạy ở máy, và điểm vào khi chạy trên Vercel.", "paths": ["backend/src/app.js", "backend/src/server.js", "backend/api/**"] },
+    { "id": "api.routes", "parent": "api", "label": "Danh sách đường dẫn", "kind": "feature", "summary": "Khai báo mọi địa chỉ máy chủ nhận được và dán lần lượt kiểm tra quyền, kiểm tra dữ liệu rồi tới phần xử lý.", "paths": ["backend/src/routes/**"] },
+    { "id": "api.controllers", "parent": "api", "label": "Nhận và trả yêu cầu", "kind": "feature", "summary": "Lấy dữ liệu từ yêu cầu, gọi phần nghiệp vụ tương ứng rồi trả lời về trang.", "paths": ["backend/src/controllers/**"] },
+    { "id": "api.validators", "parent": "api", "label": "Kiểm tra dữ liệu gửi lên", "kind": "library", "summary": "Mô tả dữ liệu hợp lệ cho từng địa chỉ và chặn yêu cầu sai ngay từ đầu.", "paths": ["backend/src/validators/**"] },
+    { "id": "api.middlewares", "parent": "api", "label": "Lớp chắn chung", "kind": "library", "summary": "Đòi đăng nhập, đòi đúng vai trò, đòi khóa bí mật cho máy đẩy kết quả, ghi log và gom lỗi về một chỗ.", "paths": ["backend/src/middlewares/**"] },
+    { "id": "api.services", "parent": "api", "label": "Phần nghiệp vụ", "kind": "feature", "summary": "Nơi quyết định thật sự: đăng nhập, người dùng, bộ kiểm thử, lần chạy, nhận kết quả, lỗi tìm được, thống kê và báo cáo.", "paths": ["backend/src/services/**"] },
+    { "id": "api.services.runner", "parent": "api.services", "label": "Người đặt lệnh chạy", "kind": "worker", "summary": "Chọn cách chạy kiểm thử (nhờ GitHub, chạy ngay tại máy, hoặc chạy giả để thử) và theo dõi lần chạy đó.", "paths": ["backend/src/services/runner/**"] },
+    { "id": "api.services.target", "parent": "api.services", "label": "Chọn ca để chạy", "kind": "library", "summary": "Tính ra danh sách ca kiểm thử của một lần chạy, theo bộ kiểm thử hoặc theo các ca được chọn tay.", "paths": ["backend/src/services/target/**"] },
+    { "id": "api.repositories", "parent": "api", "label": "Lớp đọc ghi dữ liệu", "kind": "data", "summary": "Chỗ duy nhất chạm vào cơ sở dữ liệu: câu truy vấn cho người dùng, bộ kiểm thử, lần chạy, kết quả, log và lỗi.", "paths": ["backend/src/repositories/**"] },
+    { "id": "api.models", "parent": "api", "label": "Mô tả dữ liệu", "kind": "data", "summary": "Hình dạng các thứ chính trong hệ thống: ca kiểm thử, bộ kiểm thử, lần chạy, kết quả, lỗi.", "paths": ["backend/src/models/**"] },
+    { "id": "api.config", "parent": "api", "label": "Cấu hình và kết nối", "kind": "config", "summary": "Đọc biến môi trường, mở kết nối dùng chung tới cơ sở dữ liệu và lắp các phần của máy chủ lại với nhau.", "paths": ["backend/src/config/**"] },
+    { "id": "api.utils", "parent": "api", "label": "Tiện ích chung", "kind": "library", "summary": "Kiểu lỗi dùng chung, bắt lỗi trong hàm bất đồng bộ và đổi dữ liệu từ cơ sở dữ liệu sang dạng trả về.", "paths": ["backend/src/utils/**"] },
+    { "id": "api.tests", "parent": "api", "label": "Kiểm thử máy chủ", "kind": "test", "summary": "Gọi thật máy chủ để chắc đăng nhập, quyền, nhận kết quả và dữ liệu trả về còn đúng.", "paths": ["backend/tests/**", "backend/scripts/**"] },
+
+    { "id": "auto", "label": "Bộ kiểm thử tự động", "kind": "test", "summary": "Các bài kiểm thử tự mở website OOP AutoGrader như người thật và ghi lại kết quả.", "paths": ["automation/**"] },
+    { "id": "auto.specs", "parent": "auto", "label": "Các bài kiểm thử", "kind": "test", "summary": "Kịch bản chạy thật: đăng nhập, nộp bài, kiểm tra dữ liệu và đối chiếu với kế hoạch kiểm thử.", "paths": ["automation/tests/**/*.spec.js"] },
+    { "id": "auto.models", "parent": "auto", "label": "Mô hình trang", "kind": "library", "summary": "Gói sẵn cách bấm và đọc từng trang của website được kiểm thử, để bài kiểm thử viết gọn.", "paths": ["automation/tests/models/**", "automation/tests/fixtures/**", "automation/tests/helper/**"] },
+    { "id": "auto.utils", "parent": "auto", "label": "Trợ giúp khi chạy", "kind": "library", "summary": "Dựng bài nộp mẫu, nối vào cơ sở dữ liệu và tải danh sách ca kiểm thử cho lần chạy.", "paths": ["automation/tests/utils/**"] },
+    { "id": "auto.reporters", "parent": "auto", "label": "Gửi kết quả về", "kind": "worker", "summary": "Sau mỗi bài kiểm thử, ghi lại kết quả và đẩy về máy chủ để hiện trên trang.", "paths": ["automation/reporters/**"] },
+    { "id": "auto.scripts", "parent": "auto", "label": "Lệnh phụ trợ", "kind": "script", "summary": "Lấy kế hoạch chạy từ máy chủ, dựng dữ liệu kiểm thử, xuất báo cáo và kiểm tra nhanh.", "paths": ["automation/scripts/**"] },
+    { "id": "auto.fixtures", "parent": "auto", "label": "Bài nộp mẫu", "kind": "data", "summary": "Các bài nộp Java dựng sẵn cho đủ tình huống: đúng hoàn toàn, lỗi biên dịch, thiếu file, lặp vô hạn, sai tên thư mục.", "paths": ["automation/fixtures/**"] },
+    { "id": "auto.config", "parent": "auto", "label": "Cấu hình chạy kiểm thử", "kind": "config", "summary": "Thiết lập bộ kiểm thử: trình duyệt, địa chỉ website cần kiểm thử, cách xuất kết quả.", "paths": ["automation/*.js"] },
+
+    { "id": "data", "label": "Cơ sở dữ liệu kiểm thử", "kind": "data", "summary": "Cấu trúc bảng, các bước nâng cấp lần lượt và dữ liệu mẫu cho hệ thống kiểm thử.", "paths": ["db/**", "migrate.js"] },
+    { "id": "data.schema", "parent": "data", "label": "Cấu trúc bảng gốc", "kind": "data", "summary": "Bản mô tả chuẩn của toàn bộ bảng trong cơ sở dữ liệu kiểm thử.", "paths": ["db/schema/**", "db/verify.sql"] },
+    { "id": "data.migrations", "parent": "data", "label": "Các bước nâng cấp", "kind": "data", "summary": "Lần lượt từng bước thay đổi cấu trúc và nạp dữ liệu: ca kiểm thử theo SRS, người dùng, bộ kiểm thử mẫu, lỗi tìm được.", "paths": ["db/migrations/**", "db/seed/**", "db/seed-dev-users.sh"] },
+
+    { "id": "pg", "label": "Postgres", "kind": "external", "summary": "Cơ sở dữ liệu lưu người dùng, ca kiểm thử, lần chạy, kết quả và lỗi.", "packages": ["npm:pg", "npm:mysql2"] },
+    { "id": "gha", "label": "GitHub Actions", "kind": "external", "summary": "Dịch vụ chạy bộ kiểm thử Playwright trên máy của GitHub mỗi khi có lần chạy mới.", "hosts": ["api.github.com"] },
+    { "id": "sut", "label": "Website OOP AutoGrader", "kind": "external", "summary": "Website chấm bài cho sinh viên — thứ được kiểm thử. Mã nguồn của nó không nằm trong repo này." }
+  ],
+  "edges": [
+    { "from": "api.repositories", "to": "pg", "kind": "data", "label": "đọc/ghi", "description": "Mọi câu truy vấn của máy chủ đi qua lớp này." },
+    { "from": "data.migrations", "to": "pg", "kind": "data", "label": "nâng cấp cấu trúc" },
+    { "from": "api.services.runner", "to": "gha", "kind": "http", "label": "đặt lệnh chạy", "description": "Gọi GitHub Actions để khởi động một lần chạy kiểm thử." },
+    { "from": "gha", "to": "auto.specs", "kind": "call", "label": "chạy Playwright" },
+    { "from": "auto.specs", "to": "sut", "kind": "http", "label": "mở trang như người thật" },
+    { "from": "auto.reporters", "to": "api.routes", "kind": "http", "label": "đẩy kết quả về", "description": "Gửi kết quả từng ca về máy chủ bằng khóa bí mật." },
+    { "from": "auto.utils", "to": "pg", "kind": "data", "label": "đọc dữ liệu kiểm thử" }
+  ],
+  "flows": [
+    { "id": "run-tests", "title": "Chạy một lần kiểm thử", "description": "Từ lúc bấm nút tới lúc bộ kiểm thử thật sự chạy.",
+      "steps": [
+        { "node": "web.views", "note": "Người dùng chọn bộ kiểm thử và môi trường rồi bấm chạy" },
+        { "node": "web.api", "note": "Trang gửi yêu cầu tạo lần chạy sang máy chủ" },
+        { "node": "api.routes", "note": "Máy chủ kiểm tra đăng nhập, quyền và dữ liệu gửi lên" },
+        { "node": "api.services", "note": "Tạo bản ghi lần chạy và tính ra danh sách ca cần chạy" },
+        { "node": "api.services.runner", "note": "Đặt lệnh chạy ở GitHub Actions" },
+        { "node": "gha", "note": "GitHub khởi động máy chạy và gọi Playwright" }
+      ] },
+    { "id": "collect-results", "title": "Kết quả trở về trang", "description": "Bộ kiểm thử chạy xong thì kết quả đi về đâu.",
+      "steps": [
+        { "node": "auto.specs", "note": "Bài kiểm thử mở website OOP AutoGrader và kiểm tra từng bước" },
+        { "node": "auto.reporters", "note": "Ghi kết quả từng ca rồi đẩy về máy chủ" },
+        { "node": "api.routes", "note": "Máy chủ nhận kết quả, chỉ cho qua nếu có khóa bí mật đúng" },
+        { "node": "api.repositories", "note": "Lưu kết quả, log và trạng thái lần chạy" },
+        { "node": "pg", "note": "Dữ liệu nằm lại trong cơ sở dữ liệu" },
+        { "node": "web.views", "note": "Trang lịch sử và trang báo cáo đọc lại để hiện cho người dùng" }
+      ] }
+  ],
+  "tour": [
+    { "node": "web", "title": "Người dùng thấy gì", "note": "Trang quản lý: đăng nhập, chọn bộ kiểm thử để chạy, xem lịch sử và báo cáo." },
+    { "node": "api", "title": "Bộ não ở giữa", "note": "Máy chủ nhận mọi yêu cầu từ trang, kiểm tra quyền và quyết định việc gì được làm." },
+    { "node": "api.services.runner", "title": "Ai thật sự chạy kiểm thử", "note": "Máy chủ không tự chạy kiểm thử; nó đặt lệnh cho GitHub Actions chạy giúp." },
+    { "node": "auto", "title": "Bộ kiểm thử", "note": "Các bài kiểm thử mở website OOP AutoGrader như một người dùng thật rồi gửi kết quả về." },
+    { "node": "data", "title": "Dữ liệu nằm ở đâu", "note": "Postgres lưu người dùng, ca kiểm thử, lần chạy và kết quả; thư mục này giữ cấu trúc bảng và dữ liệu mẫu." },
+    { "node": "frontend/src/views/TestExecution.jsx", "title": "Trang bắt đầu mọi thứ", "note": "Chỗ người dùng tạo một lần chạy — điểm vào tốt nhất nếu muốn đọc code." }
+  ]
+}

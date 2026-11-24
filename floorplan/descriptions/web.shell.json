@@ -1,0 +1,24 @@
+{
+  "files": {
+    "frontend/src/App.jsx": {
+      "name": "Gốc ứng dụng",
+      "description": "Gói toàn bộ ứng dụng lại: giữ phiên đăng nhập, bật việc chuyển trang và định kiểu cho các thông báo bật lên ở góc trên phải."
+    },
+    "frontend/src/controllers/AuthContext.jsx": {
+      "name": "Phiên đăng nhập",
+      "description": "Ghi nhớ ai đang đăng nhập và lưu lại để tải lại trang vẫn còn; đăng xuất chỉ xoá phiên trên máy, chưa báo cho máy chủ."
+    },
+    "frontend/src/index.css": {
+      "name": "Màu và kiểu chung",
+      "description": "Khai báo các bộ màu, bo góc, nền và hiệu ứng chuyển trang mà mọi màn hình dùng chung, đổi được ngay mà không cần dựng lại."
+    },
+    "frontend/src/main.jsx": {
+      "name": "Điểm khởi động",
+      "description": "Khởi động ứng dụng trong trình duyệt và vẽ nó vào trang."
+    },
+    "frontend/src/routes/AppRoutes.jsx": {
+      "name": "Bản đồ các trang",
+      "description": "Gắn từng địa chỉ với một trang, đẩy người chưa đăng nhập về trang đăng nhập và hiện trang không đủ quyền khi vai trò không được vào."
+    }
+  }
+}
