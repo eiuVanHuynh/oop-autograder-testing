@@ -4,7 +4,7 @@ import { getRuns } from "../services/runService";
 import { getErrorMessage } from "../services/authService";
 import { ENVIRONMENTS } from "../models/options";
 import { parseQuery, buildQuery } from "../models/searchTags";
-import { getTableView, setTableView } from "../models/tableView";
+import { useTableView } from "../models/tableView";
 import FilterBar from "../components/ui/FilterBar";
 import FilterMenu from "../components/ui/FilterMenu";
 import DataTable, { TableViewToggle } from "../components/ui/DataTable";
@@ -56,11 +56,8 @@ export default function History() {
   const [selectedRun, setSelectedRun] = useState(null);
   const [loading, setLoading] = useState(true);
   // Bảng hay thẻ: trang giữ state vì nút nằm trên FilterBar, không nằm trong DataTable.
-  const [view, setView] = useState(() => getTableView("history"));
-  const changeView = (v) => {
-    setView(v);
-    setTableView("history", v);
-  };
+  // Màn hẹp thì tự chuyển dạng thẻ; `locked` = lúc đó, nút đổi dạng không còn nghĩa.
+  const { view, setView: changeView, locked: narrow } = useTableView("history");
   const [q, setQ] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -111,7 +108,9 @@ export default function History() {
         onRefresh={() => setReloadKey((k) => k + 1)}
         loading={loading}
         tagGroups={GROUPS}
-        trailing={<TableViewToggle value={view} onChange={changeView} />}
+        trailing={
+          !narrow && <TableViewToggle value={view} onChange={changeView} />
+        }
       >
         <FilterMenu
           groups={GROUPS}

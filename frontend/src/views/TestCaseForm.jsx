@@ -710,7 +710,7 @@ function TestCaseFormInner({ viewing }) {
                   <ul className="m-0 list-none space-y-1 p-0 text-sm">
                     {templates.filter((t) => t.targetTestIds?.includes(form.code)).map((t) => (
                       <li key={t.id}>
-                        <Link to="/templates" className="text-brand-600 hover:underline">{t.name}</Link>
+                        <Link to={`/templates/${t.id}`} className="text-brand-600 hover:underline">{t.name}</Link>
                       </li>
                     ))}
                   </ul>

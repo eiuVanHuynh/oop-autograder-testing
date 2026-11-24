@@ -24,7 +24,7 @@ import {
 } from "../services/userService";
 import { getErrorMessage } from "../services/authService";
 import { parseQuery, buildQuery } from "../models/searchTags";
-import { getTableView, setTableView } from "../models/tableView";
+import { useTableView } from "../models/tableView";
 import CreateButton from "../components/ui/CreateButton";
 import FilterBar from "../components/ui/FilterBar";
 import FilterMenu from "../components/ui/FilterMenu";
@@ -66,11 +66,8 @@ export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   // Bảng hay thẻ: trang giữ state vì nút nằm trên FilterBar, không nằm trong DataTable.
-  const [view, setView] = useState(() => getTableView("users"));
-  const changeView = (v) => {
-    setView(v);
-    setTableView("users", v);
-  };
+  // Màn hẹp thì tự chuyển dạng thẻ; `locked` = lúc đó, nút đổi dạng không còn nghĩa.
+  const { view, setView: changeView, locked: narrow } = useTableView("users");
   const [q, setQ] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
   const [busyId, setBusyId] = useState(null);
@@ -201,7 +198,9 @@ export default function UserManagement() {
         onRefresh={refresh}
         loading={loading}
         tagGroups={GROUPS}
-        trailing={<TableViewToggle value={view} onChange={changeView} />}
+        trailing={
+          !narrow && <TableViewToggle value={view} onChange={changeView} />
+        }
       >
         <FilterMenu
           groups={GROUPS}

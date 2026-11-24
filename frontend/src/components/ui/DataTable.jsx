@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import Pagination from "./Pagination";
 import SegmentedControl from "./SegmentedControl";
-import { getTableView, setTableView } from "../../models/tableView";
+import { useTableView } from "../../models/tableView";
 const ALIGN = { right: "text-right", center: "text-center", left: "text-left" };
 
 const VIEW_OPTIONS = [
@@ -67,10 +67,10 @@ export default function DataTable({
   const [sort, setSort] = useState({ key: null, dir: "asc" });
   const canCards = cards || !!renderCard;
   const controlled = onViewChange !== undefined;
-  const [ownView, setOwnView] = useState(() =>
-    canCards ? getTableView(viewKey) : "table",
-  );
-  const view = controlled ? viewProp : ownView;
+  // Lựa chọn của chính DataTable khi trang không tự giữ state. Hook lo luôn việc màn hẹp thì
+  // ép dạng thẻ (models/tableView.js); bảng nào không có chế độ thẻ thì vẫn là bảng.
+  const own = useTableView(viewKey);
+  const view = controlled ? viewProp : canCards ? own.view : "table";
 
   // Lọc/tìm kiếm đổi danh sách -> quay về trang 1, nếu không sẽ thấy trang trống.
   // Chỉnh state ngay trong lúc render (cách React khuyến nghị) thay vì useEffect.
@@ -126,10 +126,7 @@ export default function DataTable({
     [sortedRows, pageSize, safePage],
   );
 
-  const changeView = (next) => {
-    setOwnView(next);
-    setTableView(viewKey, next);
-  };
+  const changeView = own.setView;
 
   const isEmpty = !loading && sortedRows.length === 0;
 
@@ -276,10 +273,10 @@ export default function DataTable({
     <div
       className={`bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden ${className}`}
     >
-      {(toolbar || (canCards && !controlled && !isEmpty)) && (
+      {(toolbar || (canCards && !controlled && !isEmpty && !own.locked)) && (
         <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-gray-100">
           <div className="min-w-0">{toolbar}</div>
-          {canCards && !controlled && !isEmpty && (
+          {canCards && !controlled && !isEmpty && !own.locked && (
             <TableViewToggle value={view} onChange={changeView} />
           )}
         </div>

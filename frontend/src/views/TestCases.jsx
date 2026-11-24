@@ -16,7 +16,7 @@ import {
   deprecateCase,
 } from "../services/catalogService";
 import { parseQuery, buildQuery } from "../models/searchTags";
-import { getTableView, setTableView } from "../models/tableView";
+import { useTableView } from "../models/tableView";
 import { listTemplates, updateTemplate } from "../services/templateService";
 import { getErrorMessage } from "../services/authService";
 import FilterBar from "../components/ui/FilterBar";
@@ -40,11 +40,8 @@ export default function TestCases() {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   // Bảng hay thẻ: trang giữ state vì nút nằm trên FilterBar, không nằm trong DataTable.
-  const [view, setView] = useState(() => getTableView("testcases"));
-  const changeView = (v) => {
-    setView(v);
-    setTableView("testcases", v);
-  };
+  // Màn hẹp thì tự chuyển dạng thẻ; `locked` = lúc đó, nút đổi dạng không còn nghĩa.
+  const { view, setView: changeView, locked: narrow } = useTableView("testcases");
   // Ô search là nguồn sự thật duy nhất: tag nằm trong chuỗi `q`, filter suy ra từ nó.
   const [q, setQ] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
@@ -209,7 +206,9 @@ export default function TestCases() {
         onRefresh={refresh}
         loading={loading}
         tagGroups={groups}
-        trailing={<TableViewToggle value={view} onChange={changeView} />}
+        trailing={
+          !narrow && <TableViewToggle value={view} onChange={changeView} />
+        }
       >
         <FilterMenu
           groups={groups}
