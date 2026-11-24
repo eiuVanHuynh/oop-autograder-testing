@@ -333,13 +333,6 @@ export default function TestCases() {
             render: (c) => <StatusBadge status={c.status} />,
           },
           {
-            key: "usedIn",
-            header: "Used in",
-            sortable: true,
-            className: "text-xs text-gray-500",
-            render: (c) => usedIn(c.code).length || "—",
-          },
-          {
             key: "actions",
             header: "",
             align: "right",

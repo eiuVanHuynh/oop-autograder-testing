@@ -50,6 +50,7 @@ export default function TestReport() {
   const [run, setRun] = useState(null);
   const [logs, setLogs] = useState([]);
   const [titles, setTitles] = useState(new Map()); // tc_code -> title
+  const [caseIds, setCaseIds] = useState(new Map()); // tc_code -> id (để mở nhanh trang chi tiết)
   const [apiResults, setApiResults] = useState(null); // tc_code -> kết quả từ /results
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -60,7 +61,11 @@ export default function TestReport() {
   useEffect(() => {
     let off = false;
     listCases()
-      .then((l) => !off && setTitles(new Map(l.map((c) => [c.code.toUpperCase(), c.title]))))
+      .then((l) => {
+        if (off) return;
+        setTitles(new Map(l.map((c) => [c.code.toUpperCase(), c.title])));
+        setCaseIds(new Map(l.map((c) => [c.code.toUpperCase(), c.id])));
+      })
       .catch(() => { });
     return () => { off = true; };
   }, []);
@@ -104,6 +109,7 @@ export default function TestReport() {
       code,
       // Tên từ /results (backend join test_cases) chuẩn hơn; thiếu thì tra catalog.
       title: hit?.title || titles.get(key) || "",
+      caseId: caseIds.get(key) ?? null,
       ...(hit ?? { status: null, ms: null, error: null }),
     };
   });
@@ -318,7 +324,13 @@ export default function TestReport() {
           ) : (
             <ul className="divide-y divide-gray-100 max-h-[420px] overflow-auto">
               {cases.map((c) => (
-                <li key={c.code} className="flex items-start justify-between gap-3 px-5 py-3">
+                <li
+                  key={c.code}
+                  onClick={c.caseId ? () => navigate(`/testcases/${c.caseId}`) : undefined}
+                  className={`flex items-start justify-between gap-3 px-5 py-3 ${
+                    c.caseId ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
+                >
                   {/* Thông báo lỗi KHÔNG lặp lại ở đây: nó đã nằm nguyên văn trong Execution log
                       ngay bên cạnh, in hai lần chỉ làm danh sách khó đọc. */}
                   <div className="min-w-0">

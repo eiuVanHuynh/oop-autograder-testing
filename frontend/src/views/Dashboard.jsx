@@ -18,11 +18,8 @@ import {
   Eye,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { useAuth } from "../controllers/AuthContext";
-import { canRunTest } from "../models/permissions";
 import { getRuns, computeStats, dailyPassFail } from "../services/runService";
 import { getErrorMessage } from "../services/authService";
-import CreateButton from "../components/ui/CreateButton";
 import DataTable from "../components/ui/DataTable";
 import StatusBadge from "../components/ui/StatusBadge";
 
@@ -39,7 +36,10 @@ const RECENT_COLUMNS = (navigate) => [
     align: "right",
     render: (r) => (
       <button
-        onClick={() => navigate(`/runs/${r.id}`)}
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/runs/${r.id}`);
+        }}
         className="px-3 py-1.5 border border-gray-200 hover:border-brand-600 hover:text-brand-600 rounded-lg text-xs font-medium inline-flex items-center gap-1"
       >
         <Eye size={14} /> Report
@@ -183,7 +183,6 @@ const buildStatistics = (
 };
 
 export default function Dashboard() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -289,9 +288,6 @@ export default function Dashboard() {
             Overview of test activity over the last 7 days.
           </p>
         </div>
-        {canRunTest(user?.role) && (
-          <CreateButton onClick={() => navigate("/tests/new")} />
-        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -348,9 +344,7 @@ export default function Dashboard() {
                   {option.label}
                 </button>
               ))}
-            </div>
 
-            <div className="flex flex-wrap items-center gap-3">
               {statisticsMode === "day" && (
                 <input
                   type="date"
@@ -523,6 +517,7 @@ export default function Dashboard() {
       <DataTable
         columns={RECENT_COLUMNS(navigate)}
         rows={recent}
+        onRowClick={(r) => navigate(`/runs/${r.id}`)}
         loading={loading}
         empty="No test runs yet."
         cards

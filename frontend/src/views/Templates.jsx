@@ -7,7 +7,6 @@ import {
   Eye,
   X,
   FileText,
-  Search,
   Copy,
   ChevronDown,
   ChevronUp,
@@ -87,9 +86,9 @@ const toForm = (t, readOnly = false) => ({
 const tplCode = (id) => `TPL-${String(id).padStart(4, "0")}`;
 
 // ==========================================
-// COMPONENT CUSTOM DROPDOWN CÓ Ô SEARCH
+// COMPONENT CUSTOM DROPDOWN CHỌN SCOPE
 // ==========================================
-function SearchableScopeSelect({
+function ScopeSelect({
   value,
   onChange,
   options = SCOPES,
@@ -97,13 +96,9 @@ function SearchableScopeSelect({
   disabled = false,
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef(null);
 
-  // Lọc danh sách từ mảng options
-  const filteredOptions = (options || []).filter((s) =>
-    String(s).toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const filteredOptions = options || [];
 
   // Đóng dropdown khi click ngoài vùng
   useEffect(() => {
@@ -123,7 +118,6 @@ function SearchableScopeSelect({
         type="button"
         disabled={disabled}
         onClick={() => {
-          if (!isOpen) setSearchQuery("");
           setIsOpen(!isOpen);
         }}
         className={`${inputCls} flex items-center justify-between text-left bg-white cursor-pointer select-none`}
@@ -138,25 +132,9 @@ function SearchableScopeSelect({
         <ChevronDown size={16} className="text-gray-400 shrink-0 ml-1" />
       </button>
 
-      {/* Menu xổ xuống chứa Ô Search + Danh Sách */}
+      {/* Menu xổ xuống chứa danh sách */}
       {isOpen && !disabled && (
         <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-2 space-y-2">
-          {/* Ô Input Tìm Kiếm */}
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
-            <Search
-              size={14}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-            />
-            <input
-              type="text"
-              autoFocus
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search scope..."
-              className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-900"
-            />
-          </div>
-
           {/* Danh sách các Option */}
           <div className="max-h-48 overflow-y-auto space-y-0.5">
             {placeholder === "All Scopes" && (
@@ -164,7 +142,6 @@ function SearchableScopeSelect({
                 onClick={() => {
                   onChange("");
                   setIsOpen(false);
-                  setSearchQuery("");
                 }}
                 className="px-3 py-2 text-xs text-gray-500 hover:bg-gray-100 rounded-lg cursor-pointer"
               >
@@ -183,7 +160,6 @@ function SearchableScopeSelect({
                   onClick={() => {
                     onChange(s);
                     setIsOpen(false);
-                    setSearchQuery("");
                   }}
                   className={`px-3 py-2 text-xs rounded-lg cursor-pointer transition ${
                     value === s
@@ -590,7 +566,7 @@ export default function Templates() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <form
             onSubmit={handleSave}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4"
+            className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 space-y-4"
           >
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">
@@ -671,7 +647,7 @@ export default function Templates() {
                 <div>
                   <label className={labelCls}>Scope</label>
                   {/* Tích hợp Searchable Scope Select ở Modal */}
-                  <SearchableScopeSelect
+                  <ScopeSelect
                     value={form.scope}
                     disabled={readOnly || saving}
                     onChange={(val) =>

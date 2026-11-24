@@ -453,7 +453,7 @@ export default function UserManagement() {
                       >
                         {ROLES.map((r) => (
                           <option key={r} value={r}>
-                            {r}
+                            {r.charAt(0).toUpperCase() + r.slice(1)}
                           </option>
                         ))}
                       </select>
@@ -468,8 +468,8 @@ export default function UserManagement() {
                           setForm({ ...form, status: e.target.value })
                         }
                       >
-                        <option value="active">active</option>
-                        <option value="inactive">inactive</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
                       </select>
                     </div>
                   </div>
