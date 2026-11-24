@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const { authController } = require("../config/container");
 
-const { loginSchema } = require("../validators/auth.schema");
+const { loginSchema, registerSchema } = require("../validators/auth.schema");
 const validate = require("../middlewares/validate");
 
 // Login, register, forgot password, Google OAuth.
@@ -10,9 +10,12 @@ const validate = require("../middlewares/validate");
 // To do:
 // - Every line in this order: requireAuth → requireRole → validate → controller.
 // - A route only declares the URL, it holds no logic.
-// - Still missing: register / me / logout / forgot-password / reset-password / google.
-//   The register/forgot/reset schemas already exist in validators/auth.schema.js.
-//   For now accounts are created straight in the DB (db/migrations/007_seed_users.sql).
+// - Still missing: me / logout / forgot-password / reset-password / google.
+//   The forgot/reset schemas already exist in validators/auth.schema.js.
+
+// shortcut: register has no rate limiting, so api-endpoints.md's 429 never happens — add one
+// (express-rate-limit) before this is exposed outside the campus network.
+router.post("/register", validate(registerSchema), authController.register);
 
 router.post("/login", validate(loginSchema), authController.login);
 

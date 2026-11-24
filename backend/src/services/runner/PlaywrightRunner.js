@@ -64,19 +64,22 @@ class PlaywrightRunner extends TestRunner {
       for (const code of codes) {
         if (this.cancelled.has(ciRunId)) {
           await log('warn', '[PLAYWRIGHT] Cancelled, skipping the remaining test cases.');
-          await this.runRepository.markFinished(runId, 'interrupted');
+          await this.runRepository.markFinished(runId, 'interrupted'); // after the log: see _run's note
           return;
         }
         await this._runCase(browser, runId, code, timeout, log, baseUrl);
       }
 
+      // The last log line goes in BEFORE the run is closed: the live panel stops polling as soon as
+      // GET /runs/:id/logs reports a status other than 'running', so anything logged after
+      // markFinished never reaches the screen (issue #79).
+      await log('info', '[PLAYWRIGHT] Finished.');
       // final_status left empty: the run status is computed from test_results.
       await this.runRepository.markFinished(runId, null);
-      await log('info', '[PLAYWRIGHT] Finished.');
     } catch (err) {
       // An infrastructure error (browser would not start…), not a failing test.
       await log('error', `[PLAYWRIGHT] Runner error: ${err.message}`);
-      await this.runRepository.markFinished(runId, 'failed');
+      await this.runRepository.markFinished(runId, 'failed'); // after the log: see the note above
     } finally {
       this.sessions.delete(ciRunId);
       if (browser) await browser.close().catch(() => {});

@@ -195,3 +195,36 @@ test('toDataMap: within the same is_valid group the first row wins', () => {
   ];
   assert.equal(toDataMap(rows).username, 'dau');
 });
+
+// ---------------------------------------------------------------------------
+// Execution order (issue #67). A template's target_json.testIds is an ORDERED list; the resolver
+// used to run every list through a sort, so the order the user arranged never reached the runner.
+// The fake repository below returns what it is given, the way array_position does in SQL.
+const { createTargetResolver } = require('../src/services/target');
+
+const orderResolver = () =>
+  createTargetResolver({
+    catalogRepository: {
+      // Keeps the order of the argument and drops a code that is not 'ready', like the real query.
+      findReadyCodesByTcCodes: async (codes) => codes.filter((c) => c !== 'TC-99'),
+      findReadyCaseCodes: async () => ['TC-10', 'TC-2'],
+    },
+  });
+
+test('resolver: a template keeps the testIds order, it is the execution order', async () => {
+  const codes = await orderResolver().resolveToTestCodes({ testIds: ['TC-31', 'TC-01', 'TC-02'] });
+  assert.deepEqual(codes, ['TC-31', 'TC-01', 'TC-02']); // sorting would give TC-01, TC-02, TC-31
+});
+
+test('resolver: POST /runs { testIds } too, and a repeated code keeps its first position', async () => {
+  const r = orderResolver();
+  assert.deepEqual(await r.resolveExplicitTestCodes(['TC-02', 'TC-31']), ['TC-02', 'TC-31']);
+  assert.deepEqual(await r.resolveExplicitTestCodes(['TC-02', 'TC-31', 'TC-02']), ['TC-02', 'TC-31']);
+  // A code that is not 'ready' is dropped without disturbing the rest of the order.
+  assert.deepEqual(await r.resolveExplicitTestCodes(['TC-02', 'TC-99', 'TC-31']), ['TC-02', 'TC-31']);
+});
+
+test('resolver: a suite has no order of its own, so it is sorted by number', async () => {
+  // Alphabetically 'TC-10' comes before 'TC-2'; counting the number is what a reader expects.
+  assert.deepEqual(await orderResolver().resolveToTestCodes({ suiteId: 1 }), ['TC-2', 'TC-10']);
+});
