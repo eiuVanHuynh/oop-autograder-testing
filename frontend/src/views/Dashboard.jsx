@@ -16,6 +16,8 @@ import { getRuns, computeStats } from "../services/runService";
 import { getErrorMessage } from "../services/authService";
 import DataTable from "../components/ui/DataTable";
 import StatusBadge from "../components/ui/StatusBadge";
+import StatCard from "../components/ui/StatCard";
+import PageHeader from "../components/ui/PageHeader";
 
 // Cột của bảng "Recent test runs"
 const RECENT_COLUMNS = (navigate) => [
@@ -356,116 +358,90 @@ export default function Dashboard() {
     return <p className="text-sm text-gray-500">Loading dashboard...</p>;
 
   return (
-    <div className="max-w-screen-2xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Automated Testing Dashboard
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Overview of test activity over the last 7 days.
-          </p>
-        </div>
-      </div>
+    <div className="page">
+      <PageHeader
+        title="Automated Testing Dashboard"
+        description="Overview of test activity over the last 7 days."
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {cards.map(({ label, value, sub, icon: Icon, color, onClick }) => (
-          <div
+        {cards.map(({ label, value, sub, icon, color, onClick }) => (
+          <StatCard
             key={label}
+            label={label}
+            value={value}
+            sub={sub}
+            icon={icon}
+            tone={color}
             onClick={onClick}
-            className={`bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex items-center gap-4 ${onClick ? "cursor-pointer hover:border-red-300" : ""}`}
-          >
-            <div
-              className={`w-11 h-11 rounded-xl flex items-center justify-center ${color}`}
-            >
-              <Icon size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-gray-500 font-medium">{label}</p>
-              <p className="text-2xl font-bold text-gray-900">{value}</p>
-              {sub && <p className="text-xs text-gray-400 truncate">{sub}</p>}
-            </div>
-          </div>
+          />
         ))}
       </div>
 
+      {/* Execution Statistics */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-        {/* Execution Statistics */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-          <div className="flex flex-col gap-4 mb-6">
-            <div>
-              <h3 className="text-base font-semibold text-gray-800">
-                Execution Statistics
-              </h3>
-              <p className="text-sm text-gray-500 mt-1">
-                View test execution results by time period.
-              </p>
-            </div>
+        <div className="flex flex-col gap-4 mb-6">
+          <div>
+            <h3 className="text-base font-semibold text-gray-800">
+              Execution Statistics
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              View test execution results by time period.
+            </p>
+          </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {[
-                { value: "day", label: "Day" },
-                { value: "month", label: "Month" },
-                { value: "quarter", label: "Quarter" },
-                { value: "year", label: "Year" },
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setStatisticsMode(option.value)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                    statisticsMode === option.value
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { value: "day", label: "Day" },
+              { value: "month", label: "Month" },
+              { value: "quarter", label: "Quarter" },
+              { value: "year", label: "Year" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setStatisticsMode(option.value)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  statisticsMode === option.value
+                    ? "bg-brand-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+
+            {statisticsMode === "day" && (
+              <input
+                type="date"
+                value={statisticsDate}
+                onChange={(e) => setStatisticsDate(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+            )}
+
+            {statisticsMode === "month" && (
+              <input
+                type="month"
+                value={statisticsMonth}
+                onChange={(e) => setStatisticsMonth(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+            )}
+
+            {statisticsMode === "quarter" && (
+              <>
+                <select
+                  value={statisticsQuarter}
+                  onChange={(e) => setStatisticsQuarter(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 >
-                  {option.label}
-                </button>
-              ))}
+                  <option value="1">Q1 (Jan - Mar)</option>
+                  <option value="2">Q2 (Apr - Jun)</option>
+                  <option value="3">Q3 (Jul - Sep)</option>
+                  <option value="4">Q4 (Oct - Dec)</option>
+                </select>
 
-              {statisticsMode === "day" && (
-                <input
-                  type="date"
-                  value={statisticsDate}
-                  onChange={(e) => setStatisticsDate(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-              )}
-
-              {statisticsMode === "month" && (
-                <input
-                  type="month"
-                  value={statisticsMonth}
-                  onChange={(e) => setStatisticsMonth(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-              )}
-
-              {statisticsMode === "quarter" && (
-                <>
-                  <select
-                    value={statisticsQuarter}
-                    onChange={(e) => setStatisticsQuarter(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  >
-                    <option value="1">Q1 (Jan - Mar)</option>
-                    <option value="2">Q2 (Apr - Jun)</option>
-                    <option value="3">Q3 (Jul - Sep)</option>
-                    <option value="4">Q4 (Oct - Dec)</option>
-                  </select>
-
-                  <input
-                    type="number"
-                    min="2000"
-                    max="2100"
-                    value={statisticsYear}
-                    onChange={(e) => setStatisticsYear(e.target.value)}
-                    className="w-28 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  />
-                </>
-              )}
-
-              {statisticsMode === "year" && (
                 <input
                   type="number"
                   min="2000"
@@ -474,60 +450,71 @@ export default function Dashboard() {
                   onChange={(e) => setStatisticsYear(e.target.value)}
                   className="w-28 border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 />
-              )}
-            </div>
+              </>
+            )}
+
+            {statisticsMode === "year" && (
+              <input
+                type="number"
+                min="2000"
+                max="2100"
+                value={statisticsYear}
+                onChange={(e) => setStatisticsYear(e.target.value)}
+                className="w-28 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+            )}
           </div>
+        </div>
 
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={statisticsRows}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Legend />
+        <div className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={statisticsRows}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="label" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Legend />
 
-                <Bar
-                  dataKey="Pass"
-                  name="Passed"
-                  fill="#10b981"
-                  radius={[4, 4, 0, 0]}
-                />
+              <Bar
+                dataKey="Pass"
+                name="Passed"
+                fill="#10b981"
+                radius={[4, 4, 0, 0]}
+              />
 
-                <Bar
-                  dataKey="Fail"
-                  name="Failed"
-                  fill="#ef4444"
-                  radius={[4, 4, 0, 0]}
-                />
+              <Bar
+                dataKey="Fail"
+                name="Failed"
+                fill="#ef4444"
+                radius={[4, 4, 0, 0]}
+              />
 
-                <Bar
-                  dataKey="Running"
-                  name="Running"
-                  fill="#3b82f6"
-                  radius={[4, 4, 0, 0]}
-                />
+              <Bar
+                dataKey="Running"
+                name="Running"
+                fill="#3b82f6"
+                radius={[4, 4, 0, 0]}
+              />
 
-                <Bar
-                  dataKey="Interrupted"
-                  name="Interrupted"
-                  fill="#f59e0b"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+              <Bar
+                dataKey="Interrupted"
+                name="Interrupted"
+                fill="#f59e0b"
+                radius={[4, 4, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
 
-          {/* Bảng Execution Statistics sử dụng DataTable để hỗ trợ sort mượt mà */}
-          <div className="mt-6">
-            <DataTable
-              columns={STATISTICS_COLUMNS}
-              rows={statisticsRows}
-              rowKey={(row) => row.key}
-              maxHeight="400px"
-              pageSize={10}
-            />
-          </div>
+        {/* Bảng Execution Statistics sử dụng DataTable để hỗ trợ sort mượt mà */}
+        <div className="mt-6">
+          <DataTable
+            columns={STATISTICS_COLUMNS}
+            rows={statisticsRows}
+            rowKey={(row) => row.key}
+            maxHeight="400px"
+            pageSize={10}
+          />
         </div>
       </div>
 

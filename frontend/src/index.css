@@ -24,9 +24,16 @@
   --line-100: 229 231 235;
   --line-200: 209 213 219;
 
-  --ink-700: 71 85 105;
-  --ink-800: 51 65 85;
-  --ink-900: 15 23 42;
+  /* Bộ chữ: 6 bậc. Trước đây chỉ có 700/800/900 và KHÔNG có bậc nào cho chữ phụ, nên
+     ~250 chỗ viết text-gray-400/500/600 rơi về xám lạnh gốc của Tailwind — đổi theme
+     không đổi được chúng. Giá trị dưới đây chép ĐÚNG gray-400…900 của Tailwind nên
+     theme Indigo không đổi một pixel; theme nature khai lại bằng xám ngả lục. */
+  --ink-400: 156 163 175; /* #9ca3af — chỉ cho chữ phụ cỡ lớn, không dùng cho nội dung */
+  --ink-500: 107 114 128; /* #6b7280 */
+  --ink-600: 75 85 99; /* #4b5563 */
+  --ink-700: 55 65 81; /* #374151 */
+  --ink-800: 31 41 55; /* #1f2937 */
+  --ink-900: 17 24 39; /* #111827 */
   /* canvas = nền trang và <thead>; paper = nền thẻ/panel/modal. */
   --canvas: 248 250 252;
   --paper: 255 255 255;
@@ -36,9 +43,23 @@
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 
   /* Thời lượng chung của mọi hoạt ảnh chuyển trang / chuyển tab. */
   --anim: 0.6s;
+
+  /* Tiêu đề trang. 7 trang tự viết "text-3xl font-bold" và PageHeader viết 28px — ba cỡ
+     khác nhau cho cùng một thứ. Giờ cả 8 chỗ dùng class .page-title đọc ba token này. */
+  --badge-ring: transparent;
+
+  /* Dấu ở chân thanh điều hướng: theme mặc định KHÔNG có. Giá trị thật nằm ở khối nature. */
+  --bg-pattern: none;
+  --bg-pattern-size: 250px auto;
+  --bg-pattern-pos: left -40px bottom -30px;
+
+  --h1-size: 30px;
+  --h1-weight: 700;
+  --h1-tracking: -0.02em;
 
   --r-md: 0.375rem;
   --r-lg: 0.5rem;
@@ -82,17 +103,26 @@
   --line-100: 220 229 221;
   --line-200: 203 216 205;
 
+  /* Xám ngả lục cho chữ. Đo trên nền trang #E6EFE8: 500 đạt 5.03:1 (xám lạnh cũ chỉ 4.12,
+     dưới ngưỡng AA), 400 đạt 3.33 (cũ 2.16) nên 400 chỉ dành cho chữ phụ, không cho nội dung. */
+  --ink-400: 110 133 136;
+  --ink-500: 82 104 108;
+  --ink-600: 67 88 93;
   --ink-700: 59 79 89;
   --ink-800: 43 61 71;
   --ink-900: 30 46 54;
   --canvas: 230 239 232; /* #E6EFE8 nền trang + <thead> */
   --paper: 246 249 246; /* #F6F9F6 nền thẻ, sáng hơn nền trang để khối nổi lên */
 
-  /* Bóng ngả lục, mềm: đậm hơn Indigo đủ để thấy khối, không thành vệt xám. */
-  --shadow-sm: 0 1px 2px 0 rgb(30 46 54 / 0.06);
-  --shadow: 0 1px 3px 0 rgb(30 46 54 / 0.08), 0 1px 2px -1px rgb(30 46 54 / 0.06);
-  --shadow-md: 0 4px 8px -2px rgb(30 46 54 / 0.08), 0 2px 4px -2px rgb(30 46 54 / 0.06);
-  --shadow-lg: 0 12px 20px -6px rgb(30 46 54 / 0.12), 0 4px 8px -4px rgb(30 46 54 / 0.08);
+  /* GIẤY, không phải thẻ nổi. Vuông góc cộng với bóng mờ là hai ngôn ngữ đánh nhau: thẻ
+     nào cũng đã có border-gray-200, thêm bóng chỉ làm viền dày lên thành vệt. Mặt phẳng
+     tách nhau bằng --paper so với --canvas và một hairline. Chỉ LỚP NỔI thật mới có bóng:
+     shadow-md (menu thả xuống), shadow-lg (drawer trên mobile), shadow-xl (modal). */
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-md: 0 4px 12px -4px rgb(30 46 54 / 0.16);
+  --shadow-lg: 0 6px 16px -8px rgb(30 46 54 / 0.18), 0 0 0 1px rgb(30 46 54 / 0.06);
+  --shadow-xl: 0 12px 32px -12px rgb(30 46 54 / 0.24), 0 0 0 1px rgb(30 46 54 / 0.07);
 
   /* Vuông góc: đây là border-style của bộ Nature. */
   --r-md: 0;
@@ -101,9 +131,40 @@
   --r-2xl: 0;
 
   --bg: #e6efe8;
-  --text: #5b6b71;
+  --text: #52686c;
   --text-h: #1e2e36;
   --heading: "Cormorant Garamond", Georgia, serif;
+
+  /* Cormorant Garamond là mặt chữ display: ở 30px/700 nó bị bóp lại và trông như một font
+     serif bất kỳ — mà 700 còn KHÔNG được tải (index.html chỉ nạp 300…600) nên trình duyệt
+     tụt về 600. Cho nó cỡ và sức nặng nó được thiết kế để sống: 40px, nét 500. Đây là chỗ
+     DUY NHẤT trong trang dùng serif, mỗi trang một lần. */
+  /* Nền lục làm viên nhãn chìm: trả lại đường bao bằng một vòng mực mờ. */
+  --badge-ring: rgb(30 46 54 / 0.14);
+
+  /* Nhành lá, mực 9%, chìm ở chân thanh điều hướng và tràn ra khỏi mép trái — kiểu một tờ
+     phiếu ghi mẫu thực vật. SVG viết thẳng vào đây dưới dạng data URI: không thêm tệp,
+     không thêm một lượt tải nào, và nó đổi màu theo theme vì màu nằm trong chuỗi.
+     Trần là 11%: đo chữ ink-500 nằm trên chỗ có lá (mặt giấy --paper), 11% còn 4.55:1,
+     đậm hơn là rơi khỏi AA. Đừng sửa chuỗi bằng tay — hình sinh ra từ công thức, dựng lại
+     rồi mã hoá, nhớ mã hoá " < > # nếu không build chết ở lightningcss. */
+  --bg-pattern: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='520'%20height='480'%20viewBox='0%200%20520%20480'%3E%3Cg%20fill='%231e2e36'%20fill-opacity='.09'%3E%3Cpath%20d='M87.3%20397.9Q122.7%20368.3%20185.8%20380.7Q130.7%20413.6%2087.3%20397.9Z'/%3E%3Cpath%20d='M104.0%20370.3Q71.7%20340.3%2075.7%20279.1Q113.7%20327.3%20104.0%20370.3Z'/%3E%3Cpath%20d='M122.7%20342.5Q157.2%20318.6%20213.4%20334.9Q160.7%20360.3%20122.7%20342.5Z'/%3E%3Cpath%20d='M143.2%20314.5Q116.3%20285.0%20124.4%20230.1Q155.1%20276.4%20143.2%20314.5Z'/%3E%3Cpath%20d='M165.6%20286.3Q198.2%20267.2%20247.6%20285.7Q198.5%20304.9%20165.6%20286.3Z'/%3E%3Cpath%20d='M189.8%20257.9Q167.6%20229.8%20178.5%20181.2Q202.9%20224.6%20189.8%20257.9Z'/%3E%3Cpath%20d='M216.0%20229.2Q246.1%20214.2%20288.8%20233.5Q244.1%20247.7%20216.0%20229.2Z'/%3E%3Cpath%20d='M244.0%20200.4Q225.9%20174.4%20238.1%20132.1Q257.3%20171.7%20244.0%20200.4Z'/%3E%3Cpath%20d='M273.9%20171.3Q301.0%20159.6%20337.5%20178.7Q297.6%20188.9%20273.9%20171.3Z'/%3E%3C/g%3E%3Cpath%20d='M70%20430Q150%20270%20360%2095'%20fill='none'%20stroke='%231e2e36'%20stroke-opacity='.10'%20stroke-width='6'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  --h1-size: 40px;
+  --h1-weight: 500;
+  --h1-tracking: -0.01em;
+}
+
+/* Dấu ở CHÂN thanh điều hướng — chỉ theme nature có (nhành lá). Chỗ đặt là kết quả thử: để ở
+   góc dưới-phải của mặt canvas thì thẻ và bảng che gần hết, chỉ còn cái ngọn thò ra như vết bẩn.
+   Chân sidebar là vùng duy nhất luôn trống (6 mục menu không bao giờ lấp hết chiều cao) và
+   luôn nhìn thấy ở mọi trang. Tràn ra khỏi mép trái để nó là một dấu, không phải một bức tranh.
+   Hình, cỡ và vị trí đều là token, nên thêm một theme có dấu riêng không phải đụng vào class
+   này. Theme mặc định cố ý để trống: --bg-pattern là none thì cả khối tự tắt. */
+.rail-mark {
+  background-image: var(--bg-pattern);
+  background-repeat: no-repeat;
+  background-position: var(--bg-pattern-pos);
+  background-size: var(--bg-pattern-size);
 }
 
 body {
@@ -124,7 +185,6 @@ body {
 
 h1,
 h2 {
-  font-family: var(--heading);
   font-weight: 500;
   color: var(--text-h);
 }
@@ -153,6 +213,57 @@ h2 {
 
 p {
   margin: 0;
+}
+
+/* Khung trang. Trước đây mỗi trang tự khai: 5 trang "max-w-screen-2xl space-y-6", TestCases
+   "space-y-4" KHÔNG giới hạn bề rộng (màn 2560px thì nó kéo dài hết màn trong khi trang khác
+   dừng ở 1536px), TestReport "max-w-6xl space-y-4". Giờ khai một chỗ, trang chỉ viết class.
+   gap thay cho space-y: space-y chèn margin vào con thứ hai trở đi, nên thêm/bớt một khối ở
+   đầu trang là nhịp dọc đổi theo. */
+.page {
+  max-width: 1536px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Trang báo cáo là trang ĐỌC, không phải bảng điều khiển: hẹp lại cho dòng chữ đỡ dài. */
+.page--narrow {
+  max-width: 72rem;
+}
+
+/* Tiêu đề trang: một class cho cả 8 chỗ, đọc token theo theme. Dùng class (0-1-0) để thắng
+   rule h1 (0-0-1) ở trên mà không cần !important. */
+.page-title {
+  margin: 0;
+  font-family: var(--heading);
+  font-size: var(--h1-size);
+  font-weight: var(--h1-weight);
+  letter-spacing: var(--h1-tracking);
+  line-height: 1.15;
+  color: var(--text-h);
+}
+
+@media (max-width: 640px) {
+  .page-title {
+    font-size: calc(var(--h1-size) * 0.8);
+  }
+}
+
+/* Số liệu là DỮ LIỆU, không phải văn xuôi: mặt chữ mono với chữ số đẳng chiều (tabular) để
+   cột số thẳng hàng và con số không nhảy khi đang đếm. JetBrains Mono chỉ nạp 400/500 nên
+   không ghi font-weight ở đây — cỡ chữ lo phần nhấn. */
+.badge-ring {
+  box-shadow: inset 0 0 0 1px var(--badge-ring);
+}
+
+.metric {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-h);
 }
 
 code,

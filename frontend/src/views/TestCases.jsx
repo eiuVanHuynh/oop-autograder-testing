@@ -23,6 +23,7 @@ import FilterBar from "../components/ui/FilterBar";
 import FilterMenu from "../components/ui/FilterMenu";
 import RowMenu from "../components/ui/RowMenu";
 import CreateButton from "../components/ui/CreateButton";
+import PageHeader from "../components/ui/PageHeader";
 import IconButton from "../components/ui/IconButton";
 import DataTable, { TableViewToggle } from "../components/ui/DataTable";
 import StatusBadge from "../components/ui/StatusBadge";
@@ -184,20 +185,16 @@ export default function TestCases() {
     );
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Test Case Management
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {canEdit
-              ? "Declare, reuse, and retire the test cases a template can run."
-              : "You have read-only access to test cases."}
-          </p>
-        </div>
-        {canEdit && <CreateButton onClick={() => navigate("/testcases/new")} />}
-      </div>
+    <div className="page">
+      <PageHeader
+        title="Test Case Management"
+        description={
+          canEdit
+            ? "Declare, reuse, and retire the test cases a template can run."
+            : "You have read-only access to test cases."
+        }
+        actions={canEdit && <CreateButton onClick={() => navigate("/testcases/new")} />}
+      />
 
       <FilterBar
         value={q}

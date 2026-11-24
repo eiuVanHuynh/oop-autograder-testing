@@ -163,7 +163,7 @@ export default function DataTable({
         <dl className="m-0 mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
           {metaCols.map((col) => (
             <div key={col.key} className="min-w-0">
-              <dt className="m-0 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              <dt className="m-0 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                 {col.header}
               </dt>
               <dd className="m-0 min-w-0 break-words text-sm text-gray-700">
@@ -186,12 +186,12 @@ export default function DataTable({
   const card = renderCard ?? defaultCard;
 
   const body = isEmpty ? (
-    <div className="text-center py-14 text-gray-400">
+    <div className="text-center py-14 text-gray-500">
       {EmptyIcon && <EmptyIcon size={40} className="mx-auto mb-2 opacity-40" />}
       <p className="text-sm">{empty}</p>
     </div>
   ) : loading && sortedRows.length === 0 ? (
-    <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>
+    <p className="px-5 py-8 text-center text-sm text-gray-500">Loading…</p>
   ) : view === "cards" && canCards ? (
     <div
       className="grid gap-3 p-4"
@@ -211,7 +211,10 @@ export default function DataTable({
     </div>
   ) : (
     <table className="w-full text-sm border-collapse table-fixed">
-      <thead className="bg-gray-50 text-xs text-gray-500 uppercase sticky top-0 z-10 shadow-sm">
+      {/* Đường kẻ dưới hàng tiêu đề dính: dùng box-shadow chứ KHÔNG dùng border — bảng có
+          border-collapse nên viền của <thead> nằm trong lưới viền đã gộp và bị đánh rơi khi
+          cuộn. Cũng không dùng token shadow-* vì theme nature đặt chúng về none. */}
+      <thead className="bg-gray-50 text-xs text-gray-500 uppercase sticky top-0 z-10 shadow-[inset_0_-1px_0_rgb(var(--line-100))]">
         <tr>
           {columns.map((col) => {
             const isSortable = Boolean(col.sortable || col.sortValue);

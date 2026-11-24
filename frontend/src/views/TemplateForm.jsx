@@ -37,7 +37,7 @@ import { getErrorMessage } from "../services/authService";
 import PageHeader from "../components/ui/PageHeader";
 
 const inputCls =
-  "w-full h-10 px-3 bg-white border border-gray-300 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-50 disabled:text-gray-400";
+  "w-full h-10 px-3 bg-white border border-gray-300 rounded-lg text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-50 disabled:text-gray-500";
 const areaCls = inputCls.replace("h-10 ", "py-2 ");
 
 const EMPTY = {
@@ -131,7 +131,7 @@ function OrderedCasePicker({ codes, cases, disabled = false, onChange }) {
               key={c.id}
               className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-gray-50/60 p-3"
             >
-              <span className="w-4 shrink-0 text-right text-xs tabular-nums text-gray-400">
+              <span className="w-4 shrink-0 text-right text-xs tabular-nums text-gray-500">
                 {i + 1}
               </span>
               <span className="shrink-0 rounded-md bg-brand-50 px-1.5 py-0.5 font-mono text-xs font-semibold text-brand-700">
@@ -307,7 +307,7 @@ export default function TemplateForm({ mode }) {
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="page page--narrow">
       <PageHeader
         breadcrumb={[
           "Templates",

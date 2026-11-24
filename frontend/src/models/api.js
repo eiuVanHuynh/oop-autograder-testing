@@ -21,11 +21,15 @@ API.interceptors.request.use((config) => {
 });
 
 // Token hết hạn / bị thu hồi → xóa phiên và về /login. Bỏ qua chính các endpoint đăng nhập.
+// 423 cũng tính là phiên chết: requireAuth bên backend trả 423 khi tài khoản bị admin khoá giữa
+// phiên: token còn hợp lệ nhưng MỌI request đều 423, nếu không xử lý thì người dùng ngồi trong
+// giao diện mà không trang nào tải được.
 API.interceptors.response.use(
   (res) => res,
   (error) => {
     const url = error.config?.url || '';
-    if (error.response?.status === 401 && readToken() && !url.startsWith('/auth/login')) {
+    const dead = error.response?.status === 401 || error.response?.status === 423;
+    if (dead && readToken() && !url.startsWith('/auth/login')) {
       ['user', 'token'].forEach((k) => {
         try {
           localStorage.removeItem(k);

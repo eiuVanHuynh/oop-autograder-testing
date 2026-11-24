@@ -183,7 +183,7 @@ export default function TestReport() {
     );
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="page page--narrow">
       {/* Thanh điều hướng + hành động */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-center gap-4">
         <button
@@ -244,7 +244,7 @@ export default function TestReport() {
       </div>
 
       {/* Thông tin run */}
-      <div className="bg-white rounded-2xl p-6 mt-6s shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="w-1/2">
           <div className="flex items-center gap-3 mb-2">
             <div className="flex flex-row items-center gap-3 border-b justify-between w-full">
@@ -336,7 +336,7 @@ export default function TestReport() {
                   <div className="min-w-0">
                     <p className="font-mono text-sm text-brand-600">{c.code}</p>
                     <p className="text-sm text-gray-800 break-words">
-                      {c.title || <span className="text-gray-400 italic">chưa lấy được tên</span>}
+                      {c.title || <span className="text-gray-500 italic">chưa lấy được tên</span>}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
@@ -346,10 +346,10 @@ export default function TestReport() {
                         label={<><StatusIcon status={c.status} size={12} /> {c.status}</>}
                       />
                     ) : (
-                      <span className="text-xs text-gray-400">—</span>
+                      <span className="text-xs text-gray-500">—</span>
                     )}
                     {msLabel(c.ms) && (
-                      <p className="mt-0.5 font-mono text-[11px] text-gray-400">{msLabel(c.ms)}</p>
+                      <p className="mt-0.5 font-mono text-[11px] text-gray-500">{msLabel(c.ms)}</p>
                     )}
                   </div>
                 </li>

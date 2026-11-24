@@ -21,16 +21,52 @@ export default {
           600: v("brand-600"),
           700: v("brand-700"),
         },
-        // Panel tối + nền giấy của theme nature. Theme mặc định để giá trị trung tính.
-        ink: { 700: v("ink-700"), 800: v("ink-800"), 900: v("ink-900") },
+        // Bộ chữ. Không view nào viết text-ink-* (đã kiểm: 0 chỗ) — nó tồn tại để gray-*
+        // và slate-* bên dưới trỏ vào, nhưng cứ giữ tên này cho chỗ nào muốn nói rõ ý.
+        ink: {
+          400: v("ink-400"),
+          500: v("ink-500"),
+          600: v("ink-600"),
+          700: v("ink-700"),
+          800: v("ink-800"),
+          900: v("ink-900"),
+        },
         canvas: v("canvas"),
         paper: v("paper"),
         // Ba mức xám dưới đây là ĐƯỜNG KẺ và NỀN NHẠT của giao diện (border-gray-200,
         // bg-gray-100, divide-gray-100...). Ghi đè ngay trong bảng màu của Tailwind để
         // ~80 chỗ trong view không phải đổi tên class. Theme mặc định giữ nguyên giá trị
         // gray gốc của Tailwind, nên không có gì đổi màu ngoài ý muốn.
-        gray: { 50: v("canvas"), 100: v("line-50"), 200: v("line-100"), 300: v("line-200") },
-        slate: { 50: v("canvas"), 200: v("line-100") },
+        // 50…300 là ĐƯỜNG KẺ và NỀN NHẠT; 400…900 là CHỮ. Phải phủ cả hai đầu: trước đây
+        // chỉ phủ phần kẻ, nên ~250 chỗ text-gray-400/500/600/700/900 giữ nguyên xám lạnh
+        // của Tailwind và theme nature thành "chữ xám lạnh trên giấy lục".
+        gray: {
+          50: v("canvas"),
+          100: v("line-50"),
+          200: v("line-100"),
+          300: v("line-200"),
+          400: v("ink-400"),
+          500: v("ink-500"),
+          600: v("ink-600"),
+          700: v("ink-700"),
+          800: v("ink-800"),
+          900: v("ink-900"),
+        },
+        // slate-* và gray-* trỏ CÙNG một bộ: hai thang xám cho cùng một việc là một bất nhất
+        // sẵn có (text-slate-500 #64748b cạnh text-gray-500 #6b7280 — không ai thấy khác nhau).
+        // Hệ quả ở theme Indigo: chữ slate-* ngả xanh chuyển sang xám trung tính, lệch ~2%.
+        slate: {
+          50: v("canvas"),
+          100: v("line-50"),
+          200: v("line-100"),
+          300: v("line-200"),
+          400: v("ink-400"),
+          500: v("ink-500"),
+          600: v("ink-600"),
+          700: v("ink-700"),
+          800: v("ink-800"),
+          900: v("ink-900"),
+        },
         // Nền thẻ/panel: 61 chỗ viết bg-white, nên trắng CŨNG phải là token, nếu không đổi
         // theme chỉ đổi được màu nhấn còn nền vẫn trắng. text-white đi theo luôn — ở theme
         // nature chữ thành #F6F9F6 trên nền teal đậm, mắt không phân biệt được.
@@ -52,6 +88,7 @@ export default {
         DEFAULT: "var(--shadow)",
         md: "var(--shadow-md)",
         lg: "var(--shadow-lg)",
+        xl: "var(--shadow-xl)",
       },
       // Hoạt ảnh chuyển trang / chuyển tab. Thời lượng là MỘT token (--anim ở src/index.css)
       // để đổi một chỗ là đổi hết, và để prefers-reduced-motion tắt được bằng cách đặt lại nó.

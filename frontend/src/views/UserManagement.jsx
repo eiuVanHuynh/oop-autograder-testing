@@ -10,6 +10,7 @@ import {
   Users,
   Pencil,
   Trash2,
+  KeyRound,
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -21,17 +22,20 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  resetUserPassword,
 } from "../services/userService";
 import { getErrorMessage } from "../services/authService";
 import { parseQuery, buildQuery } from "../models/searchTags";
 import { useTableView } from "../models/tableView";
 import CreateButton from "../components/ui/CreateButton";
+import PageHeader from "../components/ui/PageHeader";
 import FilterBar from "../components/ui/FilterBar";
 import FilterMenu from "../components/ui/FilterMenu";
 import RowMenu from "../components/ui/RowMenu";
 import IconButton from "../components/ui/IconButton";
 import DataTable, { TableViewToggle } from "../components/ui/DataTable";
 import StatusBadge from "../components/ui/StatusBadge";
+import PasswordModal from "../components/ui/PasswordModal";
 
 const ROLES = ["admin", "tester", "dev", "viewer"];
 
@@ -73,6 +77,7 @@ export default function UserManagement() {
   const [busyId, setBusyId] = useState(null);
   const [form, setForm] = useState(null); // null = modal đóng; .id = đang sửa; .view = chỉ xem
   const [toDelete, setToDelete] = useState(null);
+  const [toReset, setToReset] = useState(null);
   const [saving, setSaving] = useState(false);
 
   // Ô search là nguồn sự thật duy nhất: tag nằm trong chuỗi `q`, filter suy ra từ nó.
@@ -124,6 +129,18 @@ export default function UserManagement() {
       toast.error(getErrorMessage(err, "Cannot update this user."));
     } finally {
       setBusyId(null);
+    }
+  };
+
+  // Admin đặt lại mật khẩu hộ người đã quên. Backend không có email service nên đây là đường
+  // quên-mật-khẩu duy nhất: đặt xong thì nói mật khẩu tạm cho người đó, họ tự đổi ở menu avatar.
+  const handleResetPassword = async ({ newPassword }) => {
+    try {
+      await resetUserPassword(toReset.id, newPassword);
+      toast.success(`Password reset. Tell ${toReset.name} to change it after signing in.`);
+      setToReset(null);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Cannot reset this password."));
     }
   };
 
@@ -180,16 +197,12 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="max-w-screen-2xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage user permissions, access control, and account status.
-          </p>
-        </div>
-        <CreateButton onClick={() => setForm({ ...EMPTY })} />
-      </div>
+    <div className="page">
+      <PageHeader
+        title="Users"
+        description="Manage user permissions, access control, and account status."
+        actions={<CreateButton onClick={() => setForm({ ...EMPTY })} />}
+      />
 
       <FilterBar
         value={q}
@@ -299,7 +312,7 @@ export default function UserManagement() {
             render: (user) => (
               <div className="flex items-center justify-end gap-1">
                 {locked(user) ? (
-                  <span className="text-xs text-gray-400 mr-1">
+                  <span className="text-xs text-gray-500 mr-1">
                     {user.role === "admin" ? "" : "This is you"}
                   </span>
                 ) : (
@@ -335,10 +348,16 @@ export default function UserManagement() {
                   }
                 />
 
-                {/* Xoá: backend từ chối tài khoản admin (409) và tự xoá mình (400) */}
+                {/* Đặt lại mật khẩu + xoá: backend từ chối tài khoản admin (409) và chính mình (400),
+                    nên cùng điều kiện locked() như nút khoá/mở khoá ở trên. */}
                 {!locked(user) && (
                   <RowMenu
                     items={[
+                      {
+                        label: "Reset password",
+                        icon: KeyRound,
+                        onClick: () => setToReset(user),
+                      },
                       {
                         label: "Delete",
                         icon: Trash2,
@@ -416,7 +435,8 @@ export default function UserManagement() {
                 </div>
               )}
 
-              {/* Mật khẩu chỉ đặt lúc tạo; chưa có endpoint đổi mật khẩu cho người khác. */}
+              {/* Mật khẩu chỉ đặt lúc tạo. Đổi mật khẩu của người khác đi qua hành động
+                  "Reset password" ở cột Actions (PATCH /users/:id/password), không nằm trong form này. */}
               {!form.id && (
                 <>
                   <div>
@@ -433,9 +453,9 @@ export default function UserManagement() {
                         setForm({ ...form, password: e.target.value })
                       }
                     />
-                    <p className="text-xs text-gray-400 mt-1">
-                      At least 6 characters. Share it with the user — they
-                      cannot reset it yet.
+                    <p className="text-xs text-gray-500 mt-1">
+                      At least 6 characters. Share it with the user — they can
+                      change it from the avatar menu afterwards.
                     </p>
                   </div>
 
@@ -538,6 +558,18 @@ export default function UserManagement() {
             )}
           </form>
         </div>
+      )}
+
+      {/* Modal: Admin đặt lại mật khẩu hộ. Không hỏi mật khẩu hiện tại — quyền admin là bằng chứng,
+          và người quên mật khẩu thì có hỏi cũng không biết. */}
+      {toReset && (
+        <PasswordModal
+          title="Reset password"
+          subtitle={`Set a temporary password for ${toReset.email}, then tell it to them.`}
+          confirmLabel="Reset password"
+          onSubmit={handleResetPassword}
+          onClose={() => setToReset(null)}
+        />
       )}
 
       {/* Modal: xác nhận xoá */}

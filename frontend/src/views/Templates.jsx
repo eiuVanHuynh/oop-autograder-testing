@@ -23,6 +23,7 @@ import {
 } from "../services/templateService";
 import { getErrorMessage } from "../services/authService";
 import CreateButton from "../components/ui/CreateButton";
+import PageHeader from "../components/ui/PageHeader";
 import FilterBar from "../components/ui/FilterBar";
 import FilterMenu from "../components/ui/FilterMenu";
 import RowMenu from "../components/ui/RowMenu";
@@ -150,21 +151,16 @@ export default function Templates() {
   };
 
   return (
-    <div className="max-w-screen-2xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Test Case Template Management
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {canEdit
-              ? "Create, organize, and reuse test configurations."
-              : "You have read-only access to templates."}
-          </p>
-        </div>
-        {canEdit && <CreateButton onClick={() => navigate("/templates/new")} />}
-      </div>
+    <div className="page">
+      <PageHeader
+        title="Test Case Template Management"
+        description={
+          canEdit
+            ? "Create, organize, and reuse test configurations."
+            : "You have read-only access to templates."
+        }
+        actions={canEdit && <CreateButton onClick={() => navigate("/templates/new")} />}
+      />
 
       <FilterBar
         value={q}
@@ -214,7 +210,7 @@ export default function Templates() {
                 <p className="text-xs text-gray-500 truncate max-w-md mt-0.5">
                   {t.description || "No description"}
                 </p>
-                <p className="text-xs text-gray-400 font-mono mt-1">
+                <p className="text-xs text-gray-500 font-mono mt-1">
                   ID: {tplCode(t.id)}
                   {t.status === "inactive" && (
                     <span className="ml-2 px-2 py-0.5 bg-gray-200 text-gray-600 rounded font-sans">

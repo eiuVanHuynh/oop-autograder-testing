@@ -170,7 +170,7 @@ export default function FilterBar({
                 }`}
               >
                 <span className="truncate">{t.label}</span>
-                <span className="text-xs text-gray-400 shrink-0">
+                <span className="text-xs text-gray-500 shrink-0">
                   {t.groupLabel}
                 </span>
               </button>

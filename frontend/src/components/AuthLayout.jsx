@@ -83,13 +83,15 @@ export default function AuthLayout({ children }) {
             platform for educators and software engineers.
           </p>
 
-          {/* Khung terminal: nền #0F172A, viền hairline, không đổ bóng (theo spec) */}
+          {/* Khung terminal: mặt TỐI (bg-slate-900 = token --ink-900, nên nó ngả lục ở theme
+              nature), viền hairline, không đổ bóng. Chữ bên trong dùng trắng-theo-độ-mờ chứ
+              KHÔNG dùng thang xám: thang xám là cho chữ tối trên nền sáng. */}
           <div className="rounded-lg bg-slate-900 border border-white/10 overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
               <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
               <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
-              <span className="ml-2 font-mono text-xs text-slate-400">
+              <span className="ml-2 font-mono text-xs text-white/60">
                 {"g++ -std=c++20 -O2 && ctest"}
               </span>
               <span className="ml-auto inline-flex items-center h-[22px] px-2 rounded bg-green-500/15 text-green-400 font-mono text-[11px] font-medium">
@@ -104,8 +106,8 @@ export default function AuthLayout({ children }) {
                   className="flex items-center gap-2 text-green-400"
                 >
                   <CheckCircle2 size={14} className="shrink-0" />
-                  <span className="min-w-0 flex-1 text-slate-200">{text}</span>
-                  <span className="shrink-0 text-slate-400">{value}</span>
+                  <span className="min-w-0 flex-1 text-white/90">{text}</span>
+                  <span className="shrink-0 text-white/60">{value}</span>
                 </div>
               ))}
             </div>
@@ -114,7 +116,7 @@ export default function AuthLayout({ children }) {
               {TERMINAL_TAGS.map(({ label, dot }) => (
                 <span
                   key={label}
-                  className="inline-flex items-center gap-1.5 h-6 px-2 rounded bg-white/5 border border-white/10 font-mono text-[11px] text-slate-200"
+                  className="inline-flex items-center gap-1.5 h-6 px-2 rounded bg-white/5 border border-white/10 font-mono text-[11px] text-white/90"
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
                   {label}
