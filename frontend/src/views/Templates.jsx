@@ -7,9 +7,9 @@ import {
   Eye,
   X,
   FileText,
-  Search,
   Copy,
   ChevronDown,
+  ChevronUp,
   Power,
   PowerOff,
 } from "lucide-react";
@@ -34,6 +34,7 @@ import IconButton from "../components/ui/IconButton";
 import DataTable, { TableViewToggle } from "../components/ui/DataTable";
 import StatusBadge from "../components/ui/StatusBadge";
 import { parseQuery, buildQuery } from "../models/searchTags";
+import { splitCodes, joinCodes, moveAt } from "../models/caseOrder";
 import { getTableView, setTableView } from "../models/tableView";
 
 // Tag của riêng trang Templates, dùng chung cho ô search và panel Filter.
@@ -74,7 +75,7 @@ const toForm = (t, readOnly = false) => ({
   name: t.name,
   description: t.description,
   scope: t.scope,
-  testCodes: t.targetTestIds ? t.targetTestIds.join(", ") : "",
+  testCodes: t.targetTestIds ? joinCodes(t.targetTestIds) : "",
   suiteId: t.suiteId,
   defaultEnv: t.defaultEnv || "development",
   timeoutSec: String((t.defaultTimeoutMs || 30000) / 1000),
@@ -85,9 +86,9 @@ const toForm = (t, readOnly = false) => ({
 const tplCode = (id) => `TPL-${String(id).padStart(4, "0")}`;
 
 // ==========================================
-// COMPONENT CUSTOM DROPDOWN CÓ Ô SEARCH
+// COMPONENT CUSTOM DROPDOWN CHỌN SCOPE
 // ==========================================
-function SearchableScopeSelect({
+function ScopeSelect({
   value,
   onChange,
   options = SCOPES,
@@ -95,13 +96,9 @@ function SearchableScopeSelect({
   disabled = false,
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef(null);
 
-  // Lọc danh sách từ mảng options
-  const filteredOptions = (options || []).filter((s) =>
-    String(s).toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const filteredOptions = options || [];
 
   // Đóng dropdown khi click ngoài vùng
   useEffect(() => {
@@ -121,7 +118,6 @@ function SearchableScopeSelect({
         type="button"
         disabled={disabled}
         onClick={() => {
-          if (!isOpen) setSearchQuery("");
           setIsOpen(!isOpen);
         }}
         className={`${inputCls} flex items-center justify-between text-left bg-white cursor-pointer select-none`}
@@ -136,25 +132,9 @@ function SearchableScopeSelect({
         <ChevronDown size={16} className="text-gray-400 shrink-0 ml-1" />
       </button>
 
-      {/* Menu xổ xuống chứa Ô Search + Danh Sách */}
+      {/* Menu xổ xuống chứa danh sách */}
       {isOpen && !disabled && (
         <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-2 space-y-2">
-          {/* Ô Input Tìm Kiếm */}
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
-            <Search
-              size={14}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-            />
-            <input
-              type="text"
-              autoFocus
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search scope..."
-              className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-900"
-            />
-          </div>
-
           {/* Danh sách các Option */}
           <div className="max-h-48 overflow-y-auto space-y-0.5">
             {placeholder === "All Scopes" && (
@@ -162,7 +142,6 @@ function SearchableScopeSelect({
                 onClick={() => {
                   onChange("");
                   setIsOpen(false);
-                  setSearchQuery("");
                 }}
                 className="px-3 py-2 text-xs text-gray-500 hover:bg-gray-100 rounded-lg cursor-pointer"
               >
@@ -181,7 +160,6 @@ function SearchableScopeSelect({
                   onClick={() => {
                     onChange(s);
                     setIsOpen(false);
-                    setSearchQuery("");
                   }}
                   className={`px-3 py-2 text-xs rounded-lg cursor-pointer transition ${
                     value === s
@@ -197,6 +175,94 @@ function SearchableScopeSelect({
         </div>
       )}
     </div>
+  );
+}
+
+// Chọn test case VÀ xếp thứ tự chạy, trong MỘT danh sách (issue #67).
+// Trước đây mỗi case hiện hai lần — một lần ở khung thứ tự, một lần ở khung tick — nên modal dài
+// gấp đôi và người dùng phải đối chiếu hai danh sách. Giờ case đã chọn nổi lên đầu kèm số thứ tự và
+// nút lên/xuống, case chưa chọn nằm dưới vạch; bỏ tick là gỡ khỏi thứ tự, nên không cần nút xoá riêng.
+function OrderedCasePicker({ codes, cases, disabled = false, onChange }) {
+  const byCode = new Map(cases.map((c) => [c.code, c]));
+  const toggle = (code) =>
+    onChange(codes.includes(code) ? codes.filter((x) => x !== code) : [...codes, code]);
+
+  // Một case đã chọn rồi bị chuyển sang 'deprecated' không còn trong `cases`: vẫn phải hiện ra,
+  // nếu không người dùng không thấy nó để bỏ đi.
+  const picked = codes.map((code) => byCode.get(code) ?? { id: code, code, title: "" });
+  const rest = cases.filter((c) => !codes.includes(c.code));
+
+  // order: số thứ tự chạy (null với case chưa chọn). extra: hai nút lên/xuống.
+  const row = (c, order, extra) => (
+    <li
+      key={c.id}
+      className="flex cursor-pointer items-center gap-3 rounded-lg px-1 py-1 text-base"
+    >
+      <input
+        type="checkbox"
+        id={`case-${c.id}`}
+        checked={codes.includes(c.code)}
+        disabled={disabled}
+        onChange={() => toggle(c.code)}
+      />
+      <label htmlFor={`case-${c.id}`} className="flex min-w-0 flex-1 items-center gap-2">
+        {/* Chừa chỗ cho số cả ở dòng chưa chọn, để hai nhóm thẳng cột với nhau. */}
+        <span className="w-5 shrink-0 text-right text-xs text-gray-400">
+          {order ? `${order}.` : ""}
+        </span>
+        <span className="font-mono text-xs">{c.code}</span>
+        <span className="min-w-0 flex-1 truncate text-gray-700">{c.title}</span>
+      </label>
+      {extra}
+    </li>
+  );
+
+  return (
+    <ol className="m-0 mt-2 h-80 max-h-[50vh] list-none space-y-1 overflow-y-auto rounded-xl border border-gray-200 p-3">
+      {cases.length === 0 && codes.length === 0 && (
+        <li className="text-xs text-gray-400">No ready test cases yet.</li>
+      )}
+
+      {picked.length > 0 && (
+        <li className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+          Execution order — runs top to bottom
+        </li>
+      )}
+
+      {picked.map((c, i) =>
+        row(
+          c,
+          i + 1,
+          <>
+            <IconButton
+              icon={ChevronUp}
+              title="Move up"
+              size={14}
+              disabled={disabled || i === 0}
+              onClick={() => onChange(moveAt(codes, i, i - 1))}
+            />
+            <IconButton
+              icon={ChevronDown}
+              title="Move down"
+              size={14}
+              disabled={disabled || i === picked.length - 1}
+              onClick={() => onChange(moveAt(codes, i, i + 1))}
+            />
+          </>,
+        ),
+      )}
+
+      {picked.length > 0 && rest.length > 0 && (
+        <li className="flex items-center gap-2 px-1 pb-1 pt-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Not selected
+          </span>
+          <span className="h-px flex-1 bg-gray-200" />
+        </li>
+      )}
+
+      {rest.map((c) => row(c, null, null))}
+    </ol>
   );
 }
 
@@ -278,10 +344,7 @@ export default function Templates() {
     e.preventDefault();
     if (!canEdit) return toast.error("You do not have permission.");
     const name = form.name.trim();
-    const testIds = form.testCodes
-      .split(",")
-      .map((c) => c.trim())
-      .filter(Boolean);
+    const testIds = splitCodes(form.testCodes); // thứ tự người dùng đã xếp = thứ tự chạy
     const timeoutSec = Number(form.timeoutSec);
     if (name.length < 2) return toast.error("Template name is too short.");
     if (!form.suiteId && testIds.length === 0)
@@ -512,7 +575,7 @@ export default function Templates() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <form
             onSubmit={handleSave}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4"
+            className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 space-y-4"
           >
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">
@@ -578,47 +641,22 @@ export default function Templates() {
                 </select>
 
                 {!form.suiteId && (
-                  <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-gray-200 p-2 space-y-1">
-                    {readyCases.length === 0 && (
-                      <p className="text-xs text-gray-400">
-                        No ready test cases yet.
-                      </p>
-                    )}
-                    {readyCases.map((c) => {
-                      const picked = form.testCodes
-                        .split(",")
-                        .map((x) => x.trim())
-                        .filter(Boolean);
-                      const on = picked.includes(c.code);
-                      return (
-                        <label
-                          key={c.id}
-                          className="flex items-center gap-2 text-sm"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={on}
-                            onChange={() => {
-                              const next = on
-                                ? picked.filter((x) => x !== c.code)
-                                : [...picked, c.code];
-                              setForm({ ...form, testCodes: next.join(", ") });
-                            }}
-                          />
-                          <span className="font-mono text-xs">{c.code}</span>{" "}
-                          {c.title}
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <OrderedCasePicker
+                    codes={splitCodes(form.testCodes)}
+                    cases={readyCases}
+                    disabled={readOnly || saving}
+                    onChange={(next) =>
+                      setForm({ ...form, testCodes: joinCodes(next) })
+                    }
+                  />
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <label className={labelCls}>Scope</label>
                   {/* Tích hợp Searchable Scope Select ở Modal */}
-                  <SearchableScopeSelect
+                  <ScopeSelect
                     value={form.scope}
                     disabled={readOnly || saving}
                     onChange={(val) =>

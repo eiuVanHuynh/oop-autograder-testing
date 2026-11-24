@@ -80,10 +80,10 @@ export default function Sidebar({ collapsed = false }) {
     <aside
       inert={collapsed}
       aria-hidden={collapsed || undefined}
-      className={`relative z-40 flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out shrink-0 sticky top-0 h-[calc(100vh-4rem)] overflow-y-auto ${
+      className={`z-40 flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out shrink-0 h-[calc(100vh-4rem)] overflow-y-auto max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:h-full max-lg:shadow-lg lg:sticky lg:top-0 ${
         collapsed
           ? "w-0 overflow-hidden border-r-0 opacity-0"
-          : "w-48 opacity-100"
+          : "w-72 opacity-100"
       }`}
     >
       {/* Danh sách các mục menu */}

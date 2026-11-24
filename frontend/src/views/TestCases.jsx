@@ -273,7 +273,6 @@ export default function TestCases() {
                   key: "sel",
                   header: "",
                   card: "footer",
-                  width: "2rem",
                   width: "50px",
                   render: (c) => (
                     <input
@@ -338,14 +337,6 @@ export default function TestCases() {
             sortable: true,
             card: "badge",
             render: (c) => <StatusBadge status={c.status} />,
-          },
-          {
-            key: "usedIn",
-            header: "Used in",
-            sortable: true,
-            width: "90px",
-            className: "text-xs text-gray-500",
-            render: (c) => usedIn(c.code).length || "—",
           },
           {
             key: "actions",

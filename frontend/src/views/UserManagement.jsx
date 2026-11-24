@@ -405,7 +405,7 @@ export default function UserManagement() {
               </div>
 
               {form.view && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className={labelCls}>Role</label>
                     <input className={`${inputCls} capitalize`} value={form.role} disabled readOnly />
@@ -440,7 +440,7 @@ export default function UserManagement() {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <label className={labelCls}>Role</label>
                       <select
@@ -453,7 +453,7 @@ export default function UserManagement() {
                       >
                         {ROLES.map((r) => (
                           <option key={r} value={r}>
-                            {r}
+                            {r.charAt(0).toUpperCase() + r.slice(1)}
                           </option>
                         ))}
                       </select>
@@ -468,8 +468,8 @@ export default function UserManagement() {
                           setForm({ ...form, status: e.target.value })
                         }
                       >
-                        <option value="active">active</option>
-                        <option value="inactive">inactive</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
                       </select>
                     </div>
                   </div>

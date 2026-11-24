@@ -1,7 +1,7 @@
 import API from '../models/api';
 
 // Backend: POST /auth/login -> { data: { token, user } }. Lỗi: { error: { code, message, details? } }.
-// Hiện backend CHỈ có login. BACKEND-TODO: register, forgot-password, reset-password, me, logout.
+// Đã nối: login, register. BACKEND-TODO: forgot-password, reset-password, me, logout.
 
 const capitalize = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
@@ -18,6 +18,13 @@ export const toUser = (row) => ({
 export async function loginRequest({ email, password }) {
   // BACKEND-TODO: rememberMe chưa được backend xử lý (token luôn 1 ngày), nên chưa gửi lên.
   const { data } = await API.post('/auth/login', { email, password });
+  return { token: data.data.token, user: toUser(data.data.user) };
+}
+
+// POST /auth/register { fullName, email, password } -> 201 { token, user }. Lỗi: 400 · 409 email đã tồn tại.
+// Vai trò 'viewer' và trạng thái 'active' do backend đặt (auth.service.register), FE không gửi lên.
+export async function registerRequest({ fullName, email, password }) {
+  const { data } = await API.post('/auth/register', { fullName, email, password });
   return { token: data.data.token, user: toUser(data.data.user) };
 }
 
