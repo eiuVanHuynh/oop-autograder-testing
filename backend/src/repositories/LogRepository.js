@@ -1,6 +1,7 @@
 const BaseRepository = require('./BaseRepository');
 
-// The temporary run_logs table backing the live log panel. Scratch data, purged when the run ends.
+// The run_logs table behind the live log panel and the report page's log box. Kept after the run ends
+// (issue #79); purge() is only for an explicit cleanup, nothing calls it on finish any more.
 class LogRepository extends BaseRepository {
   constructor() {
     super('run_logs', 'log_id');

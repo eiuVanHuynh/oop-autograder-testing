@@ -85,12 +85,14 @@ test('an unknown results status → 400', async () => {
     .send({ results: [{ code: 'TC-01', status: 'bay-gio-moi-biet' }] }).expect(400);
 });
 
-test('finish: the run status is computed from test_results, scratch logs are purged', async () => {
+test('finish: the run status is computed from test_results, the logs are KEPT', async () => {
   const res = await request(app).patch(`/api/ingest/runs/${runId}/finish`).set(KEY).send({}).expect(200);
   assert.equal(res.body.data.status, 'failed'); // there is 1 failed row
   assert.equal(res.body.data.final_status, null);
+  // issue #79: finish used to purge run_logs, which wiped the live panel's last poll and the
+  // report page's log box. The 3 lines written by the batch test above must still be there.
   const logs = (await query('SELECT count(*)::int n FROM run_logs WHERE run_id=$1', [runId])).rows[0].n;
-  assert.equal(logs, 0);
+  assert.equal(logs, 3, 'the logs must survive finish');
 });
 
 test('a second finish → 409', async () => {

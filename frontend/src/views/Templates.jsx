@@ -10,6 +10,7 @@ import {
   Search,
   Copy,
   ChevronDown,
+  ChevronUp,
   Power,
   PowerOff,
 } from "lucide-react";
@@ -34,6 +35,7 @@ import IconButton from "../components/ui/IconButton";
 import DataTable, { TableViewToggle } from "../components/ui/DataTable";
 import StatusBadge from "../components/ui/StatusBadge";
 import { parseQuery, buildQuery } from "../models/searchTags";
+import { splitCodes, joinCodes, moveAt } from "../models/caseOrder";
 import { getTableView, setTableView } from "../models/tableView";
 
 // Tag của riêng trang Templates, dùng chung cho ô search và panel Filter.
@@ -74,7 +76,7 @@ const toForm = (t, readOnly = false) => ({
   name: t.name,
   description: t.description,
   scope: t.scope,
-  testCodes: t.targetTestIds ? t.targetTestIds.join(", ") : "",
+  testCodes: t.targetTestIds ? joinCodes(t.targetTestIds) : "",
   suiteId: t.suiteId,
   defaultEnv: t.defaultEnv || "development",
   timeoutSec: String((t.defaultTimeoutMs || 30000) / 1000),
@@ -200,6 +202,85 @@ function SearchableScopeSelect({
   );
 }
 
+// Chọn test case VÀ xếp thứ tự chạy (issue #67). Thứ tự = thứ tự mảng `codes`, nên phần
+// "Execution order" đi kèm nút lên/xuống; danh sách dưới chỉ để tick thêm/bỏ.
+function OrderedCasePicker({ codes, cases, disabled = false, onChange }) {
+  const titleOf = (code) => cases.find((c) => c.code === code)?.title ?? "";
+  const toggle = (code) =>
+    onChange(
+      codes.includes(code)
+        ? codes.filter((x) => x !== code)
+        : [...codes, code],
+    );
+
+  return (
+    <>
+      {codes.length > 0 && (
+        <div className="mt-2 rounded-xl border border-gray-200 p-2">
+          <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+            Execution order
+          </p>
+          <ol className="m-0 max-h-40 list-none space-y-1 overflow-y-auto p-0">
+            {codes.map((code, i) => (
+              <li
+                key={code}
+                className="flex items-center gap-1 rounded-lg bg-gray-50 px-2 py-1 text-sm"
+              >
+                <span className="w-5 shrink-0 text-xs text-gray-400">
+                  {i + 1}.
+                </span>
+                <span className="font-mono text-xs">{code}</span>
+                <span className="min-w-0 flex-1 truncate text-gray-600">
+                  {titleOf(code)}
+                </span>
+                <IconButton
+                  icon={ChevronUp}
+                  title="Move up"
+                  size={14}
+                  disabled={disabled || i === 0}
+                  onClick={() => onChange(moveAt(codes, i, i - 1))}
+                />
+                <IconButton
+                  icon={ChevronDown}
+                  title="Move down"
+                  size={14}
+                  disabled={disabled || i === codes.length - 1}
+                  onClick={() => onChange(moveAt(codes, i, i + 1))}
+                />
+                <IconButton
+                  icon={X}
+                  title="Remove"
+                  size={14}
+                  danger
+                  disabled={disabled}
+                  onClick={() => toggle(code)}
+                />
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      <div className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-xl border border-gray-200 p-2">
+        {cases.length === 0 && (
+          <p className="text-xs text-gray-400">No ready test cases yet.</p>
+        )}
+        {cases.map((c) => (
+          <label key={c.id} className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={codes.includes(c.code)}
+              disabled={disabled}
+              onChange={() => toggle(c.code)}
+            />
+            <span className="font-mono text-xs">{c.code}</span> {c.title}
+          </label>
+        ))}
+      </div>
+    </>
+  );
+}
+
 export default function Templates() {
   const { user } = useAuth();
   const [readyCases, setReadyCases] = useState([]);
@@ -278,10 +359,7 @@ export default function Templates() {
     e.preventDefault();
     if (!canEdit) return toast.error("You do not have permission.");
     const name = form.name.trim();
-    const testIds = form.testCodes
-      .split(",")
-      .map((c) => c.trim())
-      .filter(Boolean);
+    const testIds = splitCodes(form.testCodes); // thứ tự người dùng đã xếp = thứ tự chạy
     const timeoutSec = Number(form.timeoutSec);
     if (name.length < 2) return toast.error("Template name is too short.");
     if (!form.suiteId && testIds.length === 0)
@@ -578,43 +656,18 @@ export default function Templates() {
                 </select>
 
                 {!form.suiteId && (
-                  <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-gray-200 p-2 space-y-1">
-                    {readyCases.length === 0 && (
-                      <p className="text-xs text-gray-400">
-                        No ready test cases yet.
-                      </p>
-                    )}
-                    {readyCases.map((c) => {
-                      const picked = form.testCodes
-                        .split(",")
-                        .map((x) => x.trim())
-                        .filter(Boolean);
-                      const on = picked.includes(c.code);
-                      return (
-                        <label
-                          key={c.id}
-                          className="flex items-center gap-2 text-sm"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={on}
-                            onChange={() => {
-                              const next = on
-                                ? picked.filter((x) => x !== c.code)
-                                : [...picked, c.code];
-                              setForm({ ...form, testCodes: next.join(", ") });
-                            }}
-                          />
-                          <span className="font-mono text-xs">{c.code}</span>{" "}
-                          {c.title}
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <OrderedCasePicker
+                    codes={splitCodes(form.testCodes)}
+                    cases={readyCases}
+                    disabled={readOnly || saving}
+                    onChange={(next) =>
+                      setForm({ ...form, testCodes: joinCodes(next) })
+                    }
+                  />
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <label className={labelCls}>Scope</label>
                   {/* Tích hợp Searchable Scope Select ở Modal */}

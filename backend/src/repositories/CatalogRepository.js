@@ -87,7 +87,7 @@ class CatalogRepository extends BaseRepository {
       `SELECT c.test_id, c.tc_code, c.title, ${CODE_EXPR} AS code
          FROM test_cases c
         WHERE ${CODE_EXPR} = ANY($1::text[])
-        ORDER BY c.tc_code`,
+        ORDER BY array_position($1::text[], ${CODE_EXPR})`,
       [codes],
     );
     if (!cases.rows.length) return [];
@@ -115,13 +115,15 @@ class CatalogRepository extends BaseRepository {
     }));
   }
 
-  // From the tc_code list the user sent, keep only codes that exist and are 'ready'.
+  // From the tc_code list the user sent, keep only codes that exist and are 'ready',
+  // IN THE ORDER THEY WERE SENT (issue #67: a template's target_json.testIds is an ordered list).
+  // ORDER BY c.tc_code would silently re-sort them alphabetically.
   async findReadyCodesByTcCodes(tcCodes) {
     const res = await this.query(
       `SELECT ${CODE_EXPR} AS code
          FROM test_cases c
         WHERE c.tc_code = ANY($1::text[]) AND c.test_status = 'ready'
-        ORDER BY c.tc_code`,
+        ORDER BY array_position($1::text[], c.tc_code)`,
       [tcCodes],
     );
     return res.rows.map((r) => r.code);

@@ -405,7 +405,7 @@ export default function UserManagement() {
               </div>
 
               {form.view && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className={labelCls}>Role</label>
                     <input className={`${inputCls} capitalize`} value={form.role} disabled readOnly />
@@ -440,7 +440,7 @@ export default function UserManagement() {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <label className={labelCls}>Role</label>
                       <select
