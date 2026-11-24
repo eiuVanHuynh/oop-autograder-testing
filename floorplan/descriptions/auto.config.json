@@ -1,0 +1,8 @@
+{
+  "files": {
+    "automation/playwright.config.js": {
+      "name": "Cấu hình bộ kiểm thử",
+      "description": "Quy định trình duyệt, địa chỉ website cần kiểm thử, thời gian chờ và cách gửi kết quả; chỉ chạy nhóm kiểm thử theo kế hoạch."
+    }
+  }
+}

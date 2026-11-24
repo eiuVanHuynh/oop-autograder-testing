@@ -1,0 +1,6 @@
+# Floorplan sinh lại được từ architecture.json + descriptions/, nên chỉ hai thứ đó vào git.
+*
+!.gitignore
+!architecture.json
+!descriptions/
+!descriptions/*.json

@@ -213,7 +213,7 @@ export default function DataTable({
       ))}
     </div>
   ) : (
-    <table className="w-full text-sm border-collapse">
+    <table className="w-full text-sm border-collapse table-fixed">
       <thead className="bg-gray-50 text-xs text-gray-500 uppercase sticky top-0 z-10 shadow-sm">
         <tr>
           {columns.map((col) => {

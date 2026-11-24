@@ -1,0 +1,16 @@
+{
+  "files": {
+    "backend/src/services/target/index.js": {
+      "name": "Tính danh sách ca cần chạy",
+      "description": "Đổi lựa chọn của người dùng thành danh sách mã ca đã bỏ trùng và sắp xếp, kèm chuỗi lọc gửi cho nơi chạy."
+    },
+    "backend/src/services/target/SuiteTargetStrategy.js": {
+      "name": "Chọn theo bộ kiểm thử",
+      "description": "Lấy mã của mọi ca kiểm thử đang ở trạng thái sẵn sàng trong một bộ kiểm thử."
+    },
+    "backend/src/services/target/TestIdsTargetStrategy.js": {
+      "name": "Chọn từng ca",
+      "description": "Chỉ lấy đúng những mã ca được liệt kê và còn sẵn sàng, bỏ qua mã không có để chuỗi lạ không lọt vào lệnh chạy."
+    }
+  }
+}

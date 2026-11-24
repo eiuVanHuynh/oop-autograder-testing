@@ -153,3 +153,13 @@ tmp/*
 
 # Private docs – không commit cả thư mục
 docs/parallel/
+
+# tmp
+tmp/
+
+# Bản đồ kiến trúc (floorplan): chỉ commit nguồn, bản sinh ra thì không
+floorplan/*
+!floorplan/.gitignore
+!floorplan/architecture.json
+!floorplan/descriptions/
+!floorplan/descriptions/*.json

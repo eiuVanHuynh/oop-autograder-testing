@@ -1,0 +1,88 @@
+{
+  "files": {
+    "frontend/src/components/AuthLayout.jsx": {
+      "name": "Khung trang đăng nhập",
+      "description": "Dựng khung hai cột cho các trang đăng nhập, tạo tài khoản và quên mật khẩu: giới thiệu sản phẩm bên trái, biểu mẫu bên phải."
+    },
+    "frontend/src/components/layout/Sidebar.jsx": {
+      "name": "Trình đơn bên trái",
+      "description": "Liệt kê các mục chuyển trang theo hai nhóm, chỉ hiện mục mà vai trò người đang đăng nhập được vào, và tô sáng trang hiện tại."
+    },
+    "frontend/src/components/layout/TopBar.jsx": {
+      "name": "Thanh trên cùng",
+      "description": "Hiện tên trang đang xem, ô tìm kiếm, chuông thông báo, bộ đổi màu nền và trình đơn tài khoản có nút đăng xuất."
+    },
+    "frontend/src/components/MainLayout.jsx": {
+      "name": "Khung màn hình chính",
+      "description": "Ghép thanh trên cùng, trình đơn bên trái thu gọn được và vùng nội dung cuộn riêng thành khung bao quanh mọi trang sau khi đăng nhập."
+    },
+    "frontend/src/components/ui/AuthCard.jsx": {
+      "name": "Thẻ biểu mẫu đăng nhập",
+      "description": "Dựng thẻ trắng có tiêu đề và dòng mô tả để đặt biểu mẫu đăng nhập, tạo tài khoản hay quên mật khẩu vào trong."
+    },
+    "frontend/src/components/ui/Button.jsx": {
+      "name": "Nút bấm",
+      "description": "Vẽ nút bấm rộng hết dòng theo hai kiểu, nổi bật hoặc nền trắng, và mờ đi khi bị khoá."
+    },
+    "frontend/src/components/ui/ChipGroup.jsx": {
+      "name": "Dãy thẻ chọn nhiều",
+      "description": "Cho bật tắt nhiều giá trị bằng một dãy thẻ nhỏ; chưa có trang nào dùng đến."
+    },
+    "frontend/src/components/ui/CreateButton.jsx": {
+      "name": "Nút tạo mới",
+      "description": "Vẽ nút \"Create\" có dấu cộng, dùng ở đầu các trang danh sách để mở phần tạo mục mới."
+    },
+    "frontend/src/components/ui/DataTable.jsx": {
+      "name": "Bảng danh sách",
+      "description": "Hiện danh sách bất kỳ dưới dạng bảng hay thẻ, có sắp xếp theo cột, phân trang, báo đang tải và báo trống."
+    },
+    "frontend/src/components/ui/FilterBar.jsx": {
+      "name": "Thanh tìm và lọc",
+      "description": "Gom nút tải lại, ô tìm kiếm có gợi ý theo nhãn và chỗ đặt các nút lọc riêng của từng trang vào một thanh."
+    },
+    "frontend/src/components/ui/FilterMenu.jsx": {
+      "name": "Bảng chọn điều kiện lọc",
+      "description": "Mở bảng cho tích nhiều giá trị trong từng nhóm điều kiện và đếm số điều kiện đang bật."
+    },
+    "frontend/src/components/ui/FormField.jsx": {
+      "name": "Ô nhập có nhãn",
+      "description": "Vẽ một ô nhập kèm nhãn và biểu tượng bên trái, dùng cho các biểu mẫu đăng nhập và tạo tài khoản."
+    },
+    "frontend/src/components/ui/IconButton.jsx": {
+      "name": "Nút biểu tượng",
+      "description": "Vẽ nút vuông chỉ có biểu tượng cho các thao tác trên từng dòng bảng, kèm chú thích khi trỏ chuột vào."
+    },
+    "frontend/src/components/ui/PageHeader.jsx": {
+      "name": "Đầu trang",
+      "description": "Hiện đường dẫn phân cấp, tiêu đề và mô tả ở đầu một trang, chừa chỗ bên phải cho các nút thao tác."
+    },
+    "frontend/src/components/ui/Pagination.jsx": {
+      "name": "Phân trang",
+      "description": "Hiện tổng số dòng, trang hiện tại và hai nút lùi tiến ở chân bảng danh sách."
+    },
+    "frontend/src/components/ui/Panel.jsx": {
+      "name": "Khung nội dung",
+      "description": "Dựng thẻ trắng bao quanh một khối nội dung như biểu đồ, bảng hay biểu mẫu, kèm tiêu đề nếu có."
+    },
+    "frontend/src/components/ui/PasswordField.jsx": {
+      "name": "Ô nhập mật khẩu",
+      "description": "Vẽ ô nhập mật khẩu có nút bật tắt hiện ký tự."
+    },
+    "frontend/src/components/ui/RowMenu.jsx": {
+      "name": "Trình đơn trên dòng",
+      "description": "Mở trình đơn ba chấm ở cuối mỗi dòng bảng để gom các thao tác ít dùng hoặc dễ gây mất dữ liệu như tắt và xoá."
+    },
+    "frontend/src/components/ui/SegmentedControl.jsx": {
+      "name": "Nhóm nút chọn một",
+      "description": "Vẽ dãy nút liền nhau để chọn đúng một giá trị, dùng cho việc đổi cách xem bảng."
+    },
+    "frontend/src/components/ui/StatCard.jsx": {
+      "name": "Thẻ số liệu",
+      "description": "Hiện một nhãn và một con số lớn; phần dòng phụ và biểu tượng còn để trống, và chưa có trang nào dùng đến."
+    },
+    "frontend/src/components/ui/StatusBadge.jsx": {
+      "name": "Nhãn trạng thái",
+      "description": "Vẽ nhãn tròn nhỏ tô màu theo trạng thái hay mức ưu tiên được đưa vào, và tô xám khi không nhận ra giá trị."
+    }
+  }
+}

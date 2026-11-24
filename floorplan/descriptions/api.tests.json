@@ -1,0 +1,36 @@
+{
+  "files": {
+    "backend/scripts/routes.js": {
+      "name": "Liệt kê đường dẫn đang sống",
+      "description": "In ra mọi yêu cầu máy chủ thật sự đang nhận cùng vai trò được phép, đọc thẳng từ mã nguồn nên không bao giờ lệch."
+    },
+    "backend/scripts/smoke-api.mjs": {
+      "name": "Thử nhanh toàn máy chủ",
+      "description": "Gọi lần lượt các yêu cầu chính trên một máy chủ đang chạy để xem còn hoạt động; không file nào gọi nó."
+    },
+    "backend/tests/auth-templates.test.js": {
+      "name": "Kiểm thử đăng nhập và mẫu chạy",
+      "description": "Gọi thật máy chủ để kiểm tra đăng nhập, đăng ký và quản lý mẫu chạy, dùng dữ liệu giả trong bộ nhớ thay cho cơ sở dữ liệu."
+    },
+    "backend/tests/catalog-runs-write.test.js": {
+      "name": "Kiểm thử sửa bộ kiểm thử và lần chạy",
+      "description": "Kiểm tra các nhánh khi sửa ca kiểm thử và khi đọc kết quả lần chạy, dùng dữ liệu giả nên không cần cơ sở dữ liệu."
+    },
+    "backend/tests/health.test.js": {
+      "name": "Kiểm thử máy chủ còn sống",
+      "description": "Kiểm tra máy chủ dựng lên được và trả lời yêu cầu kiểm tra sức khỏe."
+    },
+    "backend/tests/ingest.test.js": {
+      "name": "Kiểm thử nhận kết quả",
+      "description": "Kiểm tra luồng nơi chạy lấy danh sách ca rồi đẩy log, kết quả và đóng lần chạy, trên một cơ sở dữ liệu dùng một lần."
+    },
+    "backend/tests/steps.test.js": {
+      "name": "Kiểm thử các bước chạy",
+      "description": "Kiểm tra từng bước của một ca kiểm thử được hiểu và thực hiện đúng, với một trình duyệt giả."
+    },
+    "backend/tests/users-bugs-env.test.js": {
+      "name": "Kiểm thử thành viên, lỗi, môi trường",
+      "description": "Kiểm tra quy tắc quyền của thành viên, việc báo lỗi từ kết quả thất bại và việc chọn môi trường chạy, bằng dữ liệu giả."
+    }
+  }
+}

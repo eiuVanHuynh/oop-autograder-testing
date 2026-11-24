@@ -1,0 +1,40 @@
+{
+  "files": {
+    "frontend/src/models/api.js": {
+      "name": "Đường dây tới máy chủ",
+      "description": "Gắn thẻ đăng nhập vào mọi yêu cầu gửi lên máy chủ, và khi thẻ hết hạn thì xoá phiên rồi đưa người dùng về trang đăng nhập."
+    },
+    "frontend/src/models/options.js": {
+      "name": "Danh sách lựa chọn",
+      "description": "Giữ các lựa chọn cố định mà nhiều trang cùng dùng: môi trường chạy, phạm vi kiểm thử, loại, mức ưu tiên và trạng thái của ca kiểm thử."
+    },
+    "frontend/src/models/permissions.js": {
+      "name": "Ai được làm gì",
+      "description": "Quyết định vai trò nào được chạy kiểm thử, sửa bộ kiểm thử, sửa ca kiểm thử hay quản lý thành viên; chỉ quản trị viên được quản lý thành viên."
+    },
+    "frontend/src/models/reportHtml.js": {
+      "name": "Dựng báo cáo tải về",
+      "description": "Dựng một trang báo cáo trọn gói cho một lần chạy, mở được khi không có mạng và gửi kèm thư được."
+    },
+    "frontend/src/models/runLog.js": {
+      "name": "Đọc diễn biến chạy",
+      "description": "Bóc kết quả đạt hay không của từng ca cùng thời gian chạy ra khỏi diễn biến của một lần chạy, và chọn màu chữ theo mức độ từng dòng."
+    },
+    "frontend/src/models/searchTags.js": {
+      "name": "Tìm kiếm kiểu nhãn",
+      "description": "Coi ô tìm kiếm là nơi quyết định duy nhất: từ nào trùng một lựa chọn lọc thì thành nhãn được tick, phần còn lại là chữ tìm tự do."
+    },
+    "frontend/src/models/tableView.js": {
+      "name": "Nhớ cách xem danh sách",
+      "description": "Ghi nhớ từng danh sách đang xem dạng bảng hay dạng thẻ để lần sau mở lại vẫn như cũ."
+    },
+    "frontend/src/models/testSteps.js": {
+      "name": "Quy ước các bước kiểm thử",
+      "description": "Định nghĩa những thao tác mà bộ chạy kiểm thử hiểu, liệt kê dữ liệu mỗi bước cần, và chỉ ra chỗ sẽ làm lần chạy báo lỗi."
+    },
+    "frontend/src/models/theme.js": {
+      "name": "Màu nền giao diện",
+      "description": "Đổi và ghi nhớ bộ màu người dùng chọn cho giao diện, chịu được trường hợp trình duyệt không cho lưu."
+    }
+  }
+}

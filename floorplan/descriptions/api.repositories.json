@@ -1,0 +1,36 @@
+{
+  "files": {
+    "backend/src/repositories/BaseRepository.js": {
+      "name": "Khuôn chung đọc ghi dữ liệu",
+      "description": "Giữ các câu lệnh dùng chung để tìm theo mã và xóa một bản ghi, cho mọi lớp đọc ghi dữ liệu khác dùng lại."
+    },
+    "backend/src/repositories/BugRepository.js": {
+      "name": "Dữ liệu lỗi",
+      "description": "Lưu, cập nhật và tìm các lỗi đã báo, lọc theo trạng thái và mức nghiêm trọng, kèm luôn mã ca kiểm thử liên quan."
+    },
+    "backend/src/repositories/CatalogRepository.js": {
+      "name": "Dữ liệu bộ kiểm thử",
+      "description": "Đọc và ghi bộ kiểm thử, nhóm ca, từng ca cùng bước và dữ liệu nhập, và lọc ra những ca đang sẵn sàng chạy."
+    },
+    "backend/src/repositories/LogRepository.js": {
+      "name": "Dữ liệu log tạm",
+      "description": "Thêm và đọc các dòng log đúng thứ tự cho bảng log trực tiếp, rồi dọn sạch khi lần chạy kết thúc."
+    },
+    "backend/src/repositories/ResultRepository.js": {
+      "name": "Dữ liệu kết quả",
+      "description": "Ghi kết quả từng ca kèm ảnh và bằng chứng, và đọc lại đúng một kết quả mới nhất cho mỗi ca trong một lần chạy."
+    },
+    "backend/src/repositories/RunRepository.js": {
+      "name": "Dữ liệu lần chạy",
+      "description": "Lưu và tìm các lần chạy, tính trạng thái từ kết quả các ca thay vì lưu sẵn, và nhớ mã lần chạy bên GitHub để hủy."
+    },
+    "backend/src/repositories/TemplateRepository.js": {
+      "name": "Dữ liệu mẫu chạy",
+      "description": "Lưu, sửa, xóa và tìm theo tên hoặc phạm vi các mẫu chọn sẵn ca kiểm thử."
+    },
+    "backend/src/repositories/UserRepository.js": {
+      "name": "Dữ liệu thành viên",
+      "description": "Tìm, thêm, sửa, đổi quyền và khóa thành viên; chặn sửa tài khoản quản trị và không bao giờ để mật khẩu lọt ra."
+    }
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "files": {
+    "automation/fixtures/submissions/compile_error/20211001_NguyenVanA_lab_1/challenge_1/Solution.java": {
+      "name": "Lỗi biên dịch – bài 1",
+      "description": "Viết lớp Sinh viên thiếu một dấu chấm phẩy, để thử xem hệ thống có báo lỗi biên dịch không."
+    },
+    "automation/fixtures/submissions/compile_error/20211001_NguyenVanA_lab_1/challenge_2/Solution.java": {
+      "name": "Lỗi biên dịch – bài 2",
+      "description": "Viết lớp Hình tròn hoàn toàn đúng, đi kèm bài 1 cố ý sai của cùng kịch bản lỗi biên dịch."
+    },
+    "automation/fixtures/submissions/declaration_missing_method/20211001_NguyenVanA_lab_1/challenge_1/Solution.java": {
+      "name": "Thiếu hàm – bài 1",
+      "description": "Viết lớp Sinh viên thiếu hàm lấy tên, để thử phần chấm khai báo có phát hiện hàm còn thiếu không."
+    },
+    "automation/fixtures/submissions/declaration_missing_method/20211001_NguyenVanA_lab_1/challenge_2/Solution.java": {
+      "name": "Thiếu hàm – bài 2",
+      "description": "Viết lớp Hình tròn hoàn toàn đúng, đi kèm bài 1 thiếu hàm của cùng kịch bản."
+    },
+    "automation/fixtures/submissions/declaration_partial_wrong_modifier/20211001_NguyenVanA_lab_1/challenge_1/Solution.java": {
+      "name": "Sai mức truy cập – bài 1",
+      "description": "Viết lớp Sinh viên để điểm trung bình ở mức công khai thay vì riêng tư, để thử phần chấm khai báo."
+    },
+    "automation/fixtures/submissions/declaration_partial_wrong_modifier/20211001_NguyenVanA_lab_1/challenge_2/Solution.java": {
+      "name": "Sai mức truy cập – bài 2",
+      "description": "Viết lớp Hình tròn hoàn toàn đúng, đi kèm bài 1 sai mức truy cập của cùng kịch bản."
+    },
+    "automation/fixtures/submissions/empty_files/20211001_NguyenVanA_lab_1/challenge_1/Solution.java": {
+      "name": "File rỗng – bài 1",
+      "description": "Để trống hoàn toàn, không một dòng mã, để thử xem hệ thống xử lý bài nộp rỗng ra sao."
+    },
+    "automation/fixtures/submissions/empty_files/20211001_NguyenVanA_lab_1/challenge_2/Solution.java": {
+      "name": "File rỗng – bài 2",
+      "description": "Để trống hoàn toàn như bài 1, hoàn tất kịch bản bài nộp không có nội dung."
+    },
+    "automation/fixtures/submissions/infinite_loop/20211001_NguyenVanA_lab_1/challenge_1/Solution.java": {
+      "name": "Lặp vô hạn – bài 1",
+      "description": "Viết lớp Sinh viên có vòng lặp chạy mãi không dừng, để thử xem hệ thống có cắt bài chấm quá giờ không."
+    },
+    "automation/fixtures/submissions/infinite_loop/20211001_NguyenVanA_lab_1/challenge_2/Solution.java": {
+      "name": "Lặp vô hạn – bài 2",
+      "description": "Viết lớp Hình tròn hoàn toàn đúng, đi kèm bài 1 lặp vô hạn của cùng kịch bản."
+    },
+    "automation/fixtures/submissions/invalid_root_name/lab1_bai_nop/challenge_1/Solution.java": {
+      "name": "Sai tên thư mục gốc – bài 1",
+      "description": "Viết lớp Sinh viên đúng chuẩn nhưng nằm trong thư mục gốc đặt sai tên, để thử phần kiểm tra cấu trúc thư mục."
+    },
+    "automation/fixtures/submissions/invalid_root_name/lab1_bai_nop/challenge_2/Solution.java": {
+      "name": "Sai tên thư mục gốc – bài 2",
+      "description": "Viết lớp Hình tròn đúng chuẩn, cũng nằm trong thư mục gốc đặt sai tên của cùng kịch bản."
+    },
+    "automation/fixtures/submissions/invalid_subfolder_name/20211001_NguyenVanA_lab_1/chall_1_wrong/Solution.java": {
+      "name": "Sai tên thư mục con – bài 1",
+      "description": "Viết lớp Sinh viên đúng chuẩn nhưng đặt trong thư mục con sai tên, để thử phần kiểm tra cấu trúc thư mục."
+    },
+    "automation/fixtures/submissions/invalid_subfolder_name/20211001_NguyenVanA_lab_1/challenge_2/Solution.java": {
+      "name": "Sai tên thư mục con – bài 2",
+      "description": "Viết lớp Hình tròn đúng chuẩn trong thư mục con đặt tên đúng, đi kèm bài 1 sai tên của cùng kịch bản."
+    },
+    "automation/fixtures/submissions/missing_challenge/20211001_NguyenVanA_lab_1/challenge_1/Solution.java": {
+      "name": "Thiếu bài – chỉ còn bài 1",
+      "description": "Viết lớp Sinh viên đúng chuẩn và là bài duy nhất trong kịch bản thiếu hẳn bài 2."
+    },
+    "automation/fixtures/submissions/mmd_partial_wrong/20211001_NguyenVanA_lab_1/challenge_1/Solution.java": {
+      "name": "Sơ đồ sai một phần – bài 1",
+      "description": "Viết lớp Sinh viên đúng chuẩn, cặp với sơ đồ lớp bị sai vài chỗ để thử phần chấm sơ đồ."
+    },
+    "automation/fixtures/submissions/mmd_partial_wrong/20211001_NguyenVanA_lab_1/challenge_2/Solution.java": {
+      "name": "Sơ đồ sai một phần – bài 2",
+      "description": "Viết lớp Hình tròn đúng chuẩn, cặp với sơ đồ vẽ sai quan hệ kế thừa trong cùng kịch bản."
+    },
+    "automation/fixtures/submissions/no_diagram/20211001_NguyenVanA_lab_1/challenge_1/Solution.java": {
+      "name": "Không có sơ đồ – bài 1",
+      "description": "Viết lớp Sinh viên đúng chuẩn trong kịch bản nộp thiếu hẳn file sơ đồ lớp."
+    },
+    "automation/fixtures/submissions/no_diagram/20211001_NguyenVanA_lab_1/challenge_2/Solution.java": {
+      "name": "Không có sơ đồ – bài 2",
+      "description": "Viết lớp Hình tròn đúng chuẩn, cũng không kèm file sơ đồ lớp trong cùng kịch bản."
+    },
+    "automation/fixtures/submissions/operational_logic_wrong/20211001_NguyenVanA_lab_1/challenge_1/Solution.java": {
+      "name": "Sai logic – bài 1",
+      "description": "Viết lớp Sinh viên bỏ kiểm tra khoảng điểm hợp lệ và lấy sai ngưỡng xét học sinh giỏi, để thử phần chấm chạy thử."
+    },
+    "automation/fixtures/submissions/operational_logic_wrong/20211001_NguyenVanA_lab_1/challenge_2/Solution.java": {
+      "name": "Sai logic – bài 2",
+      "description": "Viết lớp Hình tròn hoàn toàn đúng, đi kèm bài 1 sai logic của cùng kịch bản."
+    },
+    "automation/fixtures/submissions/valid_full/20211001_NguyenVanA_lab_1/challenge_1/Solution.java": {
+      "name": "Bài nộp đúng – bài 1",
+      "description": "Viết lớp Sinh viên đúng chuẩn, đủ hàm và đủ kiểm tra dữ liệu, làm mốc so sánh cho mọi kịch bản sai."
+    },
+    "automation/fixtures/submissions/valid_full/20211001_NguyenVanA_lab_1/challenge_2/Solution.java": {
+      "name": "Bài nộp đúng – bài 2",
+      "description": "Viết lớp Hình tròn kế thừa lớp Hình đúng chuẩn, làm mốc so sánh cho mọi kịch bản sai."
+    }
+  }
+}

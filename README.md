@@ -1,91 +1,118 @@
-# OOP AutoGrader Testing
+# OOP AutoGrader — Automated Testing System
 
-Hệ thống **kiểm thử tự động** cho website OOP AutoGrader: chọn một bộ test trên trang quản lý,
-máy chủ đặt lệnh chạy, Playwright chạy test như người thật rồi đẩy kết quả về để xem báo cáo.
+![Node.js](https://img.shields.io/badge/Node.js-5FA04E?style=flat&logo=nodedotjs&logoColor=white)
+![Express](https://img.shields.io/badge/Express-000000?style=flat&logo=express&logoColor=white)
+![React](https://img.shields.io/badge/React-087EA4?style=flat&logo=react&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-06B6D4?style=flat&logo=tailwindcss&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=flat&logo=playwright&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat&logo=postgresql&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=flat&logo=githubactions&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat&logo=vercel&logoColor=white)
 
+A platform that **runs tests by itself** against the [OOP AutoGrader](https://oop-autograder.vercel.app) website (the site that grades students' OOP assignments).
+A user picks a test suite in the dashboard → the server orders a run → the Playwright suite drives the real website like a user → results, logs and reported bugs are pushed back for the report screens.
+
+> [!IMPORTANT]
+> **Two systems, don't mix them up.** This repo is the *testing platform*. The system under test (OOP AutoGrader, Java/Spring Boot + React) lives in another repo and **has no code here**. Details: [`docs/Explain.md`](docs/Explain.md).
+
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+    U([User]) --> FE
+    FE["🖥️ Dashboard<br/><sub>frontend/ · React + Vite</sub>"]
+    BE["⚙️ Server<br/><sub>backend/ · Node + Express</sub>"]
+    PG[("🗄️ PostgreSQL<br/><sub>db/</sub>")]
+    GHA["🤖 GitHub Actions<br/><sub>.github/workflows</sub>"]
+    AUTO["🎭 Test suite<br/><sub>automation/ · Playwright</sub>"]
+    SUT(["🌐 OOP AutoGrader website<br/><sub>another repo</sub>"])
+
+    FE -- "calls /api/*" --> BE
+    BE -- "reads/writes" --> PG
+    BE -- "workflow_dispatch (run_id)" --> GHA
+    GHA -- "runs" --> AUTO
+    AUTO -- "drives the site like a real user" --> SUT
+    AUTO -- "pushes logs + results to /api/ingest" --> BE
 ```
-frontend/     Trang quản lý — React 19 + Vite + Tailwind
-backend/      Máy chủ — Node + Express + PostgreSQL
-automation/   Bộ test Playwright (chạy trên GitHub Actions hoặc tại máy)
-db/           Schema, migration, seed
-docs/         Tài liệu thiết kế (kiến trúc, API, database, quy trình git)
-```
 
-Luồng một lần chạy test: FE gọi `POST /runs` → backend lưu run và đặt lệnh cho runner →
-runner đẩy log/kết quả về qua `/ingest/*` → FE hỏi log theo chu kỳ và hiện báo cáo.
-Chi tiết: `docs/architecture/`, `docs/backend/api-endpoints.md`.
+| Part | Folder | What it does |
+|---|---|---|
+| Dashboard | `frontend/` | 13 screens: sign-in, overview, test cases, start a run, history, reports, user management |
+| Server | `backend/` | 54 API endpoints: permission checks, creating runs, taking in results, statistics |
+| Test suite | `automation/` | Playwright specs + sample Java submissions, one per failure scenario |
+| Database | `db/` + `migrate.js` | Table structure, upgrade steps, sample data |
+| Docs | `docs/` | SRS, test plan, the `TC-01`→`TC-31` matrix, backend/frontend design |
 
-## Chạy tại máy
+The server **does not run** Playwright itself (Vercel's serverless runtime can't run chromium) — it asks GitHub Actions to do it.
 
-Cần **Node 20.19+** (Vite 8 yêu cầu vậy) và **PostgreSQL** (schema dùng `jsonb`, `array_position`).
+## One-time setup
 
-### 1. Database
-
-Lần đầu làm theo `db/SETUP-LOCAL.md` (cài Postgres, tạo user + database), rồi nạp schema và dữ liệu mẫu:
+You need **Node.js 20+** and **PostgreSQL**. To set up a local database: [`db/SETUP-LOCAL.md`](db/SETUP-LOCAL.md).
 
 ```bash
-cd backend && cp .env.example .env     # điền DATABASE_URL và JWT_SECRET
-cd .. && node migrate.js               # chạy ở gốc repo, đọc backend/.env
+git clone <repo> && cd oop-autograder-testing
+cd backend && npm install && cd ..
+cd frontend && npm install && cd ..
+# deprecated
+# cd automation && npm install && npx playwright install chromium && cd ..
 ```
 
-`migrate.js` chạy lại được: nó bỏ qua seed khi database đã có dữ liệu thật
-(mốc: đã có ít nhất một dòng `test_runs`).
+Create `backend/.env` (at minimum `DATABASE_URL` and `JWT_SECRET` — without them the server won't start):
 
-5 tài khoản mẫu dùng chung mật khẩu `Test@1234`: `admin@` `tester@` `dev@` `viewer@` `locked@`
-(`@eiu.edu.vn`) — **chỉ dành cho môi trường dev**.
-
-### 2. Máy chủ
-
-```bash
-cd backend && npm install && npm run dev      # http://localhost:5000/api
-npm run routes                                # in ra toàn bộ endpoint đang sống
+```
+DATABASE_URL=postgresql://root:<password>@localhost:5432/test_automation_db
+JWT_SECRET=<openssl rand -base64 32>
 ```
 
-Biến môi trường: xem chú thích trong `backend/.env.example`. Hai biến bắt buộc là
-`DATABASE_URL` và `JWT_SECRET`; thiếu là server không khởi động.
+For the test suite's own variables (test accounts, data prefixes) see [`.env.example`](.env.example) and [`docs/test-data-rules.md`](docs/test-data-rules.md).
+**Never put real values in `.env.example`** — this repo is public.
 
-`RUNNER` quyết định ai chạy test:
-
-| Giá trị | Nghĩa |
-|---|---|
-| `fake` | log + kết quả mô phỏng, không mở trình duyệt. Mặc định khi không có `GITHUB_TOKEN`. **Không dùng ở production.** |
-| `playwright` | chạy Playwright thật trong tiến trình backend — **chỉ tại máy** (Vercel không có chromium) |
-| `github` | gọi `workflow_dispatch` để GitHub Actions chạy |
-
-### 3. Trang quản lý
+Load the table structure and sample data:
 
 ```bash
-cd frontend && npm install && npm run dev     # http://localhost:5173
+node migrate.js
 ```
 
-`VITE_API_URL` trỏ tới backend, mặc định `http://localhost:5000/api`.
+## Common commands
 
-## Kiểm thử
+| Task | Command | Where |
+|---|---|---|
+| Run the server | `npm run dev` → http://localhost:5000 | `backend/` |
+| Run the dashboard | `npm run dev` → http://localhost:5173 | `frontend/` |
+| Create / upgrade the database | `node migrate.js` | repo root |
+| Server tests | `npm test` | `backend/` |
+| List every API endpoint | `npm run routes` | `backend/` |
+| Frontend contract self-checks ⚠️ | `npm run check` | `frontend/` |
+| Run the Playwright suite | `npm test` | `automation/` |
+| Fetch a run plan from the server | `npm run plan` | `automation/` |
+
+ℹ️ `backend/npm test` needs **no database**: it runs against fake repositories and an in-memory `pg` stub.
+The one exception is `backend/tests/ingest.test.js`, which checks the SQL itself and therefore **skips
+itself** unless you point it at a throwaway database:
 
 ```bash
-cd backend  && npm test     # test máy chủ
-cd frontend && npm run check && npm run lint && npm run build
-```
-
-Phần lớn test máy chủ dùng **repository giả / pg giả lập**, nên `npm test` chạy được mà
-**không cần database**. Riêng `backend/tests/ingest.test.js` kiểm chính các câu SQL nên cần
-PostgreSQL thật, và nó **tự bỏ qua** khi chưa khai `TEST_DATABASE_URL`. Muốn chạy cả phần đó:
-
-```bash
-# một database dùng xong bỏ, KHÔNG trỏ vào database thật: test này ghi và xoá dữ liệu
+# a database you can throw away — NEVER the real one: this test writes and deletes rows
 DATABASE_URL=postgresql://postgres:x@localhost:55432/test_automation_db node migrate.js
 cd backend && TEST_DATABASE_URL=postgresql://postgres:x@localhost:55432/test_automation_db npm test
 ```
 
-`frontend/npm run check` là bộ self-check cho `src/models/` — những quy tắc mà `lint` và `build`
-không bắt được (khuôn dòng log, thứ tự chạy test case, escaping của báo cáo HTML).
+⚠️ `frontend/npm run check` guards the contract with the backend (test-step grammar, log line format, HTML report, search box). Change one of those files, or change a log message on the backend, and you **must run it again** — the build stays green while the UI breaks silently.
 
-## Vai trò
+### Architecture map (floorplan)
 
-`Admin` làm được mọi thứ · `Tester` chạy test và quản lý template · `Dev` xem, **không được chạy test** ·
-`Viewer` chỉ xem. Tài khoản mới tự đăng ký luôn là `Viewer`, trạng thái `Active`.
+An interactive map of the whole codebase; every file and every API endpoint has a name and a one-line description in Vietnamese.
 
-## Góp code
+**Just want to look at it?** Open [`docs/architecture/floorplan-map.html`](docs/architecture/floorplan-map.html) in any browser — one self-contained file, nothing to install.
 
-Quy trình nhánh và commit: `docs/GIT_WORKFLOW.md`. Nhánh làm việc hiện tại là
-`original/dev/front-end` và `original/dev/back-end`; `main` là nhánh chính.
+To work on the map itself (needs Claude Code with the floorplan plugin):
+
+```bash
+node floorplan/serve.mjs      # → http://127.0.0.1:4378, with the Ask bar
+```
+
+Only the map's sources are committed (`floorplan/architecture.json` and `floorplan/descriptions/`); the generated files are not. Rebuild them from those sources with `/floorplan:floorplan`, then refresh the shared copy:
+
+```bash
+node floorplan/serve.mjs --export docs/architecture/floorplan-map.html --include flows,notes
+```
