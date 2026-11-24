@@ -87,6 +87,16 @@ node migrate.js
 | Run the Playwright suite | `npm test` | `automation/` |
 | Fetch a run plan from the server | `npm run plan` | `automation/` |
 
+ℹ️ `backend/npm test` needs **no database**: it runs against fake repositories and an in-memory `pg` stub.
+The one exception is `backend/tests/ingest.test.js`, which checks the SQL itself and therefore **skips
+itself** unless you point it at a throwaway database:
+
+```bash
+# a database you can throw away — NEVER the real one: this test writes and deletes rows
+DATABASE_URL=postgresql://postgres:x@localhost:55432/test_automation_db node migrate.js
+cd backend && TEST_DATABASE_URL=postgresql://postgres:x@localhost:55432/test_automation_db npm test
+```
+
 ⚠️ `frontend/npm run check` guards the contract with the backend (test-step grammar, log line format, HTML report, search box). Change one of those files, or change a log message on the backend, and you **must run it again** — the build stays green while the UI breaks silently.
 
 ### Architecture map (floorplan)

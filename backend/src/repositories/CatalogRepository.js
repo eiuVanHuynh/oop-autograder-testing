@@ -81,13 +81,16 @@ class CatalogRepository extends BaseRepository {
   // The GitHub Actions run plan: many cases with steps + test_data, in 3 fixed queries.
   // Keeps the 'env:VAR_NAME' string in data_value as is — only the runner resolves it, the backend does not
   // (a real password must not travel through a response and end up in a public repo's Actions log).
+  // The order of `codes` is the execution order (issue #67), hence array_position instead of
+  // ORDER BY c.tc_code. c.tc_code is only a tie-breaker: COALESCE(automation_ref, tc_code) can come
+  // out the same string for two different cases, and Postgres may then order them either way.
   async findCasesByCodes(codes) {
     if (!codes || !codes.length) return [];
     const cases = await this.query(
       `SELECT c.test_id, c.tc_code, c.title, ${CODE_EXPR} AS code
          FROM test_cases c
         WHERE ${CODE_EXPR} = ANY($1::text[])
-        ORDER BY c.tc_code`,
+        ORDER BY array_position($1::text[], ${CODE_EXPR}), c.tc_code`,
       [codes],
     );
     if (!cases.rows.length) return [];
@@ -115,13 +118,15 @@ class CatalogRepository extends BaseRepository {
     }));
   }
 
-  // From the tc_code list the user sent, keep only codes that exist and are 'ready'.
+  // From the tc_code list the user sent, keep only codes that exist and are 'ready',
+  // IN THE ORDER THEY WERE SENT (issue #67: a template's target_json.testIds is an ordered list).
+  // ORDER BY c.tc_code would silently re-sort them alphabetically.
   async findReadyCodesByTcCodes(tcCodes) {
     const res = await this.query(
       `SELECT ${CODE_EXPR} AS code
          FROM test_cases c
         WHERE c.tc_code = ANY($1::text[]) AND c.test_status = 'ready'
-        ORDER BY c.tc_code`,
+        ORDER BY array_position($1::text[], c.tc_code)`,
       [tcCodes],
     );
     return res.rows.map((r) => r.code);

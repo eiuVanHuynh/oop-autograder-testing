@@ -5,10 +5,12 @@ const TestIdsTargetStrategy = require('./TestIdsTargetStrategy');
 // Strategy: pick how a template's target_json becomes a list of tc_codes.
 // Adding a new target kind (e.g. by tag) = one new file here + one line in `strategies`.
 //
-// The end result: an array of tc_codes filtered to test_status = 'ready', deduplicated, stably sorted.
+// The end result: an array of tc_codes filtered to test_status = 'ready' and deduplicated,
+// IN THE ORDER THE STRATEGY RETURNS THEM. This used to sort the codes alphabetically here, which
+// threw away the execution order a template's target_json.testIds carries (issue #67). A suite has
+// no order of its own, so SuiteTargetStrategy is the one that sorts.
 
-const uniqSorted = (codes) =>
-  [...new Set(codes)].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+const uniq = (codes) => [...new Set(codes)];
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -33,7 +35,7 @@ function createTargetResolver({ catalogRepository }) {
     if (!found) {
       throw new AppError(400, 'VALIDATION_ERROR', 'target_json must have suiteId or testIds');
     }
-    return uniqSorted(await found.strategy.resolve(target));
+    return uniq(await found.strategy.resolve(target));
   };
 
   return {

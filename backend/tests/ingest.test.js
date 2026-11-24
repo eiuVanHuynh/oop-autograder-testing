@@ -1,13 +1,29 @@
 // Only accepts TEST_DATABASE_URL, never falls back to DATABASE_URL: this test writes and deletes real rows,
-// and picking up .env by mistake would hit Supabase. Default: a throwaway postgres container on port 55432.
+// and picking up .env by mistake would hit Supabase.
+//
+// This is the ONE test file that needs a real PostgreSQL: it checks the SQL itself (seq numbering of
+// run_logs, ON CONFLICT on test_results, the computed run status), which an in-memory stub would only
+// pretend to verify. No TEST_DATABASE_URL → every test here is SKIPPED, so `npm test` stays green on a
+// machine with no database; the rest of the suite runs against fake repositories and needs nothing.
+// To run it: start a throwaway postgres, migrate it, then
+//   TEST_DATABASE_URL=postgresql://postgres:x@localhost:55432/test_automation_db npm test
 process.env.DATABASE_URL =
   process.env.TEST_DATABASE_URL || 'postgresql://postgres:x@localhost:55432/test_automation_db';
 process.env.JWT_SECRET = 'test-secret';
 process.env.INGEST_API_KEY = 'secret-ci-key';
 process.env.RUNNER = 'fake';
 
-const test = require('node:test');
+const nodeTest = require('node:test');
 const assert = require('node:assert');
+
+const SKIP = process.env.TEST_DATABASE_URL
+  ? false
+  : 'needs a real PostgreSQL: set TEST_DATABASE_URL (see the note at the top of this file)';
+
+// Same signature as node:test, with the whole file switched off when there is no database.
+const test = (name, fn) => nodeTest(name, { skip: SKIP }, fn);
+test.before = nodeTest.before;
+test.after = nodeTest.after;
 const request = require('supertest');
 const path = require('path');
 const BE = require('path').resolve(__dirname, '../');
@@ -17,17 +33,22 @@ const { query, getPool } = require(BE + '/src/config/db');
 const KEY = { 'x-api-key': 'secret-ci-key' };
 let runId;
 
+// testCodes is deliberately NOT in alphabetical order: the plan must come back in this order
+// (issue #67). With ["TC-01","TC-02","TC-31"] an ORDER BY tc_code would pass too and the test
+// would be blind to a regression.
 test.before(async () => {
+  if (SKIP) return;
   const r = await query(
     `INSERT INTO test_runs (run_name, tester_id, environment, config_json)
      VALUES ('ingest-test', (SELECT user_id FROM users ORDER BY user_id LIMIT 1), 'development',
-             '{"testCodes":["TC-01","TC-02","TC-31"],"env":"development","timeout":30000}'::jsonb)
+             '{"testCodes":["TC-31","TC-01","TC-02"],"env":"development","timeout":30000}'::jsonb)
      RETURNING run_id`,
   );
   runId = r.rows[0].run_id;
 });
 
 test.after(async () => {
+  if (SKIP) return;
   await query('DELETE FROM test_runs WHERE run_id = $1', [runId]);
   await getPool().end();
 });
@@ -42,11 +63,12 @@ test('a wrong x-api-key → 401, not 500', async () => {
   await request(app).get(`/api/ingest/runs/${runId}/plan`).set('x-api-key', 'x').expect(401);
 });
 
-test('plan returns all 3 cases with steps and data, keeping env: untouched', async () => {
+test('plan returns all 3 cases with steps and data, in the order config_json asks for', async () => {
   const res = await request(app).get(`/api/ingest/runs/${runId}/plan`).set(KEY).expect(200);
   const { cases } = res.body.data;
-  assert.deepEqual(cases.map((c) => c.code), ['TC-01', 'TC-02', 'TC-31']);
-  const tc01 = cases[0];
+  // The execution order of the run, not the alphabet (issue #67).
+  assert.deepEqual(cases.map((c) => c.code), ['TC-31', 'TC-01', 'TC-02']);
+  const tc01 = cases.find((c) => c.code === 'TC-01');
   assert.deepEqual(tc01.steps.map((s) => s.step_action), ['NAVIGATE', 'FILL', 'FILL', 'CLICK', 'VERIFY']);
   assert.equal(tc01.steps[0].step_target, '/'); // the SUT has no /login (sut-reference.md section 2)
   // The password must NOT be resolved in the backend
