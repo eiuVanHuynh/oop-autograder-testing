@@ -10,31 +10,62 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import {
-  Activity,
-  CheckCircle2,
-  Loader2,
-  XCircle,
-  Eye,
-} from "lucide-react";
+import { Activity, CheckCircle2, Loader2, XCircle, Eye } from "lucide-react";
 import toast from "react-hot-toast";
-import { getRuns, computeStats, dailyPassFail } from "../services/runService";
+import { getRuns, computeStats } from "../services/runService";
 import { getErrorMessage } from "../services/authService";
 import DataTable from "../components/ui/DataTable";
 import StatusBadge from "../components/ui/StatusBadge";
 import EnglishDateInput from "../components/ui/EnglishDateInput";
 
-// Cột của bảng "Recent test runs"; navigate truyền vào vì nút Report cần điều hướng.
+// Cột của bảng "Recent test runs"
 const RECENT_COLUMNS = (navigate) => [
-  { key: "id", header: "ID", className: "font-mono text-gray-500", render: (r) => `#${r.id}` },
-  { key: "name", header: "Name", card: "title", className: "font-medium text-gray-900", render: (r) => r.name },
-  { key: "runBy", header: "Run by", className: "text-gray-600", render: (r) => r.runBy },
-  { key: "executedAt", header: "Executed at", className: "text-gray-600", render: (r) => r.executedAt },
-  { key: "status", header: "Status", card: "badge", render: (r) => <StatusBadge status={r.status} /> },
+  {
+    key: "id",
+    header: "ID",
+    width: "80px",
+    sortable: true,
+    className: "font-mono text-gray-500",
+    render: (r) => `#${r.id}`,
+  },
+  {
+    key: "name",
+    header: "Name",
+    width: "35%",
+    card: "title",
+    sortable: true,
+    className: "font-medium text-gray-900",
+    render: (r) => r.name,
+  },
+  {
+    key: "runBy",
+    header: "Run by",
+    width: "15%",
+    sortable: true,
+    className: "text-gray-600",
+    render: (r) => r.runBy,
+  },
+  {
+    key: "executedAt",
+    header: "Executed at",
+    width: "180px",
+    sortable: true,
+    className: "text-gray-600 whitespace-nowrap",
+    render: (r) => r.executedAt,
+  },
+  {
+    key: "status",
+    header: "Status",
+    width: "130px",
+    sortable: true,
+    card: "badge",
+    render: (r) => <StatusBadge status={r.status} />,
+  },
   {
     key: "actions",
     header: "",
     align: "right",
+    width: "100px",
     render: (r) => (
       <button
         onClick={(e) => {
@@ -49,28 +80,81 @@ const RECENT_COLUMNS = (navigate) => [
   },
 ];
 
+// Cột của bảng thống kê "Execution Statistics" (có hỗ trợ sort)
+const STATISTICS_COLUMNS = [
+  {
+    key: "label",
+    header: "Period",
+    width: "30%",
+    sortable: true,
+    className: "font-medium text-gray-700",
+    render: (row) => row.label,
+    sortValue: (row) => row.key, // Sort theo key thời gian (đảm bảo đúng thứ tự thời gian)
+  },
+  {
+    key: "Pass",
+    header: "Passed",
+    width: "14%",
+    align: "center",
+    sortable: true,
+    className: "text-green-600 font-semibold",
+    render: (row) => row.Pass,
+  },
+  {
+    key: "Fail",
+    header: "Failed",
+    width: "14%",
+    align: "center",
+    sortable: true,
+    className: "text-red-600 font-semibold",
+    render: (row) => row.Fail,
+  },
+  {
+    key: "Running",
+    header: "Running",
+    width: "14%",
+    align: "center",
+    sortable: true,
+    className: "text-blue-600 font-semibold",
+    render: (row) => row.Running,
+  },
+  {
+    key: "Interrupted",
+    header: "Interrupted",
+    width: "14%",
+    align: "center",
+    sortable: true,
+    className: "text-amber-600 font-semibold",
+    render: (row) => row.Interrupted,
+  },
+  {
+    key: "Total",
+    header: "Total",
+    width: "14%",
+    align: "center",
+    sortable: true,
+    className: "font-bold text-gray-800",
+    render: (row) => row.Total,
+  },
+];
+
 const padNumber = (value) => String(value).padStart(2, "0");
 
 const parseExecutedAt = (value) => {
   if (!value) return null;
-
   const match = String(value).match(
-    /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/
+    /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/,
   );
-
   if (!match) return null;
-
   const [, y, m, d, h, min, s] = match;
-
   const date = new Date(
     Number(y),
     Number(m) - 1,
     Number(d),
     Number(h),
     Number(min),
-    Number(s)
+    Number(s),
   );
-
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
@@ -80,7 +164,7 @@ const buildStatistics = (
   selectedDate,
   selectedMonth,
   selectedYear,
-  selectedQuarter
+  selectedQuarter,
 ) => {
   let periods = [];
 
@@ -113,10 +197,9 @@ const buildStatistics = (
 
       periods.push({
         key: `${selectedYear}-${padNumber(month)}`,
-        label: new Date(selectedYear, month - 1).toLocaleString(
-          "en-US",
-          { month: "short" }
-        ),
+        label: new Date(selectedYear, month - 1).toLocaleString("en-US", {
+          month: "short",
+        }),
       });
     }
   }
@@ -125,10 +208,9 @@ const buildStatistics = (
     for (let month = 1; month <= 12; month++) {
       periods.push({
         key: `${selectedYear}-${padNumber(month)}`,
-        label: new Date(selectedYear, month - 1).toLocaleString(
-          "en-US",
-          { month: "short" }
-        ),
+        label: new Date(selectedYear, month - 1).toLocaleString("en-US", {
+          month: "short",
+        }),
       });
     }
   }
@@ -152,13 +234,13 @@ const buildStatistics = (
 
       if (mode === "day") {
         runKey = `${run.executedAt.slice(0, 10)} ${padNumber(
-          executedAt.getHours()
+          executedAt.getHours(),
         )}`;
       } else if (mode === "month") {
         runKey = run.executedAt.slice(0, 10);
       } else {
         runKey = `${executedAt.getFullYear()}-${padNumber(
-          executedAt.getMonth() + 1
+          executedAt.getMonth() + 1,
         )}`;
       }
 
@@ -192,28 +274,25 @@ export default function Dashboard() {
 
   const [statisticsDate, setStatisticsDate] = useState(() => {
     const now = new Date();
-
     return `${now.getFullYear()}-${padNumber(
-      now.getMonth() + 1
+      now.getMonth() + 1,
     )}-${padNumber(now.getDate())}`;
   });
 
   const [statisticsMonth, setStatisticsMonth] = useState(() => {
     const now = new Date();
-
     return `${now.getFullYear()}-${padNumber(now.getMonth() + 1)}`;
   });
 
   const [statisticsYear, setStatisticsYear] = useState(
-    String(new Date().getFullYear())
+    String(new Date().getFullYear()),
   );
 
   const [statisticsQuarter, setStatisticsQuarter] = useState(
-    String(Math.floor(new Date().getMonth() / 3) + 1)
+    String(Math.floor(new Date().getMonth() / 3) + 1),
   );
 
   useEffect(() => {
-    // GET /runs lỗi thì vẫn phải thoát trạng thái loading, nếu không trang treo ở "Loading…".
     getRuns()
       .then(setRuns)
       .catch((e) => toast.error(getErrorMessage(e, "Cannot load test runs.")))
@@ -221,7 +300,6 @@ export default function Dashboard() {
   }, []);
 
   const stats = useMemo(() => computeStats(runs), [runs]);
-  const chartData = useMemo(() => dailyPassFail(runs, 7), [runs]);
 
   const statisticsRows = useMemo(
     () =>
@@ -231,7 +309,7 @@ export default function Dashboard() {
         statisticsDate,
         statisticsMonth,
         Number(statisticsYear),
-        Number(statisticsQuarter)
+        Number(statisticsQuarter),
       ),
     [
       runs,
@@ -240,7 +318,7 @@ export default function Dashboard() {
       statisticsMonth,
       statisticsYear,
       statisticsQuarter,
-    ]
+    ],
   );
   const recent = runs.slice(0, 8);
 
@@ -280,15 +358,13 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-screen-2xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Automated Testing Dashboard
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Overview of test activity over the last 7 days.
-          </p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Automated Testing Dashboard
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Overview of test activity over the last 7 days.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -312,81 +388,68 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {/* Execution Statistics */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+        <div className="flex flex-col gap-4 mb-6">
+          <div>
+            <h3 className="text-base font-semibold text-gray-800">
+              Execution Statistics
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              View test execution results by time period.
+            </p>
+          </div>
 
-        {/* Execution Statistics */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-          <div className="flex flex-col gap-4 mb-6">
-            <div>
-              <h3 className="text-base font-semibold text-gray-800">
-                Execution Statistics
-              </h3>
-              <p className="text-sm text-gray-500 mt-1">
-                View test execution results by time period.
-              </p>
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { value: "day", label: "Day" },
+              { value: "month", label: "Month" },
+              { value: "quarter", label: "Quarter" },
+              { value: "year", label: "Year" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setStatisticsMode(option.value)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  statisticsMode === option.value
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
 
-            <div className="flex flex-wrap items-center gap-2">
-              {[
-                { value: "day", label: "Day" },
-                { value: "month", label: "Month" },
-                { value: "quarter", label: "Quarter" },
-                { value: "year", label: "Year" },
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setStatisticsMode(option.value)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${statisticsMode === option.value
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
+            {statisticsMode === "day" && (
+              <EnglishDateInput
+                mode="date"
+                value={statisticsDate}
+                onChange={setStatisticsDate}
+              />
+            )}
+
+            {statisticsMode === "month" && (
+              <EnglishDateInput
+                mode="month"
+                value={statisticsMonth}
+                onChange={setStatisticsMonth}
+              />
+            )}
+
+            {statisticsMode === "quarter" && (
+              <>
+                <select
+                  value={statisticsQuarter}
+                  onChange={(e) => setStatisticsQuarter(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 >
-                  {option.label}
-                </button>
-              ))}
+                  <option value="1">Q1 (Jan - Mar)</option>
+                  <option value="2">Q2 (Apr - Jun)</option>
+                  <option value="3">Q3 (Jul - Sep)</option>
+                  <option value="4">Q4 (Oct - Dec)</option>
+                </select>
 
-              {statisticsMode === "day" && (
-                <EnglishDateInput
-                  mode="date"
-                  value={statisticsDate}
-                  onChange={setStatisticsDate}
-                />
-              )}
-
-              {statisticsMode === "month" && (
-                <EnglishDateInput
-                  mode="month"
-                  value={statisticsMonth}
-                  onChange={setStatisticsMonth}
-                />
-              )}
-
-              {statisticsMode === "quarter" && (
-                <>
-                  <select
-                    value={statisticsQuarter}
-                    onChange={(e) => setStatisticsQuarter(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  >
-                    <option value="1">Q1 (Jan - Mar)</option>
-                    <option value="2">Q2 (Apr - Jun)</option>
-                    <option value="3">Q3 (Jul - Sep)</option>
-                    <option value="4">Q4 (Oct - Dec)</option>
-                  </select>
-
-                  <input
-                    type="number"
-                    min="2000"
-                    max="2100"
-                    value={statisticsYear}
-                    onChange={(e) => setStatisticsYear(e.target.value)}
-                    className="w-28 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  />
-                </>
-              )}
-
-              {statisticsMode === "year" && (
                 <input
                   type="number"
                   min="2000"
@@ -395,124 +458,75 @@ export default function Dashboard() {
                   onChange={(e) => setStatisticsYear(e.target.value)}
                   className="w-28 border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 />
-              )}
-            </div>
-          </div>
+              </>
+            )}
 
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={statisticsRows}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Legend />
-
-                <Bar
-                  dataKey="Pass"
-                  name="Passed"
-                  fill="#10b981"
-                  radius={[4, 4, 0, 0]}
-                />
-
-                <Bar
-                  dataKey="Fail"
-                  name="Failed"
-                  fill="#ef4444"
-                  radius={[4, 4, 0, 0]}
-                />
-
-                <Bar
-                  dataKey="Running"
-                  name="Running"
-                  fill="#3b82f6"
-                  radius={[4, 4, 0, 0]}
-                />
-
-                <Bar
-                  dataKey="Interrupted"
-                  name="Interrupted"
-                  fill="#f59e0b"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="overflow-x-auto mt-6">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-gray-500 uppercase bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3">Period</th>
-                  <th className="px-4 py-3 text-center">Passed</th>
-                  <th className="px-4 py-3 text-center">Failed</th>
-                  <th className="px-4 py-3 text-center">Running</th>
-                  <th className="px-4 py-3 text-center">Interrupted</th>
-                  <th className="px-4 py-3 text-center">Total</th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-gray-100">
-                {statisticsRows.map((row) => (
-                  <tr key={row.key} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-700">
-                      {row.label}
-                    </td>
-
-                    <td className="px-4 py-3 text-center text-green-600">
-                      {row.Pass}
-                    </td>
-
-                    <td className="px-4 py-3 text-center text-red-600">
-                      {row.Fail}
-                    </td>
-
-                    <td className="px-4 py-3 text-center text-blue-600">
-                      {row.Running}
-                    </td>
-
-                    <td className="px-4 py-3 text-center text-amber-600">
-                      {row.Interrupted}
-                    </td>
-
-                    <td className="px-4 py-3 text-center font-semibold text-gray-800">
-                      {row.Total}
-                    </td>
-                  </tr>
-                ))}
-
-                {statisticsRows.every((row) => row.Total === 0) && (
-                  <tr>
-                    <td
-                      colSpan="6"
-                      className="px-4 py-8 text-center text-gray-400"
-                    >
-                      No execution data for this period.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            {statisticsMode === "year" && (
+              <input
+                type="number"
+                min="2000"
+                max="2100"
+                value={statisticsYear}
+                onChange={(e) => setStatisticsYear(e.target.value)}
+                className="w-28 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+            )}
           </div>
         </div>
-        <h3 className="text-base font-semibold text-gray-800 mb-4">
-          Pass / Fail theo ngày
-        </h3>
+
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
+            <BarChart data={statisticsRows}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="date" />
+              <XAxis dataKey="label" />
               <YAxis allowDecimals={false} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="Pass" fill="#10b981" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Fail" fill="#ef4444" radius={[4, 4, 0, 0]} />
+
+              <Bar
+                dataKey="Pass"
+                name="Passed"
+                fill="#10b981"
+                radius={[4, 4, 0, 0]}
+              />
+
+              <Bar
+                dataKey="Fail"
+                name="Failed"
+                fill="#ef4444"
+                radius={[4, 4, 0, 0]}
+              />
+
+              <Bar
+                dataKey="Running"
+                name="Running"
+                fill="#3b82f6"
+                radius={[4, 4, 0, 0]}
+              />
+
+              <Bar
+                dataKey="Interrupted"
+                name="Interrupted"
+                fill="#f59e0b"
+                radius={[4, 4, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
+
+        {/* Bảng Execution Statistics sử dụng DataTable để hỗ trợ sort mượt mà */}
+        <div className="mt-6">
+          <DataTable
+            columns={STATISTICS_COLUMNS}
+            rows={statisticsRows}
+            rowKey={(row) => row.key}
+            maxHeight="400px"
+            pageSize={10}
+          />
+        </div>
       </div>
 
+      {/* Bảng Recent test runs phía dưới cũng đã có sẵn sort từ RECENT_COLUMNS */}
       <DataTable
         columns={RECENT_COLUMNS(navigate)}
         rows={recent}
@@ -524,7 +538,9 @@ export default function Dashboard() {
         maxHeight="400px"
         toolbar={
           <div className="flex items-center gap-3">
-            <h3 className="text-base font-semibold text-gray-800">Recent test runs</h3>
+            <h3 className="text-base font-semibold text-gray-800">
+              Recent test runs
+            </h3>
             <button
               onClick={() => navigate("/history")}
               className="text-xs text-brand-600 font-medium hover:underline"
