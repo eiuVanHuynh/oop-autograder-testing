@@ -2,7 +2,21 @@ import { BrowserRouter as Router } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "./controllers/AuthContext";
 import AppRoutes from "./routes/AppRoutes";
-
+// Bấm ra ngoài (bất kỳ đâu) để tắt thông báo, khỏi phải chờ hết thời gian.
+// Toast đang loading thì giữ lại.
+function DismissToastsOnOutsideClick() {
+  const { toasts } = useToasterStore();
+  useEffect(() => {
+    const onPointerDown = (e) => {
+      toasts
+        .filter((t) => t.visible && t.type !== "loading")
+        .forEach((t) => toast.dismiss(t.id));
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [toasts]);
+  return null;
+}
 /// Không đụng, trừ phi thên middleware
 export default function App() {
   return (
