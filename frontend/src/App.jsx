@@ -1,7 +1,10 @@
 import { BrowserRouter as Router } from "react-router-dom";
-import { Toaster } from "react-hot-toast";
+import { useEffect } from "react";
+import toast, { Toaster, ToastBar, useToasterStore } from "react-hot-toast";
+import { X } from "lucide-react";
 import { AuthProvider } from "./controllers/AuthContext";
 import AppRoutes from "./routes/AppRoutes";
+
 // Bấm ra ngoài (bất kỳ đâu) để tắt thông báo, khỏi phải chờ hết thời gian.
 // Toast đang loading thì giữ lại.
 function DismissToastsOnOutsideClick() {
@@ -17,6 +20,7 @@ function DismissToastsOnOutsideClick() {
   }, [toasts]);
   return null;
 }
+
 /// Không đụng, trừ phi thên middleware
 export default function App() {
   return (
@@ -24,6 +28,7 @@ export default function App() {
       <Router>
         <Toaster
           position="top-right"
+          containerStyle={{ top: 76 }} // nằm dưới TopBar, không che avatar/chuông
           toastOptions={{
             // Cấu hình chung cho tất cả các loại toast
             style: {
@@ -55,7 +60,29 @@ export default function App() {
               },
             },
           }}
-        />
+        >
+          {(t) => (
+            <ToastBar toast={t} className="app-toast">
+              {({ icon, message }) => (
+                <>
+                  {icon}
+                  {message}
+                  {t.type !== "loading" && (
+                    <button
+                      type="button"
+                      aria-label="Close notification"
+                      onClick={() => toast.dismiss(t.id)}
+                      className="ml-1 shrink-0 rounded-md p-1 opacity-80 hover:opacity-100 hover:bg-black/10 transition"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </>
+              )}
+            </ToastBar>
+          )}
+        </Toaster>
+        <DismissToastsOnOutsideClick />
         <AppRoutes />
       </Router>
     </AuthProvider>
