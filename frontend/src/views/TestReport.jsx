@@ -244,40 +244,35 @@ export default function TestReport() {
       </div>
 
       {/* Thông tin run */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="w-1/2">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="flex flex-row items-center gap-3 border-b justify-between w-full">
-              <h1 className="text-xl font-bold my-6 text-gray-900">{run.name}</h1>
-              <StatusBadge
-                status={run.status}
-                className="px-3 py-1 my-6"
-                label={<><StatusIcon status={run.status} /> {run.status}</>}
-              />
-            </div>
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-gray-200 pb-3">
+            <h1 className="m-0 min-w-0 break-words text-xl font-bold text-gray-900">{run.name}</h1>
+            <StatusBadge
+              status={run.status}
+              className="shrink-0 px-3 py-1"
+              label={<><StatusIcon status={run.status} /> {run.status}</>}
+            />
           </div>
-          <p className="text-sm text-gray-500 mt-1 flex justify-between">
-            <>
-            ID:
-              <strong className="text-gray-700"> {run.id} </strong>
-            </>
-          <>
-             | Env:{" "}
-            <strong className="text-gray-700">{run.environment}</strong>
-          </>
-          <>
-            {run.executedAt && <>  
-            |  At 
-            <strong className="text-gray-700"> {run.executedAt} </strong>
-            </>
-            }
-          </>
-             | by{" "}
-            <strong className="text-gray-700">{run.runBy}</strong>
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-gray-500">
+            <span className="whitespace-nowrap">
+              ID: <strong className="text-gray-700">{run.id}</strong>
+            </span>
+            <span className="whitespace-nowrap">
+              Env: <strong className="text-gray-700">{run.environment}</strong>
+            </span>
+            {run.executedAt && (
+              <span className="whitespace-nowrap">
+                At: <strong className="text-gray-700">{run.executedAt}</strong>
+              </span>
+            )}
+            <span className="whitespace-nowrap">
+              By: <strong className="text-gray-700">{run.runBy}</strong>
+            </span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+        <div className="flex shrink-0 items-center gap-4 self-start lg:self-auto bg-gray-50 p-4 rounded-xl border border-gray-100">
           <div className="text-center px-3">
             <p className="text-xs text-gray-500">Total</p>
             <p className="text-lg font-bold text-gray-900">

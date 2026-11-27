@@ -18,6 +18,7 @@ import DataTable from "../components/ui/DataTable";
 import StatusBadge from "../components/ui/StatusBadge";
 import StatCard from "../components/ui/StatCard";
 import PageHeader from "../components/ui/PageHeader";
+import EnglishDateInput from "../components/ui/EnglishDateInput";
 
 // Cột của bảng "Recent test runs"
 const RECENT_COLUMNS = (navigate) => [
@@ -412,20 +413,18 @@ export default function Dashboard() {
             ))}
 
             {statisticsMode === "day" && (
-              <input
-                type="date"
+              <EnglishDateInput
+                mode="date"
                 value={statisticsDate}
-                onChange={(e) => setStatisticsDate(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                onChange={setStatisticsDate}
               />
             )}
 
             {statisticsMode === "month" && (
-              <input
-                type="month"
+              <EnglishDateInput
+                mode="month"
                 value={statisticsMonth}
-                onChange={(e) => setStatisticsMonth(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                onChange={setStatisticsMonth}
               />
             )}
 
