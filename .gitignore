@@ -163,3 +163,6 @@ floorplan/*
 !floorplan/architecture.json
 !floorplan/descriptions/
 !floorplan/descriptions/*.json
+
+# Archify: thư mục làm việc (candidate, biên nhận). Sơ đồ đã xuất nằm ở docs/diagrams/
+.archify/

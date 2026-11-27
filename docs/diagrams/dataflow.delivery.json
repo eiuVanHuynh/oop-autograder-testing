@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "083daa6e-07c0-4fa7-b5c7-fcea71f8dfbc",
+  "status": "current",
+  "command": "deliver",
+  "type": "dataflow",
+  "input": "/home/agnguyen/me/oop-autograder-testing/.archify/diagrams-20261127-095256/dataflow.dataflow.json",
+  "output": "/home/agnguyen/me/oop-autograder-testing/docs/diagrams/dataflow.html",
+  "specification": {
+    "sha256": "89ba9c2b680b9d6bc08eca01375b7dcd71bf7d10c84ed7ededfe25223876f703",
+    "bytes": 5401
+  },
+  "artifact": {
+    "sha256": "574448c23d5ce7ed2db8e20f82bc36c18be40a6bab08ecaa71e48beccf7ff706",
+    "bytes": 942512
+  }
+}
