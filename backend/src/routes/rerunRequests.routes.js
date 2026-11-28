@@ -6,6 +6,7 @@ const validate = require("../middlewares/validate");
 const {
   createRerunRequestSchema,
   rerunRequestQuerySchema,
+  setStatusSchema,
   idParamsSchema,
 } = require("../validators/rerunRequests.schema");
 
@@ -53,6 +54,17 @@ router.post(
   canDecide,
   validateId,
   controller.rejectRequest,
+);
+
+// PATCH /api/rerun-requests/:id – đặt lại trạng thái, kể cả quay về PENDING khi đã duyệt mà chưa
+// kịp chạy test. Chỉ Admin: Tester quyết định được nhưng sửa lại quyết định đã ghi là việc của Admin.
+router.patch(
+  "/rerun-requests/:id",
+  requireAuth,
+  requireRole("admin"),
+  validateId,
+  validate(setStatusSchema),
+  controller.setStatus,
 );
 
 module.exports = router;

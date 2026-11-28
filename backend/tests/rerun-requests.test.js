@@ -95,6 +95,36 @@ test("decide: approving records who decided and does NOT start a run", async () 
   assert.equal(data.runConfig, null); // a run with no config must not 500 the queue page
 });
 
+test("setStatus: Admin may put an approved request back to pending; unknown id → 404", async () => {
+  let written;
+  const s = svc({
+    setStatus: async (id, status, by) => {
+      written = { id, status, by };
+      return { request_id: id, status, run_config: null };
+    },
+  });
+  const data = await s.setStatus(7, "pending", 1);
+  assert.deepEqual(written, { id: 7, status: "pending", by: 1 });
+  assert.equal(data.status, "PENDING");
+
+  await assert.rejects(() => svc({ setStatus: async () => null }).setStatus(7, "pending", 1), {
+    status: 404,
+  });
+});
+
+test("setStatus: back to pending while that run has another pending request → 409", async () => {
+  // Chỉ một yêu cầu chờ cho mỗi run (ux_rerun_requests_pending), nên UPDATE cũng đụng index đó.
+  const s = svc({
+    setStatus: async () => {
+      throw Object.assign(new Error("duplicate key"), {
+        code: "23505",
+        constraint: "ux_rerun_requests_pending",
+      });
+    },
+  });
+  await assert.rejects(() => s.setStatus(7, "pending", 1), { status: 409, code: "REQUEST_PENDING" });
+});
+
 // Issue #97 asks for the permission matrix of all four roles. requireRole exposes .roles, so the
 // assertion reads the app's own middleware instead of a hand-written doc table.
 test("RBAC: Dev may request a rerun but may not decide, run or cancel one", () => {
@@ -113,6 +143,8 @@ test("RBAC: Dev may request a rerun but may not decide, run or cancel one", () =
   assert.deepEqual(rolesOf(rerun, "/runs/:id/rerun-requests", "post"), ["admin", "tester", "dev"]);
   assert.deepEqual(rolesOf(rerun, "/rerun-requests/:id/approve", "post"), ["admin", "tester"]);
   assert.deepEqual(rolesOf(rerun, "/rerun-requests/:id/reject", "post"), ["admin", "tester"]);
+  // Sửa lại một quyết định đã ghi: chỉ Admin, Tester không được.
+  assert.deepEqual(rolesOf(rerun, "/rerun-requests/:id", "patch"), ["admin"]);
   assert.deepEqual(rolesOf(runs, "/:id/rerun", "post"), ["admin", "tester"]);
   assert.deepEqual(rolesOf(runs, "/:id/cancel", "post"), ["admin", "tester"]);
   // Viewer is the only role with no write at all: it is not in any list above.

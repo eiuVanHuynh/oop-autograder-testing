@@ -118,6 +118,25 @@ test("approve / reject: Admin and Tester only; Dev is refused and nothing is wri
   assert.equal(writes[1].params[0], "rejected");
 });
 
+test("PATCH /api/rerun-requests/:id: Admin only, and the body must carry a known status", async () => {
+  writes = [];
+  const patch = (userId, body) =>
+    request(app).patch("/api/rerun-requests/1").set("Authorization", `Bearer ${as(userId)}`).send(body);
+
+  assert.equal((await patch(2, { status: "PENDING" })).status, 403, "tester may decide but not re-open");
+  assert.equal((await patch(3, { status: "PENDING" })).status, 403); // dev
+  assert.equal(writes.length, 0);
+
+  const ok = await patch(1, { status: "PENDING" }); // admin; UPPERCASE as toApi returns it
+  assert.equal(ok.status, 200);
+  assert.equal(writes[0].params[0], "pending");
+
+  assert.equal((await patch(1, { status: "nonsense" })).status, 400);
+  assert.equal((await patch(1, {})).status, 400);
+  assert.equal((await patch(1, { status: "PENDING", decidedBy: 9 })).status, 400); // .strict()
+  assert.equal(writes.length, 1);
+});
+
 test("GET /api/rerun-requests: open to any signed-in user, 401 without a token", async () => {
   assert.equal((await request(app).get("/api/rerun-requests")).status, 401);
   const viewer = await request(app).get("/api/rerun-requests").set("Authorization", `Bearer ${as(4)}`);

@@ -27,4 +27,10 @@ const rejectRequest = asyncHandler(async (req, res) => {
   return res.status(200).json({ data });
 });
 
-module.exports = { createRequest, getRequests, approveRequest, rejectRequest };
+// 5. PATCH /rerun-requests/:id (200) — Admin đặt lại trạng thái, kể cả về PENDING
+const setStatus = asyncHandler(async (req, res) => {
+  const data = await rerunRequestsService.setStatus(req.params.id, req.body.status, req.user.user_id);
+  return res.status(200).json({ data });
+});
+
+module.exports = { createRequest, getRequests, approveRequest, rejectRequest, setStatus };

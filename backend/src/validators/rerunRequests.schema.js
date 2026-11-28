@@ -12,6 +12,15 @@ const rerunRequestQuerySchema = z
   .object({ status: lowerEnum(RERUN_REQUEST_STATUSES).optional() })
   .strip(); // query: unknown params are dropped, not a 400 (see catalog.schema.js)
 
+// Admin sửa lại trạng thái (duyệt nhầm, hoặc duyệt rồi mà chưa chạy): đặt thẳng status.
+// Chỉ MỘT trường, nên không cần .refine("ít nhất một trường") như bugs.schema.js.
+const setStatusSchema = z.object({ status: lowerEnum(RERUN_REQUEST_STATUSES) }).strict();
+
 const idParamsSchema = z.object({ id: z.coerce.number().int().positive() });
 
-module.exports = { createRerunRequestSchema, rerunRequestQuerySchema, idParamsSchema };
+module.exports = {
+  createRerunRequestSchema,
+  rerunRequestQuerySchema,
+  setStatusSchema,
+  idParamsSchema,
+};
