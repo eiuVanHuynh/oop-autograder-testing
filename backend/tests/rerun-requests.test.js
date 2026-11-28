@@ -17,21 +17,39 @@ test("request: unknown run → 404, nothing written", async () => {
 
 test("request: a second pending request for the same run → 409", async () => {
   // ux_rerun_requests_pending raises 23505; without this branch it would surface as a 500.
+  // The constraint name is what Postgres really reports here (checked against the DB).
   const s = svc({
     createRequest: async () => {
-      throw Object.assign(new Error("duplicate key"), { code: "23505" });
+      throw Object.assign(new Error("duplicate key"), {
+        code: "23505",
+        constraint: "ux_rerun_requests_pending",
+      });
     },
   });
   await assert.rejects(() => s.createForRun(5, {}, 3), { status: 409, code: "REQUEST_PENDING" });
 });
 
-test("request: any other DB error still bubbles up as itself", async () => {
-  const s = svc({
-    createRequest: async () => {
-      throw Object.assign(new Error("connection lost"), { code: "08006" });
-    },
-  });
-  await assert.rejects(() => s.createForRun(5, {}, 3), { code: "08006" });
+test("request: another DB error, or a duplicate on another index, bubbles up as itself", async () => {
+  const failing = (extra) =>
+    svc({
+      createRequest: async () => {
+        throw Object.assign(new Error("db said no"), extra);
+      },
+    });
+
+  await assert.rejects(() => failing({ code: "08006" }).createForRun(5, {}, 3), { code: "08006" });
+  // A primary-key collision must NOT be reported as "a request is already pending".
+  await assert.rejects(
+    () => failing({ code: "23505", constraint: "rerun_requests_pkey" }).createForRun(5, {}, 3),
+    { constraint: "rerun_requests_pkey" },
+  );
+});
+
+test("request: the run vanished between the write and the read → 404, not a crash", async () => {
+  // createRequest INSERTs then re-reads through a JOIN on test_runs; deleting the run cascades the
+  // request away, so the row can be gone. toApi(null) would throw a TypeError = 500 with no message.
+  const s = svc({ createRequest: async () => null });
+  await assert.rejects(() => s.createForRun(5, {}, 3), { status: 404 });
 });
 
 test("request: the reply carries the old run's config so the UI can prefill Run Test", async () => {
