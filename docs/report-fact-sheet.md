@@ -15,18 +15,18 @@
 | Fixture CSV/TXT | **5** (batch1, duplicate, empty, invalid_rows, wrong_format.txt) | `ls automation/fixtures/*.csv automation/fixtures/*.txt` |
 | Tổng fixture | **18** (13 + 5) | |
 | Bảng DB | **16** | `users, test_suites, test_specs, test_cases, test_steps, test_data, test_runs, test_results, test_evidences, reports, pages, items, page_items, test_templates, run_logs, bugs` |
-| File migration | **13** file (001, 002, 004–013; **hai file `010_`**; **không có 003**) | `ls db/migrations` |
-| Endpoint đang chạy | **55** (`/api/...`) | `cd backend && npm ci && npm run routes` |
+| File migration | **15** file (001, 002, 004–015; **hai file `010_`**; **không có 003**) | `ls db/migrations` |
+| Endpoint đang chạy | **61** (`/api/...`) | `cd backend && npm ci && npm run routes` |
 | Endpoint chưa có | `/api/stats`, `/api/reports` đã mount nhưng controller rỗng | cuối output `npm run routes` |
-| Test backend | **81** lời gọi `it/test` trong **6** file (số tĩnh; số pass/fail thật lấy ở B4) | `cd backend && npm test` |
+| Test backend | **86** lời gọi `it/test` trong **6** file (số tĩnh; số pass/fail thật lấy ở B4) | `cd backend && npm test` |
 | Frontend `npm run check` | 5 script: steps, runlog, report, searchtags, caseorder | `frontend/package.json` |
 | View frontend | **13** file | `ls frontend/src/views` |
 | Route frontend | **17** route có `path` (+ 2 route layout; 19 phần tử `<Route>`) | `frontend/src/routes/AppRoutes.jsx` |
 | Sơ đồ có sẵn | **7** file HTML trong `docs/diagrams/` (chỉ nhánh front-end) + `docs/architecture/diagram.mmd`, `data-flow-capstone.drawio`, `context-and-sequence-diagram.html` | |
 | Commit SUT dùng để đối chiếu | `b17d855` | `docs/testing/sut-reference.md` |
 
-Endpoint theo nhóm (tổng 55): catalog 23 · runs 7 · users 7 · templates 6 · ingest 5 · auth 2 · bugs 2 (`GET /bugs`, `PATCH /bugs/:id`) · results 1 (`POST /results/:id/bugs`) · health 1 · meta 1.
-README đang ghi 54 → sửa thành 55 (hoặc ghi "xem `npm run routes`").
+Endpoint theo nhóm (tổng 61): catalog 23 · users 9 · runs 8 · templates 6 · ingest 6 · auth 3 · bugs 2 (`GET /bugs`, `PATCH /bugs/:id`) · results 1 (`POST /results/:id/bugs`) · evidences 1 (`GET /evidences/:token`) · health 1 · meta 1.
+README đang ghi 54 → sửa thành 61 (hoặc ghi "xem `npm run routes`").
 
 ### Phiên bản công cụ (lấy từ file khoá, không lấy từ trí nhớ)
 
@@ -39,6 +39,14 @@ README đang ghi 54 → sửa thành 55 (hoặc ghi "xem `npm run routes`").
 | Database | PostgreSQL (Supabase), không phải MySQL | `db/schema/`, issue C6 |
 
 Ghi chú trạng thái: phần "Quyết định" ở mục 3 và 5 phản ánh lựa chọn của nhóm ngày 28/11/2026.
+
+Lần đếm lại gần nhất: nhánh `dev` sau khi gộp cả back-end lẫn front-end (28/11/2026).
+Ba con số đổi so với bản đầu — migration 13→15, endpoint 55→61, test backend 81→86 — và
+phần lớn KHÔNG phải do tính năng bằng chứng: tính năng đó chỉ thêm 1 migration (`015`),
+1 endpoint (`GET /evidences/:token`) và 2 lời gọi test. Phần còn lại (migration `014`,
+users +2, runs +1, ingest +1, auth +1, test +3) đã có sẵn trên nhánh back-end nhưng chưa
+nằm trong cây mà bản đếm đầu tiên dùng. Số bảng DB vẫn là 16: `015` chỉ thêm cột
+(`content`, `mime_type`, `token`) vào `test_evidences`, không tạo bảng mới.
 
 Lưu ý: React 19 là của **nền tảng test**. "React 18 / Spring Boot 3.2.2" trong report 2.1.1 là mô tả **SUT**, repo này không kiểm chứng được (issue E2).
 
