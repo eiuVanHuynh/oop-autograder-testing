@@ -33,12 +33,13 @@ Giải thích đầy đủ: [`database/phan-biet-cac-loai-database.md`](./databa
 ## Trạng thái hiện tại (17/10/2026)
 
 - **Bộ mã test case chuẩn: `TC-01` → `TC-31`** (31 test case). Mọi chỗ ghi "TC-01 → TC-44" đều là tài liệu cũ sai, đã sửa.
-- Đã có spec: TC-01 → TC-22, TC-31. **Chưa có spec:** TC-23 → TC-30 (giảng viên) – dữ liệu đã thiết kế xong ở [`testing/lecturer-test-data.md`](./testing/lecturer-test-data.md), còn phải dựng thật trên SUT.
+- **Chỉ có một spec:** `automation/tests/srs/plan.spec.js` – nó diễn giải `test_steps` / `test_data` lấy từ DB, không chứa kịch bản nào. Nên câu hỏi đúng là "TC này có steps trong DB chưa", không phải "đã viết spec chưa". Bảng trạng thái: [`testing/test-case-matrix.md`](./testing/test-case-matrix.md).
 - Hướng đã chốt cho chạy test: **GitHub Actions** (`workflow_dispatch`), không chạy Playwright trên Vercel.
 - 🛑 **Chặn:** `db/migrations/004` gán TC-23 → TC-27 cho kịch bản *sinh viên*, lệch với ma trận (*giảng viên*) – phải chốt trước khi viết spec.
-- 🛑 **Chặn:** SUT không có `data-testid` nào → quy ước `testid=` trong `db/README.md` không dùng được.
-- Đã chốt: **bỏ "Template", dùng Test Suite** làm thứ người dùng chọn để chạy (xem [`backend/backend-design.md`](./backend/backend-design.md) mục 7).
-- Còn **chưa chốt**: việc chuyển MySQL → Supabase theo SRS.
+- 🛑 **Chặn:** SUT không có `data-testid` nào, và runner cũng không có tiền tố `testid=` (chỉ `placeholder` / `text` / `role` / `css`) → thực tế chỉ dùng được `text=` và `placeholder=`. Xem [`../db/README.md`](../db/README.md) mục 3.
+- Đã chốt (**đảo lại bản trước**): dùng **Template** làm thứ người dùng chọn để chạy, bảng `test_templates` với `target_json` trỏ `{ suiteId }` hoặc `{ testIds }`. Suite → spec → case vẫn là nơi *khai báo* test. Xem [`backend/Explain.md`](./backend/Explain.md).
+- ✅ **Đã xong:** chuyển sang PostgreSQL/Supabase. `db/schema/` là Postgres, `backend/` dùng driver `pg`, không còn `mysql2`.
+- ✅ **Đã xong (issue #97):** quyền vai trò `dev` – Dev **không** chạy test, kể cả chạy lại; Dev gửi yêu cầu, Admin/Tester duyệt.
 
 ## Nguồn chuẩn khi tài liệu mâu thuẫn nhau
 
@@ -58,16 +59,16 @@ sửa file nguồn chuẩn **trước**, rồi mới cập nhật tài liệu ph
 
 | Khoảng cách | Theo nguồn chuẩn | Chi tiết ở |
 | --- | --- | --- |
-| Code là MySQL, SRS ghi **Supabase/PostgreSQL** | Theo SRS → đích là Supabase | [`architecture/kien-truc-va-luong-du-lieu.md`](./architecture/kien-truc-va-luong-du-lieu.md) mục 4 |
-| `seed.sql`, migration `001`, `002`, `005` và `verify.sql` dùng tên bảng chữ hoa (`Test_Suites`); riêng `seed.sql` và `001` còn dùng cột `description` | Theo schema → `test_suites`, `suite_description`, chữ thường | [`GIT_WORKFLOW.md`](./GIT_WORKFLOW.md) mục 9 |
-| `permissions.js` xếp `Dev` ngang `Tester` | Theo SRS → **giữ 4 vai trò**, `dev` chỉ được xem + request chạy lại *(đảo lại đề xuất bỏ `dev` ở `backend/backend-design.md`)* | [`frontend/Explain.md`](./frontend/Explain.md) |
-| Thiếu `db/migrations/003_submission_steps_data.sql` | — | [`database/phan-cong-db-va-du-lieu.md`](./database/phan-cong-db-va-du-lieu.md) mục D6 |
-| `seed.sql` có `DELETE FROM Test_Suites` | — | [`GIT_WORKFLOW.md`](./GIT_WORKFLOW.md) mục 8 và 9 |
+| ~~Code là MySQL~~ | ✅ **Đã đóng.** `db/schema/` là PostgreSQL, `backend/` dùng `pg` | [`database/Explain.md`](./database/Explain.md) |
+| ~~`permissions.js` xếp `Dev` ngang `Tester`~~ | ✅ **Đã đóng** (issue #97). `WRITE_ROLES = ['Admin','Tester']`, Dev chỉ gửi yêu cầu chạy lại | [`backend/api-endpoints.md`](./backend/api-endpoints.md) mục 6 |
+| `db/seed/seed.sql` và `db/verify.sql` là **bản MySQL chết** (`ALTER TABLE … AUTO_INCREMENT` không có trên Postgres, tên bảng chữ hoa, cột `description`) | Không nằm trong `migrate.js` nên không ai chạy. Hoặc viết lại theo schema, hoặc xoá | [`database/Explain.md`](./database/Explain.md) |
+| Thiếu `db/migrations/003_submission_steps_data.sql` → TC-13–22 không có steps, chưa chạy được | — | [`database/phan-cong-db-va-du-lieu.md`](./database/phan-cong-db-va-du-lieu.md) mục D6 |
+| `/stats` và `/reports` chưa có dòng code nào | Dashboard tự tính từ `GET /runs`, Export làm ở client | [`backend/api-endpoints.md`](./backend/api-endpoints.md) mục 3 và 7 |
 
 ### Vẫn chờ nhóm quyết
 
 - **Bộ mã test case:** `TC-AUTH-xxx` (seed) vs `TC-01` → `TC-31` (spec và `docs/testing/`). Schema không ràng buộc bộ mã nào.
-- **DB cloud:** nhà cung cấp, SSL, user riêng — gắn với quyết định MySQL ↔ Supabase.
+- **DB cloud:** nhà cung cấp, SSL, user riêng. *(Hướng đã rõ: Supabase/PostgreSQL; `migrate.js` tự bật SSL khi connection string không trỏ localhost.)*
 
 ## Quy ước viết tài liệu
 

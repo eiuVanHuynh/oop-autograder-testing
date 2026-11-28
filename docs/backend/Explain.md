@@ -38,7 +38,7 @@ xem [`../GIT_WORKFLOW.md`](../GIT_WORKFLOW.md) mục 9. Hai điểm trong `backe
 | --- | --- | --- |
 | 6 – "Role `dev` = Viewer" | Bỏ `dev` khỏi ENUM, gộp vào `viewer` | **Giữ 4 vai trò.** SRS mục 4 và `db/schema/` đều có `dev` (Developer). Cần định nghĩa quyền `dev` cho đúng, không xóa. |
 
-*(Điểm MySQL đã hết: mục 1 nay ghi PostgreSQL/Supabase, khớp SRS. Code `backend/` thì vẫn cần chuyển.)*
+*(Điểm MySQL đã hết hẳn: mục 1 ghi PostgreSQL/Supabase, và `backend/` cũng đã dùng driver `pg`.)*
 
 Phần còn lại của `backend-design.md` (luồng GitHub Actions, polling, cấu trúc thư mục, quy ước response) vẫn còn hiệu lực.
 

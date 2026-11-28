@@ -4,7 +4,7 @@
 
 Repo này **tách biệt hoàn toàn** với source code sản phẩm OOP AutoGrader. Repo gồm 3 phần chính:
 
-- `automation/`: kiểm thử tự động bằng Node.js + Playwright, ghi kết quả vào MySQL.
+- `automation/`: kiểm thử tự động bằng Node.js + Playwright. **Không nối DB**: nó lấy kế hoạch chạy từ backend và đẩy log/kết quả về `POST /api/ingest/*` (reporter `automation/reporters/push-to-backend.js`).
 - `backend/` + `frontend/`: dashboard quản lý test case, lần chạy, kết quả, bug (mô hình MVC, deploy lên Vercel).
 - `db/`: schema, migration, dữ liệu mẫu của `test_automation_db`.
 
@@ -22,7 +22,7 @@ oop-autograder-testing/
 │   │   ├── db/                         # db-connection.spec.js
 │   │   ├── fixtures/                   # auth.fixture.js: login helper dùng chung (CODE)
 │   │   ├── models/                     # *.model.js: class mô tả dữ liệu test
-│   │   └── utils/                      # db-client.js: kết nối MySQL
+│   │   └── utils/                      # fixture-builder.js (không có client DB nào)
 │   ├── reporters/
 │   │   ├── test-result-logger.js       # Ghi kết quả vào test_runs / test_results
 │   │   └── push-to-backend.js          # (sẽ bổ sung) gửi kết quả qua API backend
@@ -164,15 +164,20 @@ Mỗi người **chỉ merge vào `dev` qua PR**, không push thẳng để trá
 
 ## 6. CI/CD (GitHub Actions)
 
-`.github/workflows/playwright-ci.yml` (sẽ bổ sung) nên:
+✅ **Đã có: [`.github/workflows/run-tests.yml`]** (không phải `playwright-ci.yml` như bản kế hoạch này ghi).
+Nó **không chạy khi push/PR** mà chạy khi backend gọi `workflow_dispatch` với `run_id`:
 
-1. Checkout code, `npm ci` trong thư mục `automation/` (dùng `working-directory: automation`).
-2. Cài trình duyệt: `npx playwright install --with-deps chromium`.
-3. Khởi tạo DB: dùng MySQL (service container hoặc DB cloud), chạy `db/schema/*.sql` rồi `db/seed/*.sql`.
-4. Chạy `npx playwright test`. Biến `CI=true` sẽ tự bật chế độ headless (xem `playwright.config.js`).
-5. `test-result-logger.js` ghi kết quả vào `test_runs` / `test_results`.
-6. Upload `automation/test-results/` (và `playwright-report/` nếu bật HTML reporter) làm artifact để xem lại khi fail.
-7. Nếu có test fail → PR check "fail", chặn merge.
+1. Backend (Vercel) tạo dòng `test_runs` trước, rồi kích hoạt workflow kèm `run_id`, `env`, `timeout`.
+2. CI checkout, `npm ci` trong `automation/`, `npx playwright install --with-deps chromium`.
+3. **Không khởi tạo DB.** CI không có chuỗi kết nối DB – nó gọi backend lấy kế hoạch chạy
+   (`npm run plan` → `scripts/fetch-plan.js`), vì backend là nơi duy nhất viết SQL (`backend-design.md` mục 5).
+4. Chạy `npx playwright test`. `CI=true` tự bật headless.
+5. Reporter `automation/reporters/push-to-backend.js` (thay cho `test-result-logger.js` cũ ghi thẳng MySQL)
+   đẩy log + kết quả về `POST /api/ingest/*`, xác thực bằng `INGEST_API_KEY`.
+6. `concurrency`: một `run_id` chỉ một job – trùng thì hủy lần cũ, vì `PATCH /finish` gọi lần hai trả `409`.
+
+> Vì chạy bằng `workflow_dispatch`, test **không** chặn merge PR. Muốn chặn thì phải thêm một workflow
+> `on: [pull_request]` riêng.
 
 Thông tin nhạy cảm (mật khẩu DB, tài khoản test) lưu trong **GitHub Secrets**, không ghi vào workflow hay code.
 
@@ -215,7 +220,7 @@ playwright-report/
 - Với DB cloud: schema dùng `CREATE TABLE IF NOT EXISTS` (không `DROP TABLE`), không có `CREATE DATABASE` / `USE`; seed chỉ chạy một lần trên DB trống (không `DELETE` dữ liệu đang có).
 - `test_runs` và `test_results` **không** nằm trong seed vì do Playwright tự ghi mỗi lần chạy.
 - Seed nên tách theo suite (`seed_auth_suite.sql`, `seed_student_suite.sql`...) trùng với thư mục `tests/`, để mỗi người chỉ sửa đúng file của mình, tránh conflict.
-- Chạy local nên trỏ vào một DB riêng (vd MySQL trong Docker), không dùng chung DB với CI hoặc DB cloud chung, tránh ghi đè `test_runs` của nhau.
+- Chạy local nên trỏ vào một DB riêng (PostgreSQL trong Docker – xem `docker-compose.yml` và `db/SETUP-LOCAL.md`), không dùng chung DB cloud, tránh ghi đè `test_runs` của nhau.
 
 ## 9. Nguồn chuẩn khi tài liệu mâu thuẫn nhau
 
@@ -233,28 +238,28 @@ sửa file nguồn chuẩn **trước**, rồi mới cập nhật tài liệu ph
 
 ### Việc còn phải làm để code khớp nguồn chuẩn
 
-- **Tên bảng và tên cột – theo schema (`snake_case` chữ thường).**
-  `db/seed/seed.sql` và `db/migrations/001`, `002` đang dùng `Test_Suites`, `Test_Cases` (chữ hoa) và cột `description`,
-  trong khi schema là `test_suites` và `suite_description`; `004` thì đã đúng chữ thường.
-  MySQL trên Linux phân biệt hoa/thường tên bảng → **chạy sẽ lỗi**, cần sửa seed và hai migration đó.
-- **Vai trò – theo SRS và schema: giữ đủ 4 vai trò** (Admin / Tester / Dev / Viewer).
-  Điều này **đảo lại** đề xuất bỏ `dev` ở [`backend/backend-design.md`](./backend/backend-design.md) mục 6.
-  Cần định nghĩa rõ quyền của `dev` (SRS mục 4: xem kết quả, log, bằng chứng, **được request chạy lại**; không tạo/sửa/xóa)
-  rồi sửa `frontend/src/models/permissions.js` – chỗ này đang xếp `Dev` ngang `Tester`, rộng hơn SRS cho phép.
-- **Lưu trữ – theo SRS: đích là Supabase (PostgreSQL) + Supabase Storage.**
-  Code hiện tại là MySQL. Đây là khoảng cách cần thu hẹp, kéo theo `db/schema/`, toàn bộ migration và `mysql2` → client PostgreSQL.
-  Nếu nhóm thấy không khả thi thì **sửa SRS trước** rồi mới chốt ở lại MySQL.
-- **`db/seed/seed.sql` có `DELETE FROM Test_Suites WHERE suite_id > 0;` và `ALTER TABLE … AUTO_INCREMENT = 1`** –
-  trái với quy tắc ở mục 8 ("seed chỉ chạy một lần trên DB trống, không `DELETE` dữ liệu đang có"). Chốt lại một trong hai.
+- ✅ **Lưu trữ – đã đóng.** `db/schema/` là PostgreSQL, `backend/` dùng driver `pg`, không còn `mysql2`.
+  Một điểm lệch có chủ đích còn lại: **không dùng Supabase Storage** – ảnh bằng chứng là `bytea` trong
+  `test_evidences.content`, phục vụ qua `GET /api/evidences/:token` (migration `015`). Sửa SRS mục D4 cho khớp.
+- ✅ **Vai trò – đã đóng** (issue #97). `permissions.js` có `WRITE_ROLES = ['Admin','Tester']`; Dev **không** chạy
+  test kể cả chạy lại, mà gửi yêu cầu `POST /runs/:id/rerun-requests` cho Admin/Tester duyệt, và **duyệt không tự
+  chạy test**. Xem [`backend/api-endpoints.md`](./backend/api-endpoints.md) mục 6.
+- **`db/seed/seed.sql` và `db/verify.sql` là bản MySQL chết.** Tên bảng chữ hoa, cột `description`,
+  `DELETE FROM Test_Suites WHERE suite_id > 0`, `ALTER TABLE … AUTO_INCREMENT = 1` (cú pháp chỉ MySQL có).
+  Chúng **không nằm trong `migrate.js`** nên không ai chạy và không ai thấy lỗi — bản đang dùng là
+  `010_seed_auth_postgres.sql`. Việc phải làm: viết lại theo schema, hoặc xoá hẳn. Cùng nhóm: migration
+  `001`, `002`, `004`, `005`, `006` (giữ lại làm bằng chứng truy nguyên cho báo cáo, **đừng chạy**).
 - **Thiếu `db/migrations/003_submission_steps_data.sql`** (mục D6 trong [`database/phan-cong-db-va-du-lieu.md`](./database/phan-cong-db-va-du-lieu.md));
-  hiện nhảy từ `002` sang `004`.
+  hiện nhảy từ `002` sang `004`, nên **TC-13 → TC-22 không có steps trong DB và chưa chạy được**.
+- **`/stats` và `/reports` chưa có dòng code nào.** Dashboard tự tính số liệu từ `GET /runs`, nút Export
+  dựng HTML ở client (`frontend/src/models/reportHtml.js`).
 
 ### Vẫn còn chờ nhóm quyết
 
 - **Bộ mã test case:** `db/seed/seed.sql` dùng `TC-AUTH-xxx` / `TC-UI-xxx`, còn spec và `docs/testing/` dùng `TC-01` → `TC-31`.
   Schema không ràng buộc bộ mã nào nên đây là quyết định thuần của nhóm. Hiện tài liệu đang dùng **`TC-01` → `TC-31` (31 test case)**;
   mọi chỗ ghi "TC-01 → TC-44" là tài liệu cũ sai.
-- **DB cloud:** chọn nhà cung cấp, cấu hình SSL, tạo user riêng (không dùng `root`). Gắn với quyết định MySQL ↔ Supabase ở trên.
+- **DB cloud:** chọn nhà cung cấp, cấu hình SSL, tạo user riêng (không dùng `root`). *(`migrate.js` đã tự bật SSL khi connection string không trỏ localhost.)*
 
 ### Đã chốt gần đây
 

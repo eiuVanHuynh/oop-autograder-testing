@@ -1,7 +1,7 @@
 // Bóc kết quả TỪNG test case ra khỏi log của một lần chạy.
 //
 // shortcut: không có GET nào trả test_results (routes/runs.routes.js chỉ có run + logs;
-// /reports và /stats là route rỗng), nên pass/fail từng case phải đọc từ log.
+// /reports và /stats không được mount), nên pass/fail từng case phải đọc từ log.
 // Bỏ file này khi backend mở route đọc test_results.
 //
 // Khuôn dòng log do hai bộ chạy test tự in ra, giống nhau ở cả hai:

@@ -1,5 +1,5 @@
 // Sinh bản báo cáo HTML tự chứa cho một lần chạy.
-// Backend chưa có nhóm /reports (routes/reports.routes.js là route rỗng), nên Export làm
+// Backend chưa có nhóm /reports (không có routes/reports.routes.js), nên Export làm
 // hẳn ở client: không gọi API, không CSS ngoài -> file mở offline được, gửi kèm email được.
 // Bỏ file này khi route export của backend lên.
 

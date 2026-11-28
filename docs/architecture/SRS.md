@@ -27,9 +27,9 @@
 >    **hệ thống cần kiểm thử (SUT)** – website OOP AutoGrader – nằm ở [`../testing/fr-mapping.md`](../testing/fr-mapping.md)
 >    và [`../testing/test-plan.md`](../testing/test-plan.md).
 > 2. **Lưu trữ – hướng chuẩn là Supabase (PostgreSQL) + Supabase Storage** như mục 2 bên dưới.
->    Code hiện tại là **MySQL/InnoDB** (`db/schema/…`, truy cập qua `mysql2`) và `backend-design.md` cũng viết theo MySQL
->    → đây là **khoảng cách cần thu hẹp**, không phải lỗi của SRS. Trước khi chuyển, nhóm cần một quyết định rõ ràng
->    (ghi lại ở đâu đó trong `docs/`), vì nó kéo theo `db/schema/`, toàn bộ migration và `mysql2` → client PostgreSQL.
+>    ✅ **Đã khớp.** `db/schema/` là PostgreSQL (`VARCHAR + CHECK`, `TIMESTAMPTZ`, `IDENTITY`), `backend/` dùng driver
+>    `pg`, không còn `mysql2`. Riêng **Supabase Storage** thì không dùng: ảnh bằng chứng lưu thành `bytea` trong
+>    `test_evidences.content` và phục vụ qua `GET /api/evidences/:token` (migration `015`).
 > 3. **Cơ chế chạy test:** SRS mô tả Controller trên Vercel kích hoạt runner. Vercel serverless **không chạy được Playwright**
 >    → `backend-design.md` đã chốt chạy qua **GitHub Actions** (`workflow_dispatch`). Đây là *cách hiện thực hóa* mục 7.6,
 >    không mâu thuẫn với SRS; nếu muốn SRS ghi rõ thì bổ sung vào mục 2.
