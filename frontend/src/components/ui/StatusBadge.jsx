@@ -48,7 +48,7 @@ export default function StatusBadge({ status, label, icon: Icon, tone, className
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls} ${className}`}
+      className={`badge-ring inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls} ${className}`}
     >
       {Icon && <Icon size={12} />}
       {label ?? status}

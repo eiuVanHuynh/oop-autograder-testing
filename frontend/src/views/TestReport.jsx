@@ -24,10 +24,10 @@ import {
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
 import { canRunTest } from "../models/permissions";
-import { getRun, fetchRunLogs, rerunRun, getRunResults } from "../services/runService";
+import { getRun, fetchRunLogs, rerunRun, getRunResults, getEvidenceDataUrl } from "../services/runService";
 import { listCases } from "../services/catalogService";
 import { parseCaseResults, msLabel, logTone } from "../models/runLog";
-import { buildReportHtml } from "../models/reportHtml";
+import { buildReportHtml, isEvidenceUrl } from "../models/reportHtml";
 import { getErrorMessage } from "../services/authService";
 import StatusBadge from "../components/ui/StatusBadge";
 
@@ -50,7 +50,10 @@ export default function TestReport() {
   const [run, setRun] = useState(null);
   const [logs, setLogs] = useState([]);
   const [titles, setTitles] = useState(new Map()); // tc_code -> title
+  const [caseIds, setCaseIds] = useState(new Map()); // tc_code -> id (để mở nhanh trang chi tiết)
   const [apiResults, setApiResults] = useState(null); // tc_code -> kết quả từ /results
+  // token -> data: URL của file bằng chứng; <img> không gửi được Authorization nên phải tải riêng.
+  const [evidenceSrc, setEvidenceSrc] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [rerunning, setRerunning] = useState(false);
@@ -60,7 +63,11 @@ export default function TestReport() {
   useEffect(() => {
     let off = false;
     listCases()
-      .then((l) => !off && setTitles(new Map(l.map((c) => [c.code.toUpperCase(), c.title]))))
+      .then((l) => {
+        if (off) return;
+        setTitles(new Map(l.map((c) => [c.code.toUpperCase(), c.title])));
+        setCaseIds(new Map(l.map((c) => [c.code.toUpperCase(), c.id])));
+      })
       .catch(() => { });
     return () => { off = true; };
   }, []);
@@ -93,6 +100,26 @@ export default function TestReport() {
     };
   }, [id]);
 
+  // Ảnh bằng chứng phải tải bằng API (route /evidences/:token đòi đăng nhập, dev trở lên), rồi
+  // giữ dưới dạng data: URL — dùng được cho cả ảnh trên trang lẫn báo cáo HTML xuất ra.
+  // Tải một lần cho mỗi run: ảnh không đổi, mà mỗi cái khoảng 75KB.
+  useEffect(() => {
+    if (!apiResults) return undefined;
+    const tokens = [...apiResults.values()]
+      .flatMap((r) => r.evidences || [])
+      .map((e) => e.token)
+      .filter(Boolean);
+    if (!tokens.length) return undefined;
+
+    let off = false;
+    Promise.all(tokens.map(async (t) => [t, await getEvidenceDataUrl(t)])).then((pairs) => {
+      if (!off) setEvidenceSrc(Object.fromEntries(pairs.filter(([, src]) => src)));
+    });
+    return () => {
+      off = true;
+    };
+  }, [apiResults]);
+
   // /results thắng log vì đọc thẳng bảng, NHƯNG dự phòng theo TỪNG case chứ không phải
   // tất-cả-hoặc-không: run.testCodes dựng từ COALESCE(automation_ref, tc_code) còn /results
   // chỉ trả tc_code, nên case có automation_ref riêng sẽ không khớp và phải rơi về log.
@@ -104,7 +131,14 @@ export default function TestReport() {
       code,
       // Tên từ /results (backend join test_cases) chuẩn hơn; thiếu thì tra catalog.
       title: hit?.title || titles.get(key) || "",
+      caseId: caseIds.get(key) ?? null,
       ...(hit ?? { status: null, ms: null, error: null }),
+      // Sau phần spread: file_path thành data: URL đã tải, để ảnh trên trang và ảnh trong báo cáo
+      // xuất ra dùng chung một nguồn. Chưa tải xong thì giữ nguyên, lúc đó chưa hiện ảnh.
+      evidences: (hit?.evidences ?? []).map((e) => ({
+        ...e,
+        file_path: evidenceSrc[e.token] || e.file_path,
+      })),
     };
   });
 
@@ -177,7 +211,7 @@ export default function TestReport() {
     );
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="page page--narrow">
       {/* Thanh điều hướng + hành động */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-center gap-4">
         <button
@@ -238,40 +272,35 @@ export default function TestReport() {
       </div>
 
       {/* Thông tin run */}
-      <div className="bg-white rounded-2xl p-6 mt-6s shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="w-1/2">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="flex flex-row items-center gap-3 border-b justify-between w-full">
-              <h1 className="text-xl font-bold my-6 text-gray-900">{run.name}</h1>
-              <StatusBadge
-                status={run.status}
-                className="px-3 py-1 my-6"
-                label={<><StatusIcon status={run.status} /> {run.status}</>}
-              />
-            </div>
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-gray-200 pb-3">
+            <h1 className="m-0 min-w-0 break-words text-xl font-bold text-gray-900">{run.name}</h1>
+            <StatusBadge
+              status={run.status}
+              className="shrink-0 px-3 py-1"
+              label={<><StatusIcon status={run.status} /> {run.status}</>}
+            />
           </div>
-          <p className="text-sm text-gray-500 mt-1 flex justify-between">
-            <>
-            ID:
-              <strong className="text-gray-700"> {run.id} </strong>
-            </>
-          <>
-             | Env:{" "}
-            <strong className="text-gray-700">{run.environment}</strong>
-          </>
-          <>
-            {run.executedAt && <>  
-            |  At 
-            <strong className="text-gray-700"> {run.executedAt} </strong>
-            </>
-            }
-          </>
-             | by{" "}
-            <strong className="text-gray-700">{run.runBy}</strong>
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-gray-500">
+            <span className="whitespace-nowrap">
+              ID: <strong className="text-gray-700">{run.id}</strong>
+            </span>
+            <span className="whitespace-nowrap">
+              Env: <strong className="text-gray-700">{run.environment}</strong>
+            </span>
+            {run.executedAt && (
+              <span className="whitespace-nowrap">
+                At: <strong className="text-gray-700">{run.executedAt}</strong>
+              </span>
+            )}
+            <span className="whitespace-nowrap">
+              By: <strong className="text-gray-700">{run.runBy}</strong>
+            </span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+        <div className="flex shrink-0 items-center gap-4 self-start lg:self-auto bg-gray-50 p-4 rounded-xl border border-gray-100">
           <div className="text-center px-3">
             <p className="text-xs text-gray-500">Total</p>
             <p className="text-lg font-bold text-gray-900">
@@ -318,14 +347,55 @@ export default function TestReport() {
           ) : (
             <ul className="divide-y divide-gray-100 max-h-[420px] overflow-auto">
               {cases.map((c) => (
-                <li key={c.code} className="flex items-start justify-between gap-3 px-5 py-3">
+                <li
+                  key={c.code}
+                  onClick={c.caseId ? () => navigate(`/testcases/${c.caseId}`) : undefined}
+                  className={`flex items-start justify-between gap-3 px-5 py-3 ${
+                    c.caseId ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
+                >
                   {/* Thông báo lỗi KHÔNG lặp lại ở đây: nó đã nằm nguyên văn trong Execution log
                       ngay bên cạnh, in hai lần chỉ làm danh sách khó đọc. */}
                   <div className="min-w-0">
                     <p className="font-mono text-sm text-brand-600">{c.code}</p>
                     <p className="text-sm text-gray-800 break-words">
-                      {c.title || <span className="text-gray-400 italic">chưa lấy được tên</span>}
+                      {c.title || <span className="text-gray-500 italic">chưa lấy được tên</span>}
                     </p>
+                    {/* Bằng chứng của case: ảnh hiện ngay, bấm thì tải file về. Trace là zip nằm trong
+                        artifact của CI, không tải được từ trang này, nên chỉ ghi tên loại.
+                        Ảnh chưa tải xong, hoặc tài khoản không đủ quyền (viewer), cũng rơi vào
+                        nhánh tên loại — không có ô vỡ, không có thông báo lỗi giữa danh sách. */}
+                    {c.evidences?.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        {c.evidences.map((e) =>
+                          isEvidenceUrl(e.file_path) ? (
+                            <a
+                              key={e.evidence_id}
+                              href={e.file_path}
+                              // download chứ không target="_blank": trình duyệt chặn mở tab mới bằng data: URL.
+                              // Đuôi lấy từ chính data: URL — ảnh local là JPEG, ảnh từ CI là PNG.
+                              download={`${c.code}-${e.evidence_type}.${
+                                e.file_path.slice(11, e.file_path.indexOf(";")) || "png"
+                              }`}
+                              // Cả <li> có onClick sang trang test case: không chặn thì bấm ảnh lại nhảy trang.
+                              onClick={(ev) => ev.stopPropagation()}
+                              title={`Tải ${e.evidence_type} về`}
+                              className="block max-w-[220px] overflow-hidden rounded border border-gray-200 hover:border-brand-500"
+                            >
+                              <img src={e.file_path} alt={e.evidence_type} className="block w-full" />
+                            </a>
+                          ) : (
+                            <span
+                              key={e.evidence_id}
+                              title={e.file_path}
+                              className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600"
+                            >
+                              {e.evidence_type}
+                            </span>
+                          ),
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="shrink-0 text-right">
                     {c.status ? (
@@ -334,10 +404,10 @@ export default function TestReport() {
                         label={<><StatusIcon status={c.status} size={12} /> {c.status}</>}
                       />
                     ) : (
-                      <span className="text-xs text-gray-400">—</span>
+                      <span className="text-xs text-gray-500">—</span>
                     )}
                     {msLabel(c.ms) && (
-                      <p className="mt-0.5 font-mono text-[11px] text-gray-400">{msLabel(c.ms)}</p>
+                      <p className="mt-0.5 font-mono text-[11px] text-gray-500">{msLabel(c.ms)}</p>
                     )}
                   </div>
                 </li>

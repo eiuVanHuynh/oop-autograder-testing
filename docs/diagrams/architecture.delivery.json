@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "1e148ffb-0f4d-4809-a81e-07443aeda984",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/agnguyen/me/oop-autograder-testing/.archify/architecture-oop-autograder-20261127-091511/candidate.json",
+  "output": "/home/agnguyen/me/oop-autograder-testing/docs/diagrams/architecture.html",
+  "specification": {
+    "sha256": "f7c3b2439a9cc36a7d1bb5664994e629e12819950abb403d365f31825bf6e8e1",
+    "bytes": 5919
+  },
+  "artifact": {
+    "sha256": "d0d7c0968d44c60b8c6585163c6c44d5842ad8cb9cd60307ceb8263fb411a758",
+    "bytes": 961109
+  }
+}

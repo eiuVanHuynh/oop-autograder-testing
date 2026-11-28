@@ -6,6 +6,7 @@ import ForgotPassword from "../views/ForgotPassword";
 import MainLayout from "../components/MainLayout";
 import Dashboard from "../views/Dashboard";
 import Templates from "../views/Templates";
+import TemplateForm from "../views/TemplateForm";
 import History from "../views/History";
 import TestExecution from "../views/TestExecution";
 import TestReport from "../views/TestReport";
@@ -54,6 +55,23 @@ export default function AppRoutes() {
       >
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="templates" element={<Templates />} />
+        <Route path="templates/:id" element={<TemplateForm mode="view" />} />
+        <Route
+          path="templates/new"
+          element={
+            <ProtectedRoute allowedRoles={["Admin", "Tester"]}>
+              <TemplateForm />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="templates/:id/edit"
+          element={
+            <ProtectedRoute allowedRoles={["Admin", "Tester"]}>
+              <TemplateForm />
+            </ProtectedRoute>
+          }
+        />
         <Route path="testcases" element={<TestCases />} />
         <Route path="testcases/:id" element={<TestCaseForm mode="view" />} />
         <Route

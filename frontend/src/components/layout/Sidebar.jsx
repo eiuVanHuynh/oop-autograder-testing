@@ -52,10 +52,9 @@ export const MENU = [
     items: [
       {
         path: "/admin/users",
-        label: "User Management",
+        label: "Users",
         icon: Users,
         roles: ["Admin"],
-        badge: "Admin",
       },
     ],
   },
@@ -80,7 +79,7 @@ export default function Sidebar({ collapsed = false }) {
     <aside
       inert={collapsed}
       aria-hidden={collapsed || undefined}
-      className={`relative z-40 flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out shrink-0 sticky top-0 h-[calc(100vh-4rem)] overflow-y-auto ${
+      className={`rail-mark z-40 flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out shrink-0 h-[calc(100vh-4rem)] overflow-y-auto max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:h-full max-lg:shadow-lg lg:sticky lg:top-0 ${
         collapsed
           ? "w-0 overflow-hidden border-r-0 opacity-0"
           : "w-48 opacity-100"
@@ -90,7 +89,7 @@ export default function Sidebar({ collapsed = false }) {
       <nav className="flex-1 space-y-5 overflow-y-auto p-3">
         {groups.map((group) => (
           <div key={group.group}>
-            <p className="m-0 mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            <p className="m-0 mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               {group.group}
             </p>
             <ul className="space-y-1">
@@ -109,18 +108,9 @@ export default function Sidebar({ collapsed = false }) {
                       }`}
                     >
                       <Icon size={18} className="shrink-0" />
+                      {/* flex-1 vẫn cần sau khi bỏ viên nhãn: thiếu nó, span co theo nội dung và
+                          nhãn dài tràn ra ngoài thay vì bị cắt bằng dấu ba chấm. */}
                       <span className="flex-1 truncate">{item.label}</span>
-                      {item.badge && (
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                            active
-                              ? "bg-white/20 text-white"
-                              : "bg-brand-100 text-brand-700"
-                          }`}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
                     </Link>
                   </li>
                 );

@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bell, Check, ChevronDown, ChevronLeft, LogOut, Search, User, Terminal, Palette } from "lucide-react";
+import { Bell, Check, ChevronDown, ChevronLeft, KeyRound, LogOut, Search, User, Terminal, Palette } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../controllers/AuthContext";
 import { MENU, isActive } from "./Sidebar";
 import { THEMES, getTheme, setTheme } from "../../models/theme";
+import PasswordModal from "../ui/PasswordModal";
+import { changeOwnPassword } from "../../services/userService";
+import { getErrorMessage } from "../../services/authService";
 
 // Badge vai trò theo Design.md (Admin tím, Tester xanh dương, Dev xanh ngọc, Viewer xám).
 const ROLE_BADGE = {
@@ -32,6 +35,7 @@ export default function TopBar({
   // Nguồn sự thật là thuộc tính data-theme trên <html> (index.html đặt từ trước khi vẽ);
   // state ở đây chỉ để nút biết ô nào đang được chọn.
   const [theme, setThemeState] = useState(getTheme);
+  const [pwOpen, setPwOpen] = useState(false);
 
   // Bấm Esc cũng đóng menu avatar.
   useEffect(() => {
@@ -44,6 +48,24 @@ export default function TopBar({
   const pickTheme = (id) => {
     setTheme(id);
     setThemeState(id);
+  };
+
+  // Đổi mật khẩu của chính mình. Không có luồng email nên đây là đường duy nhất người dùng
+  // tự đổi được; quên hẳn thì phải nhờ Admin đặt lại (trang Users).
+  const handleChangePassword = async ({ currentPassword, newPassword }) => {
+    try {
+      await changeOwnPassword(currentPassword, newPassword);
+      setPwOpen(false);
+      toast.success("Password changed. Use it next time you sign in.");
+    } catch (err) {
+      // 401 ở đây là "sai mật khẩu hiện tại", KHÔNG phải phiên hết hạn, nên nói rõ câu riêng:
+      // getErrorMessage sẽ trả "Please sign in again." và làm người dùng tưởng bị đăng xuất.
+      toast.error(
+        err.response?.status === 401
+          ? "Your current password is wrong."
+          : getErrorMessage(err, "Cannot change the password."),
+      );
+    }
   };
 
   const handleLogout = () => {
@@ -104,7 +126,7 @@ export default function TopBar({
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder="Search templates, tests, submissions..."
-          className="h-10 w-full rounded-lg bg-brand-50 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600"
+          className="h-10 w-full rounded-lg bg-brand-50 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-600"
         />
       </form>
       <div className="flex-1" />
@@ -175,7 +197,7 @@ export default function TopBar({
                   <span className="flex items-center gap-2">
                     <Palette size={16} /> Theme
                   </span>
-                  <span className="flex items-center gap-1 text-xs text-slate-400">
+                  <span className="flex items-center gap-1 text-xs text-slate-500">
                     {THEMES.find((t) => t.id === theme)?.label}
                     <ChevronLeft size={14} />
                   </span>
@@ -200,13 +222,24 @@ export default function TopBar({
                       >
                         <Check size={14} className={theme === t.id ? "" : "invisible"} />
                         <span className="flex-1">{t.label}</span>
-                        <span className="text-[11px] text-slate-400">{t.hint}</span>
+                        <span className="text-[11px] text-slate-500">{t.hint}</span>
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
               <div className="my-1 h-px bg-slate-200" />
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setPwOpen(true);
+                }}
+                className="flex h-9 w-full items-center gap-2 rounded-md px-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              >
+                <KeyRound size={16} /> Change password
+              </button>
               <button
                 type="button"
                 role="menuitem"
@@ -219,6 +252,17 @@ export default function TopBar({
           </>
         )}
       </div>
+
+      {pwOpen && (
+        <PasswordModal
+          title="Change password"
+          subtitle="You need your current password. Forgot it? Ask an admin to reset it."
+          askCurrent
+          confirmLabel="Change password"
+          onSubmit={handleChangePassword}
+          onClose={() => setPwOpen(false)}
+        />
+      )}
     </header>
   );
 }

@@ -66,9 +66,31 @@ export const toCaseResult = (row = {}) => ({
   ms: Number(row.execution_time_ms ?? 0),
   error: row.error_message || null,
   retries: Number(row.retry_count ?? 0),
-  // [{ evidence_id, evidence_type: 'screenshot' | 'trace', file_path }]
+  // [{ evidence_id, evidence_type: 'screenshot' | 'trace', file_path, token }]
+  // file_path là URL của file NHƯNG không nhét thẳng vào <img src> được: route đòi
+  // Authorization (dev trở lên). Dùng token + getEvidenceDataUrl bên dưới.
   evidences: Array.isArray(row.evidences) ? row.evidences : [],
 });
+
+// GET /evidences/:token -> data: URL nhúng được vào <img>.
+// Vì sao không dùng thẳng file_path: thẻ <img> không gửi header Authorization, mà route đó
+// đòi đăng nhập. Vì sao data: URL chứ không phải URL.createObjectURL: cùng một chuỗi dùng được
+// cho cả ảnh trên trang lẫn báo cáo HTML xuất ra — báo cáo phải tự chứa, mở offline được.
+// Lỗi tải (403 với viewer, file đã bị dọn) trả null: thiếu một ảnh không được làm hỏng trang.
+export const getEvidenceDataUrl = async (token) => {
+  if (!token) return null;
+  try {
+    const res = await API.get(`/evidences/${token}`, { responseType: 'blob' });
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result));
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(res.data);
+    });
+  } catch {
+    return null;
+  }
+};
 
 export const getRunResults = async (runId) =>
   rows(unwrap(await API.get(`/runs/${runId}/results`))).map(toCaseResult);

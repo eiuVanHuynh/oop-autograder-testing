@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "b549da52-a32e-4f48-a662-00f451a7ce42",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "/home/agnguyen/me/oop-autograder-testing/.archify/diagrams-20261127-095256/sequence.sequence.json",
+  "output": "/home/agnguyen/me/oop-autograder-testing/docs/diagrams/sequence.html",
+  "specification": {
+    "sha256": "415b274ed41e887d80cc068432f37d25f17b8f6c79ea64e06a9846b5f237e48c",
+    "bytes": 7191
+  },
+  "artifact": {
+    "sha256": "b47408bdb5a1f3ef626e0da91bbc43326d641bdc7fae151a2fb83bd0aff9417c",
+    "bytes": 950459
+  }
+}

@@ -8,15 +8,17 @@ import AuthCard from "../components/ui/AuthCard";
 import FormField from "../components/ui/FormField";
 import PasswordField from "../components/ui/PasswordField";
 import Button from "../components/ui/Button";
+import { registerRequest, getErrorMessage } from "../services/authService";
 
 export default function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     if (!name || !email || !password || !confirmPassword) {
       toast.error("Please fill in all fields!");
@@ -26,13 +28,24 @@ export default function Register() {
       toast.error("Password confirmation does not match!");
       return;
     }
+    // Khớp registerSchema của backend (password min 6, fullName min 2) để không phải chịu 400.
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters long!");
+      return;
+    }
 
-    // BACKEND-TODO: POST /auth/register { name, email, password, confirmPassword } -> 201
-    //   Lỗi: 400 sai dữ liệu · 409 email đã tồn tại · 429 gửi quá nhiều.
-    //   Quy tắc mật khẩu tối thiểu CHƯA có trong api-endpoints.md — nhóm cần chốt rồi mới thêm kiểm tra ở đây.
-    //   Tên field gửi lên (name hay fullName) cũng cần chốt với backend.
-    toast.success("Registration successful! Default role is Viewer.");
-    navigate("/login");
+    setSaving(true);
+    try {
+      // Backend trả luôn token, nhưng ở đây KHÔNG tự đăng nhập: AuthContext chỉ nhận phiên
+      // qua trang Login, tự ghi storage ở đây là làm hai nơi cùng giữ phiên.
+      await registerRequest({ fullName: name, email, password });
+      toast.success("Registration successful! Default role is Viewer.");
+      navigate("/login");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Cannot create the account."));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -92,8 +105,8 @@ export default function Register() {
             role.
           </p>
 
-          <Button type="submit">
-            Create account <ArrowRight size={16} />
+          <Button type="submit" disabled={saving}>
+            {saving ? "Creating..." : "Create account"} <ArrowRight size={16} />
           </Button>
         </form>
         <div className="my-6 flex items-center gap-3">

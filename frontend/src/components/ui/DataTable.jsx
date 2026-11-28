@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import Pagination from "./Pagination";
 import SegmentedControl from "./SegmentedControl";
-import { getTableView, setTableView } from "../../models/tableView";
+import { useTableView } from "../../models/tableView";
 const ALIGN = { right: "text-right", center: "text-center", left: "text-left" };
 
 const VIEW_OPTIONS = [
@@ -67,10 +67,10 @@ export default function DataTable({
   const [sort, setSort] = useState({ key: null, dir: "asc" });
   const canCards = cards || !!renderCard;
   const controlled = onViewChange !== undefined;
-  const [ownView, setOwnView] = useState(() =>
-    canCards ? getTableView(viewKey) : "table",
-  );
-  const view = controlled ? viewProp : ownView;
+  // Lựa chọn của chính DataTable khi trang không tự giữ state. Hook lo luôn việc màn hẹp thì
+  // ép dạng thẻ (models/tableView.js); bảng nào không có chế độ thẻ thì vẫn là bảng.
+  const own = useTableView(viewKey);
+  const view = controlled ? viewProp : canCards ? own.view : "table";
 
   // Lọc/tìm kiếm đổi danh sách -> quay về trang 1, nếu không sẽ thấy trang trống.
   // Chỉnh state ngay trong lúc render (cách React khuyến nghị) thay vì useEffect.
@@ -126,10 +126,7 @@ export default function DataTable({
     [sortedRows, pageSize, safePage],
   );
 
-  const changeView = (next) => {
-    setOwnView(next);
-    setTableView(viewKey, next);
-  };
+  const changeView = own.setView;
 
   const isEmpty = !loading && sortedRows.length === 0;
 
@@ -166,7 +163,7 @@ export default function DataTable({
         <dl className="m-0 mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
           {metaCols.map((col) => (
             <div key={col.key} className="min-w-0">
-              <dt className="m-0 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              <dt className="m-0 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                 {col.header}
               </dt>
               <dd className="m-0 min-w-0 break-words text-sm text-gray-700">
@@ -189,12 +186,12 @@ export default function DataTable({
   const card = renderCard ?? defaultCard;
 
   const body = isEmpty ? (
-    <div className="text-center py-14 text-gray-400">
+    <div className="text-center py-14 text-gray-500">
       {EmptyIcon && <EmptyIcon size={40} className="mx-auto mb-2 opacity-40" />}
       <p className="text-sm">{empty}</p>
     </div>
   ) : loading && sortedRows.length === 0 ? (
-    <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>
+    <p className="px-5 py-8 text-center text-sm text-gray-500">Loading…</p>
   ) : view === "cards" && canCards ? (
     <div
       className="grid gap-3 p-4"
@@ -214,7 +211,10 @@ export default function DataTable({
     </div>
   ) : (
     <table className="w-full text-sm border-collapse table-fixed">
-      <thead className="bg-gray-50 text-xs text-gray-500 uppercase sticky top-0 z-10 shadow-sm">
+      {/* Đường kẻ dưới hàng tiêu đề dính: dùng box-shadow chứ KHÔNG dùng border — bảng có
+          border-collapse nên viền của <thead> nằm trong lưới viền đã gộp và bị đánh rơi khi
+          cuộn. Cũng không dùng token shadow-* vì theme nature đặt chúng về none. */}
+      <thead className="bg-gray-50 text-xs text-gray-500 uppercase sticky top-0 z-10 shadow-[inset_0_-1px_0_rgb(var(--line-100))]">
         <tr>
           {columns.map((col) => {
             const isSortable = Boolean(col.sortable || col.sortValue);
@@ -276,10 +276,10 @@ export default function DataTable({
     <div
       className={`bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden ${className}`}
     >
-      {(toolbar || (canCards && !controlled && !isEmpty)) && (
+      {(toolbar || (canCards && !controlled && !isEmpty && !own.locked)) && (
         <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-gray-100">
           <div className="min-w-0">{toolbar}</div>
-          {canCards && !controlled && !isEmpty && (
+          {canCards && !controlled && !isEmpty && !own.locked && (
             <TableViewToggle value={view} onChange={changeView} />
           )}
         </div>

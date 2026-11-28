@@ -35,6 +35,7 @@ import { getErrorMessage } from "../services/authService";
 import { ENVIRONMENTS } from "../models/options"; // BACKEND-TODO [2]: GET /meta/options
 import { logTone } from "../models/runLog";
 import StatusBadge from "../components/ui/StatusBadge";
+import PageHeader from "../components/ui/PageHeader";
 
 // Form dùng GIÂY; khi gửi POST /runs nhân 1000 (backend lưu mili-giây).
 const TIMEOUTS = ["15", "30", "60", "120"];
@@ -95,7 +96,7 @@ function SearchableTemplateSelect({
       >
         <span
           className={
-            selectedTpl ? "text-gray-900 font-medium truncate" : "text-gray-400"
+            selectedTpl ? "text-gray-900 font-medium truncate" : "text-gray-500"
           }
         >
           {selectedTpl ? selectedTpl.name : "-- Choose a Test Template --"}
@@ -133,7 +134,7 @@ function SearchableTemplateSelect({
             </div>
 
             {filteredTemplates.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-gray-400 text-center">
+              <div className="px-3 py-2 text-xs text-gray-500 text-center">
                 No templates found
               </div>
             ) : (
@@ -300,15 +301,11 @@ export default function TestCreation() {
   };
 
   return (
-    <div className="max-w-screen-2xl mx-auto space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Test Execution</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Select a template, set up execution time, execute and monitor progress in
-          real-time
-        </p>
-      </div>
+    <div className="page">
+      <PageHeader
+        title="Test Execution"
+        description="Select a template, set the timeout, run it, and watch progress live."
+      />
 
       <form
         onSubmit={handleStartTest}
@@ -408,7 +405,7 @@ export default function TestCreation() {
                   {timeout || 0} seconds
                 </span>
               </div>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                 {TIMEOUTS.map((t) => (
                   <button
                     key={t}
@@ -535,7 +532,7 @@ export default function TestCreation() {
 
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 font-mono text-xs h-64 overflow-y-auto space-y-2">
           {logs.length === 0 ? (
-            <p className="text-gray-400 italic">
+            <p className="text-gray-500 italic">
               {isRunning
                 ? "Waiting for the runner to start..."
                 : 'Ready to run. Click "Run Test Now" to begin...'}
