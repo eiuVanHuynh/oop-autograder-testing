@@ -39,6 +39,10 @@ const STATUS_TONE = {
   HIGH: "orange",
   DRAFT: "slate",
   DEPRECATED: "orange",
+  // Yêu cầu chạy lại của Dev (issue #97): chờ duyệt / đã duyệt / bị từ chối.
+  PENDING: "amber",
+  APPROVED: "emerald",
+  REJECTED: "red",
 };
 
 const toneOf = (status) => STATUS_TONE[String(status ?? "").toUpperCase()] ?? "slate";

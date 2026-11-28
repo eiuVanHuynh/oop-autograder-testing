@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   History,
+  RotateCcw,
   Users,
   Play,
   FileText,
@@ -37,6 +38,12 @@ export const MENU = [
         label: "Templates",
         icon: FileText,
         roles: ["Admin", "Tester", "Dev", "Viewer"],
+      },
+      {
+        path: "/rerun-requests",
+        label: "Re-run Requests",
+        icon: RotateCcw,
+        roles: ["Admin", "Tester", "Dev"],
       },
       {
         path: "/history",

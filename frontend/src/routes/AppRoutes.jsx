@@ -10,6 +10,7 @@ import TemplateForm from "../views/TemplateForm";
 import History from "../views/History";
 import TestExecution from "../views/TestExecution";
 import TestReport from "../views/TestReport";
+import RerunRequests from "../views/RerunRequests";
 import UserManagement from "../views/UserManagement";
 import Forbidden from "../views/Forbidden";
 import TestCases from "../views/TestCases";
@@ -91,6 +92,16 @@ export default function AppRoutes() {
           }
         />
         <Route path="history" element={<History />} />
+        {/* Hàng đợi xin chạy lại: Dev xem yêu cầu của mình, Admin/Tester duyệt (issue #97).
+            Viewer không có việc gì ở đây dù GET /rerun-requests cho phép đọc. */}
+        <Route
+          path="rerun-requests"
+          element={
+            <ProtectedRoute allowedRoles={["Admin", "Tester", "Dev"]}>
+              <RerunRequests />
+            </ProtectedRoute>
+          }
+        />
         <Route path="runs/:id" element={<TestReport />} />
 
         <Route

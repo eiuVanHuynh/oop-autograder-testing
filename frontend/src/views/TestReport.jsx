@@ -18,13 +18,15 @@ import {
   Download,
   FileCode,
   Play,
+  RotateCcw,
   Terminal,
   ListChecks,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
-import { canRunTest } from "../models/permissions";
+import { canRunTest, canRequestRerun } from "../models/permissions";
 import { getRun, fetchRunLogs, rerunRun, getRunResults, getEvidenceDataUrl } from "../services/runService";
+import { requestRerun } from "../services/rerunRequestService";
 import { listCases } from "../services/catalogService";
 import { parseCaseResults, msLabel, logTone } from "../models/runLog";
 import { buildReportHtml, isEvidenceUrl } from "../models/reportHtml";
@@ -57,6 +59,9 @@ export default function TestReport() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [rerunning, setRerunning] = useState(false);
+  // Dev không chạy được test nên XIN chạy lại (issue #97): mở hộp ghi lý do rồi POST.
+  const [askReason, setAskReason] = useState(false);
+  const [reason, setReason] = useState("");
 
   // Tên test case chỉ có ở catalog; log và config của run chỉ mang mã.
   // Hỏng cái này thì bảng vẫn chạy, chỉ thiếu tên -> bắt lỗi riêng, không làm trắng trang.
@@ -192,6 +197,22 @@ export default function TestReport() {
     }
   };
 
+  // POST /runs/:id/rerun-requests — chỉ GHI yêu cầu, Admin/Tester duyệt ở /rerun-requests.
+  const handleRequestRerun = async () => {
+    setRerunning(true);
+    try {
+      await requestRerun(id, reason);
+      setAskReason(false);
+      setReason("");
+      toast.success("Re-run requested — a reviewer has to approve it.");
+    } catch (e) {
+      // 409 = lần chạy này đã có một yêu cầu đang chờ duyệt.
+      toast.error(getErrorMessage(e, "Could not send the request."));
+    } finally {
+      setRerunning(false);
+    }
+  };
+
   if (loading) return <p className="text-sm text-gray-500">Loading run…</p>;
 
   if (error || !run)
@@ -222,6 +243,14 @@ export default function TestReport() {
         </button>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {canRequestRerun(user?.role) && (
+            <button
+              onClick={() => setAskReason(true)}
+              className="px-4 py-2 bg-white border border-gray-200 hover:border-brand-600 hover:text-brand-600 text-gray-700 font-semibold rounded-xl text-sm shadow-sm transition flex items-center gap-2"
+            >
+              <RotateCcw size={16} /> Request re-run
+            </button>
+          )}
           {canRunTest(user?.role) && (
             <button
               onClick={handleRerun}
@@ -434,6 +463,44 @@ export default function TestReport() {
           )}
         </div>
       </div>
+
+      {/* Hộp xin chạy lại của Dev. Lý do là tuỳ chọn (backend cho phép bỏ trống, tối đa 500 ký tự),
+          nhưng người duyệt chỉ có đúng dòng này để biết vì sao cần chạy lại. */}
+      {askReason && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-lg">
+            <h3 className="text-base font-semibold text-gray-900">Request a re-run</h3>
+            <p className="mt-1 text-xs text-gray-500">
+              Run #{id} will not start now: an Admin or Tester has to approve the request first.
+            </p>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="Why does this run need to be executed again? (optional)"
+              className="mt-3 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAskReason(false)}
+                className="rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRequestRerun}
+                disabled={rerunning}
+                className="flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
+              >
+                <RotateCcw size={16} /> {rerunning ? "Sending…" : "Send request"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

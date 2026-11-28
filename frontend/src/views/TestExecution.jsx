@@ -15,7 +15,7 @@
 //  [7] Đơn vị timeout          -> form dùng GIÂY, backend dùng MILI-GIÂY (đã đổi khi gửi POST /runs)
 
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Play,
   Square,
@@ -165,6 +165,7 @@ function SearchableTemplateSelect({
 
 export default function TestCreation() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const canRun = canRunTest(user?.role);
 
@@ -184,6 +185,35 @@ export default function TestCreation() {
   const [environment, setEnvironment] = useState("development");
   const [timeout, setTimeoutSec] = useState("30");
   const [customTimeout, setCustomTimeout] = useState(false); // true = nhập số giây tự do
+
+  // Đến từ trang Re-run Requests sau khi duyệt (issue #97): điền sẵn config của run cũ.
+  // Duyệt KHÔNG tự chạy — người duyệt vẫn phải bấm Run Test, nên chỉ điền form, không gọi API.
+  // Chạy một lần: điền xong mà người dùng đổi lại thì đừng ghi đè lựa chọn của họ.
+  const prefill = location.state?.prefill;
+  useEffect(() => {
+    if (!prefill) return;
+    if (prefill.templateId) setTemplateId(String(prefill.templateId));
+    if (ENVIRONMENTS.some((e) => e.value === prefill.env)) setEnvironment(prefill.env);
+    if (prefill.timeoutMs) {
+      const sec = String(prefill.timeoutMs / 1000);
+      setTimeoutSec(sec);
+      setCustomTimeout(!TIMEOUTS.includes(sec));
+    }
+    // Chỉ một lần, lúc mở trang: prefill không đổi và không được ghi đè lựa chọn của người dùng.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Template của run cũ có thể đã bị xoá hoặc deactivate (listTemplates không trả nữa): khi đó ô
+  // chọn hiện lại "-- Choose a Test Template --" và bấm Run chỉ báo "Please select a template!",
+  // không ai hiểu vì sao. Nói thẳng ra một lần, ngay khi danh sách template đã tải xong.
+  useEffect(() => {
+    if (!prefill?.templateId || templates.length === 0) return;
+    if (!templates.some((t) => String(t.id) === String(prefill.templateId))) {
+      toast.error("The template of the original run is gone or inactive — pick another one.");
+    }
+    // Chỉ phụ thuộc templates: cảnh báo khi danh sách vừa tải xong, không khi prefill đổi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templates]);
 
   // Chạy test & khung log
   const [runId, setRunId] = useState(null);
