@@ -173,6 +173,10 @@ Phục vụ trang: **Create new test** (nút Run + khung log), **RunDetail**, **
 | 🔴 | `GET /runs/:id/logs?after=` | Mọi user | `200`, `401`, `404` | **Phương án dự phòng** cho cái trên: giao diện **cứ vài giây hỏi một lần** "có log mới không?". `after` = "lấy các dòng sau dòng số X". Cần vì khi deploy lên **Vercel**, kết nối giữ mở lâu có thể bị cắt. |
 | 🔴 | `POST /runs/:id/cancel` | Admin, Tester | `200`, `401`, `403`, `404`, `409` | **Bấm "Hủy"** để dừng test đang chạy. Test đã chạy xong rồi thì không hủy được → `409`. |
 | 🔴 | `POST /runs/:id/rerun` | Admin, Tester | `202`, `401`, `403`, `404` | **Bấm "Chạy lại"** – đọc `test_runs.config_json` của lần chạy cũ và gửi lại y nguyên, tạo một lần chạy **mới**. Lần chạy cũ vẫn giữ trong lịch sử. |
+| 🟢 | `POST /runs/:id/rerun-requests` | Admin, Tester, Dev | `201`, `400`, `401`, `403`, `404`, `409` | **Dev bấm "Request re-run"** – chỉ GHI một yêu cầu, không chạy test. Body: `{ reason? }` (≤ 500 ký tự); chạy lại *cái gì* lấy từ `config_json` của run cũ, không lấy từ client. Run không tồn tại → `404`. Run đó đã có một yêu cầu đang chờ → `409 REQUEST_PENDING` (chỉ một yêu cầu chờ cho mỗi run, `ux_rerun_requests_pending`). |
+| 🟢 | `GET /rerun-requests?status=` | Mọi user | `200`, `400`, `401` | **Hàng đợi yêu cầu chạy lại.** Mỗi dòng kèm `runName`, `environment`, `runConfig` (để giao diện mở trang Run Test với template điền sẵn) và tên người xin / người quyết định. `status`: `PENDING` / `APPROVED` / `REJECTED`. |
+| 🟢 | `POST /rerun-requests/:id/approve` · `.../reject` | Admin, Tester | `200`, `401`, `403`, `404`, `409` | **Duyệt / từ chối.** Duyệt chỉ ghi quyết định, **không tự chạy test**: người duyệt vẫn phải bấm Run Test (giao diện dùng `runConfig` điền sẵn form). Yêu cầu đã được quyết định rồi → `409 ALREADY_DECIDED`. |
+| 🟢 | `PATCH /rerun-requests/:id` | Admin | `200`, `400`, `401`, `403`, `404`, `409` | **Đặt lại trạng thái** khi duyệt nhầm, hoặc duyệt rồi mà chưa kịp chạy test. Body: `{ status }`. Về `PENDING` thì xoá `decided_by`/`decided_at`; nếu run đó đã có một yêu cầu khác đang chờ → `409`. Chỉ Admin: Tester quyết định được nhưng sửa lại quyết định đã ghi là việc của Admin. |
 | 🟢 | `GET /runs/:id/results/:resultId/evidences` | Mọi user | `200`, `401`, `404` | **Xem bằng chứng** của một bước – cả bước lỗi lẫn bước đạt: ảnh chụp màn hình, file ghi lại quá trình chạy (trace). Trả về **danh sách**, mỗi dòng có `file_path`: với ảnh đó là URL tải được (`/api/evidences/:token`), với trace là đường dẫn trong artifact của GitHub Actions. `resultId` không thuộc run này → `404`, không phải danh sách rỗng. *(`GET /:id/results` cũng đã kèm mảng `evidences` của từng case; đường riêng này để báo sai `resultId`.)* |
 | 🟢 | `GET /evidences/:token` | Admin, Tester, Dev | `200`, `400`, `401`, `403`, `404` | **Chính file bằng chứng** (bytes, không phải JSON). Ảnh chụp màn hình có thể chứa dữ liệu thật của người dùng nên nó theo đúng quyền như mọi dữ liệu khác; `viewer` → `403`. `token` sai định dạng → `400`, không có file → `404`. ⚠️ Vì phải có header `Authorization`, thẻ `<img src>` **không** tải được: frontend gọi bằng API rồi nhúng `data:` URL (`runService.getEvidenceDataUrl`). `Cache-Control: private` để proxy/CDN dùng chung không giữ bản sao. |
 | 🟡 | `DELETE /runs/:id` | Admin | `204`, `401`, `403`, `404`, `409` | **Xóa một lần chạy** khỏi lịch sử. Đang chạy dở → `409` (phải hủy trước). |
@@ -270,16 +274,18 @@ Nguồn chuẩn về vai trò: [`../architecture/SRS.md`](../architecture/SRS.md
 | Xem Dashboard, Lịch sử, Báo cáo, Template | ✔ | ✔ | ✔ | ✔ |
 | Xem log, chuỗi bước chi tiết, bằng chứng | ✔ | ✔ | ✔ | ✔ |
 | Xuất báo cáo, tạo link chia sẻ | ✔ | ✔ | ✔ | ✔ |
-| Request chạy lại | ✔ | ✔ | ✔ | ✘ |
+| Xin chạy lại (`POST /runs/:id/rerun-requests`) | ✔ | ✔ | ✔ | ✘ |
+| Duyệt / từ chối yêu cầu chạy lại | ✔ | ✔ | ✘ | ✘ |
+| Đặt lại trạng thái yêu cầu đã quyết định | ✔ | ✘ | ✘ | ✘ |
 | Chạy test / Hủy | ✔ | ✔ | ✘ | ✘ |
 | Thêm / sửa / xóa Template, bộ test, đặc tả, test case | ✔ | ✔ | ✘ | ✘ |
 | Báo lỗi (Bug) | ✔ | ✔ | ✔ | ✘ |
 | Quản lý thành viên (đổi vai trò, khóa tài khoản) | ✔ | ✘ | ✘ | ✘ |
 | Xóa lần chạy khỏi lịch sử | ✔ | ✘ | ✘ | ✘ |
 
-> ⚠️ Vai trò **Dev** mới được giữ lại theo nguồn chuẩn (trước đó `backend-design.md` đề xuất bỏ). Các dòng của `Dev` ở trên là
-> **suy ra từ SRS mục 4**, nhóm cần xác nhận – nhất là "Request chạy lại" (gửi yêu cầu cho Admin/Tester hay tự gọi `POST /runs`? – đề xuất: cho gọi `POST /runs/:id/rerun`)
-> và quyền báo lỗi. Bảng ký hiệu quyền hạn ở mục 0 cũng cần bổ sung dòng **Dev**.
+> ⚠️ Vai trò **Dev** được giữ lại theo nguồn chuẩn (trước đó `backend-design.md` đề xuất bỏ). Bảng ký hiệu quyền hạn ở mục 0 cũng cần bổ sung dòng **Dev**.
+>
+> ✅ **Đã chốt (issue #97):** "Request chạy lại" là **gửi yêu cầu cho Admin/Tester duyệt**, không phải Dev tự gọi `POST /runs/:id/rerun` — xem 4 endpoint `rerun-requests` ở mục 6. Dev **không** chạy test được, kể cả chạy lại. Bảng trên là hành vi THẬT của code (`routes/rerunRequests.routes.js`, `runs.routes.js`), không còn là suy luận.
 
 ## Phụ lục B – Những thứ Database cần bổ sung để làm được các endpoint trên
 

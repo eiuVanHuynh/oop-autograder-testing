@@ -41,7 +41,12 @@ class RerunRequestRepository extends BaseRepository {
       params.push(filters.status);
       where = ` WHERE q.status = $${params.length}`;
     }
-    const res = await this.query(`${SELECT_WITH_RUN}${where} ORDER BY q.created_at DESC`, params);
+    // request_id DESC là chốt phụ: hai yêu cầu tạo trong cùng một mili-giây mà chỉ sắp theo
+    // created_at thì thứ tự dòng đổi sau mỗi lần tải, và trang nào chia trang sẽ lặp/mất dòng.
+    const res = await this.query(
+      `${SELECT_WITH_RUN}${where} ORDER BY q.created_at DESC, q.request_id DESC`,
+      params,
+    );
     return res.rows;
   }
 
