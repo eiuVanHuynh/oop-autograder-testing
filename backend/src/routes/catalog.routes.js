@@ -152,7 +152,6 @@ router.get(
   validate(caseIdParamsSchema, "params"),
   catalogController.getSpecs,
 );
-module.exports = router;
 // POST /api/catalog/suites
 router.post(
   "/suites",
@@ -213,3 +212,5 @@ router.get(
   validate(caseIdParamsSchema, "params"),
   catalogController.getSuiteById,
 );
+
+module.exports = router;

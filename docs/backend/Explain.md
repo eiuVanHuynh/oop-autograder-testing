@@ -16,8 +16,9 @@
 - **Node.js (CommonJS) + Express**, deploy API lên **Vercel**; DB là **PostgreSQL / Supabase** (xem bằng DBeaver) – khớp SRS.
 - **Chạy test bằng GitHub Actions** (`workflow_dispatch`) – Vercel serverless không chạy được Playwright.
 - **Log real-time dùng polling** `GET /runs/:id/logs?after=<seq>`, không dùng WebSocket.
-  SSE dự kiến cho bản chạy local **chưa làm**: route `GET /runs/:id/logs/stream` đang bị comment trong
-  `routes/runs.routes.js` vì `runs.service.js` chưa có hàm `streamRunLogs` (bỏ comment là 500).
+  SSE dự kiến cho bản chạy local **chưa làm**, và phần vỏ controller đã bị xoá (nó chỉ có thể trả 500 vì
+  `runs.service.js` không có `streamRunLogs`). Muốn làm: viết service trước, rồi khai route. Cùng tình trạng:
+  `DELETE /runs/:id`. Xem [`api-endpoints.md`](./api-endpoints.md) mục 6, hai dòng ⚪.
 - **Trạng thái một lần chạy được tính ra** từ dữ liệu có sẵn, không lưu cột `run_status` riêng.
 - **Token reset mật khẩu không lưu trong DB** – JWT hạn 15 phút, ký kèm một phần `password_hash` hiện tại.
 - **Dùng Template để chạy target test** *(nhóm chốt lại, thay cho Suite)*. Template nằm ở **bảng mới** `test_templates`, cột `target_json` trỏ tới `{ suiteId }` hoặc `{ testIds }`. Backend sinh biểu thức `--grep` từ đó. `test_suites` → `test_specs` → `test_cases` vẫn là nơi khai báo test. Xem [`backend-design.md`](./backend-design.md) mục 7.

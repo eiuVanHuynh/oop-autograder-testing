@@ -29,6 +29,9 @@ Là chỗ để **điền mã số cụ thể**. Ví dụ `GET /runs/:id` → mu
 
 Là **bộ lọc tùy chọn**. Ví dụ `GET /runs?status=failed` → chỉ lấy các lần chạy bị lỗi. Không ghi thì lấy tất cả.
 
+> ⚪ = **chưa có dòng code nào**, chỉ là kế hoạch. Đừng gọi, và đừng tin là có.
+> Đếm lại số endpoint thật: `cd backend && npm run routes`.
+
 ### Ký hiệu quyền hạn
 
 | Ký hiệu       | Ai được dùng                                                         |
@@ -169,8 +172,8 @@ Phục vụ trang: **Create new test** (nút Run + khung log), **RunDetail**, **
 | 🔴 | `POST /runs` | Admin, Tester | `202`, `400`, `401`, `403`, `404`, `409` | **Bấm "Run Test".** Gửi lên `{ templateId, env?, timeout? }` **hoặc** `{ testIds: ["TC-05", …] }`. Backend đọc `target_json` của template, đổi ra biểu thức `--grep`, tạo lần chạy và trả **mã số** ngay (`202` = "đã nhận, đang chạy"). Giao diện dùng mã số này để theo dõi log. Template không tồn tại → `404`. **Template không ra test case `ready` nào → `409`** (không gọi workflow, tránh báo `passed` giả). Viewer gọi → `403`. |
 | 🔴 | `GET /runs?q=&status=&from=&to=&page=` | Mọi user | `200`, `400`, `401` | **Lịch sử chạy test.** Tìm theo tên (`q`), lọc Đạt/Lỗi (`status`), lọc theo khoảng ngày (`from`→`to`), chia trang. Mỗi dòng có: mã, tên, người chạy, thời gian, trạng thái. Ngày sai định dạng → `400`. |
 | 🔴 | `GET /runs/:id` | Mọi user | `200`, `401`, `404` | **Xem chi tiết 1 lần chạy** (trang báo cáo): Đạt hay Lỗi, chạy mất bao lâu, chạy lúc nào, **so sánh Kết quả mong đợi vs Kết quả thực tế**, và bảng từng bước. |
-| 🔴 | `GET /runs/:id/logs/stream` | Mọi user | `200`, `401`, `404` | **Xem log trực tiếp** (chữ chạy liên tục trong khung log + thanh tiến độ). Kết nối được **giữ mở**, server có gì mới là đẩy ngay xuống – người dùng không cần bấm tải lại. *(Kỹ thuật: SSE.)* |
-| 🔴 | `GET /runs/:id/logs?after=` | Mọi user | `200`, `401`, `404` | **Phương án dự phòng** cho cái trên: giao diện **cứ vài giây hỏi một lần** "có log mới không?". `after` = "lấy các dòng sau dòng số X". Cần vì khi deploy lên **Vercel**, kết nối giữ mở lâu có thể bị cắt. |
+| ⚪ | `GET /runs/:id/logs/stream` | Mọi user | `200`, `401`, `404` | ⚪ **CHƯA CÓ CODE.** **Xem log trực tiếp** (chữ chạy liên tục trong khung log + thanh tiến độ). Kết nối được **giữ mở**, server có gì mới là đẩy ngay xuống – người dùng không cần bấm tải lại. *(Kỹ thuật: SSE.)* Route chưa khai báo và `runs.service.js` chưa có `streamRunLogs`; phần vỏ controller đã bị xoá vì nó chỉ có thể trả 500. Giao diện hiện dùng dòng dưới (polling). |
+| 🔴 | `GET /runs/:id/logs?after=` | Mọi user | `200`, `401`, `404` | ✅ **Đây là cái đang chạy thật.** Vốn là phương án dự phòng cho dòng trên: giao diện **cứ vài giây hỏi một lần** "có log mới không?". `after` = "lấy các dòng sau dòng số X". Cần vì khi deploy lên **Vercel**, kết nối giữ mở lâu có thể bị cắt. |
 | 🔴 | `POST /runs/:id/cancel` | Admin, Tester | `200`, `401`, `403`, `404`, `409` | **Bấm "Hủy"** để dừng test đang chạy. Test đã chạy xong rồi thì không hủy được → `409`. |
 | 🔴 | `POST /runs/:id/rerun` | Admin, Tester | `202`, `401`, `403`, `404` | **Bấm "Chạy lại"** – đọc `test_runs.config_json` của lần chạy cũ và gửi lại y nguyên, tạo một lần chạy **mới**. Lần chạy cũ vẫn giữ trong lịch sử. |
 | 🟢 | `POST /runs/:id/rerun-requests` | Admin, Tester, Dev | `201`, `400`, `401`, `403`, `404`, `409` | **Dev bấm "Request re-run"** – chỉ GHI một yêu cầu, không chạy test. Body: `{ reason? }` (≤ 500 ký tự); chạy lại *cái gì* lấy từ `config_json` của run cũ, không lấy từ client. Run không tồn tại → `404`. Run đó đã có một yêu cầu đang chờ → `409 REQUEST_PENDING` (chỉ một yêu cầu chờ cho mỗi run, `ux_rerun_requests_pending`). |
@@ -179,7 +182,7 @@ Phục vụ trang: **Create new test** (nút Run + khung log), **RunDetail**, **
 | 🟢 | `PATCH /rerun-requests/:id` | Admin | `200`, `400`, `401`, `403`, `404`, `409` | **Đặt lại trạng thái** khi duyệt nhầm, hoặc duyệt rồi mà chưa kịp chạy test. Body: `{ status }`. Về `PENDING` thì xoá `decided_by`/`decided_at`; nếu run đó đã có một yêu cầu khác đang chờ → `409`. Chỉ Admin: Tester quyết định được nhưng sửa lại quyết định đã ghi là việc của Admin. |
 | 🟢 | `GET /runs/:id/results/:resultId/evidences` | Mọi user | `200`, `401`, `404` | **Xem bằng chứng** của một bước – cả bước lỗi lẫn bước đạt: ảnh chụp màn hình, file ghi lại quá trình chạy (trace). Trả về **danh sách**, mỗi dòng có `file_path`: với ảnh đó là URL tải được (`/api/evidences/:token`), với trace là đường dẫn trong artifact của GitHub Actions. `resultId` không thuộc run này → `404`, không phải danh sách rỗng. *(`GET /:id/results` cũng đã kèm mảng `evidences` của từng case; đường riêng này để báo sai `resultId`.)* |
 | 🟢 | `GET /evidences/:token` | Admin, Tester, Dev | `200`, `400`, `401`, `403`, `404` | **Chính file bằng chứng** (bytes, không phải JSON). Ảnh chụp màn hình có thể chứa dữ liệu thật của người dùng nên nó theo đúng quyền như mọi dữ liệu khác; `viewer` → `403`. `token` sai định dạng → `400`, không có file → `404`. ⚠️ Vì phải có header `Authorization`, thẻ `<img src>` **không** tải được: frontend gọi bằng API rồi nhúng `data:` URL (`runService.getEvidenceDataUrl`). `Cache-Control: private` để proxy/CDN dùng chung không giữ bản sao. |
-| 🟡 | `DELETE /runs/:id` | Admin | `204`, `401`, `403`, `404`, `409` | **Xóa một lần chạy** khỏi lịch sử. Đang chạy dở → `409` (phải hủy trước). |
+| ⚪ | `DELETE /runs/:id` | Admin | `204`, `401`, `403`, `404`, `409` | ⚪ **CHƯA CÓ CODE.** **Xóa một lần chạy** khỏi lịch sử. Đang chạy dở → `409` (phải hủy trước). Route chưa khai báo và `runs.service.js` chưa có `deleteRun`; phần vỏ controller đã bị xoá. |
 
 ---
 

@@ -12,6 +12,7 @@
 | [`test-case-matrix.md`](./test-case-matrix.md) | **Nguồn chuẩn** của bộ test case: `TC-01` → `TC-31`, kèm bảng trạng thái tự động hóa | Khi viết spec Playwright hoặc viết migration steps/data |
 | [`fr-mapping.md`](./fr-mapping.md) | Traceability matrix: FR-1 … FR-16 ↔ test case, kèm bảng khoảng trống độ phủ | Khi kiểm tra độ phủ yêu cầu, hoặc trước khi nộp báo cáo |
 | [`sut-reference.md`](./sut-reference.md) | Route, API, selector đã kiểm chứng và thông báo lỗi thật của SUT, đọc từ source tại commit `01f6b47` | Khi viết selector cho spec hoặc viết `step_target` trong migration |
+| [`sut-application-db-schema.sql`](./sut-application-db-schema.sql) | **Schema Application DB của SUT** (57 bảng + `neon_auth`), bản DDL kết xuất từ Neon Postgres. Chỉ để tra cứu – không chạy, không hệ thống nào đọc | Khi cần hiểu nghiệp vụ thật của SUT trước khi viết test case (`lab` → `challenge` → `lab_submission`, `class_entity`/`field_declaration` cho phần chấm MMD) |
 | [`lecturer-test-data.md`](./lecturer-test-data.md) | **X6–X7**: bộ dữ liệu giảng viên cho TC-23 → TC-30 – lab, cấu trúc lớp, quan hệ MMD, operational testcase, mã Java tham chiếu, quy tắc export và thư mục download | Khi dựng dữ liệu test trên SUT hoặc viết spec giảng viên |
 
 ## Bộ mã test case

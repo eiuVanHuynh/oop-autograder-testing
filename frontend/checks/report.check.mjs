@@ -29,7 +29,7 @@ const cases = [
   { code: 'TC-01', title: 'Login with valid IRN', status: 'FAILED', ms: 12043, error: 'đường dẫn là /, mong đợi /student-(dashboard|history)' },
   { code: 'TC-02', title: 'Login with wrong password', status: 'TIMEDOUT', ms: 30112, error: 'Timeout 30000ms exceeded.' },
   { code: 'TC-31', title: 'Sign out', status: 'PASSED', ms: 3100, error: null,
-    evidences: [{ evidence_type: 'screenshot', file_path: 'https://cdn/x.png' },
+    evidences: [{ evidence_type: 'screenshot', file_path: 'data:image/png;base64,iVBORw0KGgo=' },
                 { evidence_type: 'trace', file_path: '/local/trace.zip' }] },
   { code: 'TC-99', title: 'Chưa chạy tới', status: null, ms: null, error: null },
 ];
@@ -64,7 +64,15 @@ assert.match(buildReportHtml(run, [{ code: 'TC-77', title: '', status: 'PASSED',
 assert.ok(!html.includes('Run #'), 'tiêu đề báo cáo không được mang mã run');
 
 // --- Evidence ----------------------------------------------------------------
-assert.match(html, /<img class="ev" src="https:\/\/cdn\/x\.png"/, 'ảnh có URL thì nhúng thẳng');
+// CHỈ data: URL mới thành <img>. Trang đã tải file qua API (kèm Authorization) rồi mới đưa
+// xuống đây, nên trong file HTML xuất ra ảnh là dữ liệu tự chứa — mở offline vẫn thấy.
+assert.match(html, /<img class="ev" src="data:image\/png;base64,iVBORw0KGgo="/, 'data: URL thì nhúng thẳng');
+// Đường dẫn /api/evidences/<token> KHÔNG được đưa vào src: route đó đòi đăng nhập mà <img>
+// không gửi header Authorization -> ảnh sẽ vỡ. Phải rơi về khung trống.
+const httpEv = buildReportHtml(run, [{ code: 'TC-01', title: 'a', status: 'PASSED', ms: 1,
+  evidences: [{ evidence_type: 'screenshot', file_path: 'https://api/api/evidences/abc' }] }], []);
+assert.ok(!httpEv.includes('<img'), 'URL http(s) không được nhúng làm <img>');
+assert.match(httpEv, /class="ev ev-none">screenshot: https:\/\/api\/api\/evidences\/abc</);
 // Backend chưa serve file nội bộ -> path cục bộ chỉ còn khung trống kèm đường dẫn.
 assert.match(html, /class="ev ev-none">trace: \/local\/trace\.zip</);
 // Case không có evidence vẫn phải có một khung ảnh trống.
