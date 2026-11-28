@@ -1,57 +1,86 @@
-NGÔN NGỮ: ENGLISH
+# Quy ước đặt tên dữ liệu test trong DB
 
-1. field_name trong Test_Data phải:
+**Tài liệu viết bằng tiếng Việt; giá trị ghi vào DB viết bằng tiếng Anh.**
+Nguồn chuẩn về tên bảng / tên cột là [`schema/test_automation_db_schema.sql`](./schema/test_automation_db_schema.sql)
+(PostgreSQL, tên bảng **viết thường**: `test_steps`, `test_data`, …).
+
+## 1. `test_data.field_name`
+
 - viết thường
-- nhiều từ nối bằng _
+- nhiều từ nối bằng `_`
 - không dấu
 
-ví dụ : user_name, password, full_name, email, student_id, course_name
+Ví dụ: `user_name`, `password`, `full_name`, `email`, `student_id`, `course_name`
 
-2. action trong Test_Steps phải: 
-- viết in hoa hết
+Giá trị tương ứng nằm ở cột `data_value`; cột `is_valid` đánh dấu đây là dữ liệu hợp lệ hay dữ liệu sai dùng để test nhánh lỗi.
 
-*ví dụ: 
-action = NAVIGATE
-action = FILL
-action = CLICK
-action = VERIFY
-action = UPLOAD
+## 2. `test_steps.step_action`
 
-3. target_element của Test_Steps
-Cách ghi type và value:
-- type phải viết lowercase và dùng đúng tên đã quy định: text, placeholder, testid.
-- value viết đúng giá trị thực tế cần tìm, giữ nguyên nội dung của element/placeholder/testid.
-Ví dụ: text=Login, placeholder=Username, testid=login-button.
+Viết **IN HOA** hết. Bộ chạy test chỉ hiểu đúng 4 action này
+(`backend/src/services/runner/steps.js` — đổi ở đây thì phải chạy lại `cd frontend && npm run check`):
 
-Định dạng:
-- Luôn dùng dạng type=value.
-- Không dùng type: value, type-value hoặc chỉ ghi value.
+```
+NAVIGATE
+FILL
+CLICK
+VERIFY
+```
 
-Ví dụ hợp lệ:
-text=Login
+> `UPLOAD` có trong tài liệu cũ nhưng **bộ chạy test chưa cài**. Dùng nó thì cả test case **FAIL**
+> (`unsupported action: UPLOAD`) – runner cố tình không bỏ qua step lạ, vì bỏ qua sẽ báo `passed` cho
+> một việc chưa làm.
+
+## 3. `test_steps.step_target`
+
+Dạng duy nhất: `type=value`.
+
+- `type` viết thường và **chỉ có 4 giá trị** runner hiểu: `placeholder`, `text`, `role`, `css`
+  (`toLocator()` trong `backend/src/services/runner/steps.js`)
+- `value` giữ nguyên nội dung thật của element / placeholder / role / selector
+
+Hợp lệ:
+
+```
 placeholder=Username
-testid=login-button
+text=Login
+role=button
+css=#login-form input[name="irn"]
+```
 
-4. Cách tham chiếu dữ liệu bí mật
-Cách ghi tên biến:
-- Tên biến môi trường viết CHỮ IN HOA.
-- Các từ được nối bằng dấu _.
+Không dùng `type: value`, `type-value`, hay chỉ ghi `value`.
 
-Ví dụ:
-TEST_PASSWORD
-API_KEY
-GOOGLE_CLIENT_SECRET
-Định dạng tham chiếu:
+> ❌ **`testid=` KHÔNG tồn tại.** Tài liệu cũ dạy viết `testid=login-button`; runner không có tiền tố đó
+> nên nó rơi vào nhánh "không tiền tố" và bị dùng nguyên chuỗi làm **CSS selector** → không khớp gì, step FAIL.
+> Có dòng nào đang ghi `testid=` thì phải sửa.
+>
+> ⚠️ Và **SUT không có `data-testid` nào** để trỏ tới cả → trên thực tế chỉ dùng `text=` và `placeholder=`.
+> Xem [`../docs/testing/sut-reference.md`](../docs/testing/sut-reference.md) mục 4.
 
-Dùng dạng:
-- env:TÊN_BIẾN
-- env: phải viết chữ thường.
-- TÊN_BIẾN viết CHỮ IN HOA + _.
+## 4. Step `FILL` lấy dữ liệu ở đâu
 
-Cách lưu trong DB:
-Chỉ lưu tên biến tham chiếu, không lưu giá trị bí mật thật.
+Dùng cột **`test_steps.field_name`** để trỏ sang `test_data.field_name` (thêm ở
+[`migrations/011_test_steps_field_name.sql`](./migrations/011_test_steps_field_name.sql)).
 
-Ví dụ:
+```
+step_action = FILL
+step_target = placeholder=Username
+field_name  = user_name
+```
 
+> Dòng **cũ** (trước migration 011) nhúng tên field vào `expected_result` dạng `(field user_name)`.
+> Bộ chạy test và frontend vẫn đọc được dạng đó như nhánh dự phòng, nhưng **đừng viết mới theo cách này**.
+
+## 5. Tham chiếu dữ liệu bí mật
+
+Chỉ lưu **tên biến môi trường**, không bao giờ lưu giá trị thật.
+
+- Tên biến: CHỮ IN HOA, nối bằng `_` — `TEST_PASSWORD`, `API_KEY`, `GOOGLE_CLIENT_SECRET`
+- Tham chiếu: `env:TÊN_BIẾN` — tiền tố `env:` viết thường
+
+```
 field_name = password
-value = env:TEST_PASSWORD
+data_value = env:TEST_PASSWORD
+```
+
+Khai báo biến ở [`../.env.example`](../.env.example); luật đặt tên dữ liệu test ở
+[`../docs/test-data-rules.md`](../docs/test-data-rules.md).

@@ -11,7 +11,7 @@
 | :--- | :--- | :--- | :--- |
 | **FR-1** | Xác thực người dùng qua IRN/Password và Google OAuth | `TC-01`, `TC-02`, `TC-03`, `TC-04` | Đã phủ kín các trường hợp đăng nhập đúng/sai và giới hạn domain. |
 | **FR-2** | Giới hạn domain Google OAuth nghiêm ngặt kết thúc bằng `@eiu.edu.vn` | `TC-03`, `TC-04` | Chặn hoàn toàn các tài khoản ngoài trường (vd: `@gmail.com`). |
-| **FR-3** | Thiết lập tài khoản lần đầu cho người dùng đăng nhập Google | `TC-05` | Liên kết tên, mã IRN, ngày sinh và mật khẩu vào lần đầu tiên. |
+| **FR-3** | Thiết lập tài khoản lần đầu cho người dùng đăng nhập Google | `TC-05` | Form thật chỉ có **IRN, Password, Confirm Password** – không có tên và ngày sinh (đã kiểm chứng, xem `../report-fact-sheet.md` mục 3 dòng 6). |
 | **FR-4** | Khôi phục mật khẩu tự động qua email (token hiệu lực 15 phút) | `TC-06`, `TC-07` | Phủ khâu gửi yêu cầu và đặt lại mật khẩu qua link. **Chưa phủ:** token hết hạn / dùng lại token – cần bổ sung TC mới. |
 | **FR-5** | Hiển thị danh sách Lab dạng card-based layout kèm attempt count và best score | `TC-13` | Đảm bảo sinh viên chọn đúng lab và nắm được lịch sử điểm. |
 | **FR-6** | Xử lý kéo thả thư mục (Dropzone) và tự động nhận diện `webkitRelativePath` | `TC-14`, `TC-15` | Parse chính xác cấu trúc `<<IRN>>_<<Name>>_lab_N/challenge_N`; `TC-15` phủ trường hợp sai tên thư mục. |

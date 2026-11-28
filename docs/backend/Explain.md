@@ -15,11 +15,16 @@
 
 - **Node.js (CommonJS) + Express**, deploy API lên **Vercel**; DB là **PostgreSQL / Supabase** (xem bằng DBeaver) – khớp SRS.
 - **Chạy test bằng GitHub Actions** (`workflow_dispatch`) – Vercel serverless không chạy được Playwright.
-- **Log real-time dùng polling** `GET /runs/:id/logs?after=<seq>`, không dùng WebSocket; SSE chỉ khi chạy local.
+- **Log real-time dùng polling** `GET /runs/:id/logs?after=<seq>`, không dùng WebSocket.
+  SSE dự kiến cho bản chạy local **chưa làm**: route `GET /runs/:id/logs/stream` đang bị comment trong
+  `routes/runs.routes.js` vì `runs.service.js` chưa có hàm `streamRunLogs` (bỏ comment là 500).
 - **Trạng thái một lần chạy được tính ra** từ dữ liệu có sẵn, không lưu cột `run_status` riêng.
 - **Token reset mật khẩu không lưu trong DB** – JWT hạn 15 phút, ký kèm một phần `password_hash` hiện tại.
 - **Dùng Template để chạy target test** *(nhóm chốt lại, thay cho Suite)*. Template nằm ở **bảng mới** `test_templates`, cột `target_json` trỏ tới `{ suiteId }` hoặc `{ testIds }`. Backend sinh biểu thức `--grep` từ đó. `test_suites` → `test_specs` → `test_cases` vẫn là nơi khai báo test. Xem [`backend-design.md`](./backend-design.md) mục 7.
-- **Bảng mới chỉ có một**: `test_templates`. Câu lệnh `CREATE TABLE` đã viết sẵn trong `backend-design.md` mục 6 nhưng **chưa áp vào `db/schema/`**.
+- **Bảng đã thêm sau schema gốc (4 bảng, tất cả đã áp bằng migration, không nằm trong `db/schema/`)**:
+  `test_templates` + 2 cột `test_runs.run_name` / `config_json` (`008_dashboard_runs_templates.sql`),
+  `run_logs` (`008`), `bugs` (`013_bugs.sql`), `rerun_requests` (`016_rerun_requests.sql`).
+  Tổng DB hiện có **17 bảng** – xem [`../report-fact-sheet.md`](../report-fact-sheet.md) mục 1.
 - Mọi endpoint bắt đầu bằng `/api`. Response: `{ data, meta? }` · Lỗi: `{ error: { code, message, details? } }`.
 - Phân quyền chặn ở **cả FE (ẩn nút) lẫn BE (trả 403)**. Chỉ ẩn nút là chưa đủ.
 
@@ -38,9 +43,15 @@ Phần còn lại của `backend-design.md` (luồng GitHub Actions, polling, c�
 
 ## Những điều CHƯA chốt
 
-Ba thứ còn phụ thuộc quyết định chung của nhóm:
-chuyển code `backend/` từ MySQL sang Supabase, quyền cụ thể của vai trò `dev` (xem bảng ở trên),
-và thời điểm chạy migration tạo bảng `test_templates`.
+✅ Ba điểm trước đây để mở nay **đã xong**, giữ lại để ai đọc tài liệu cũ khỏi làm lại:
+- *Chuyển code `backend/` sang Postgres/Supabase* – xong, `backend/` dùng driver `pg`, không còn MySQL.
+- *Thời điểm chạy migration tạo `test_templates`* – xong, nằm trong `008` và đã có trong danh sách của `migrate.js`.
+- *Quyền của vai trò `dev`* – chốt ở issue **#97**: Dev **không** chạy test, kể cả chạy lại. Dev gửi yêu cầu
+  (`POST /runs/:id/rerun-requests`), Admin/Tester duyệt, và **duyệt không tự chạy test**.
+  Xem [`api-endpoints.md`](./api-endpoints.md) mục 6 và Phụ lục A.
+
+Còn mở: nhóm endpoint `/stats` và `/reports` (mục 3 và 7 của `api-endpoints.md`) chưa viết dòng code nào –
+Dashboard hiện tự tính số liệu từ `GET /runs`.
 
 ## Quy tắc bảo trì
 

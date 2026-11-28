@@ -39,7 +39,7 @@ flowchart LR
 | Part | Folder | What it does |
 |---|---|---|
 | Dashboard | `frontend/` | 13 screens: sign-in, overview, test cases, start a run, history, reports, user management |
-| Server | `backend/` | 54 API endpoints: permission checks, creating runs, taking in results, statistics |
+| Server | `backend/` | 66 API endpoints: permission checks, creating runs, taking in results, rerun requests (count them again with `npm run routes`) |
 | Test suite | `automation/` | Playwright specs + sample Java submissions, one per failure scenario |
 | Database | `db/` + `migrate.js` | Table structure, upgrade steps, sample data |
 | Docs | `docs/` | SRS, test plan, the `TC-01`→`TC-31` matrix, backend/frontend design |
@@ -54,8 +54,9 @@ You need **Node.js 20+** and **PostgreSQL**. To set up a local database: [`db/SE
 git clone <repo> && cd oop-autograder-testing
 cd backend && npm install && cd ..
 cd frontend && npm install && cd ..
-# deprecated
-# cd automation && npm install && npx playwright install chromium && cd ..
+# only if you want to run the Playwright suite on this machine (see "Common commands");
+# in CI, GitHub Actions installs it for you
+cd automation && npm install && npx playwright install chromium && cd ..
 ```
 
 Create `backend/.env` (at minimum `DATABASE_URL` and `JWT_SECRET` — without them the server won't start):
@@ -105,14 +106,9 @@ An interactive map of the whole codebase; every file and every API endpoint has 
 
 **Just want to look at it?** Open [`docs/architecture/floorplan-map.html`](docs/architecture/floorplan-map.html) in any browser — one self-contained file, nothing to install.
 
-To work on the map itself (needs Claude Code with the floorplan plugin):
+To work on the map itself you need Claude Code with the floorplan plugin. Only the map's **sources** are committed (`floorplan/architecture.json` and `floorplan/descriptions/`); everything the plugin generates — including `floorplan/serve.mjs` — is gitignored, so after a fresh clone those commands do not exist yet. Generate them with `/floorplan:floorplan`, then:
 
 ```bash
 node floorplan/serve.mjs      # → http://127.0.0.1:4378, with the Ask bar
-```
-
-Only the map's sources are committed (`floorplan/architecture.json` and `floorplan/descriptions/`); the generated files are not. Rebuild them from those sources with `/floorplan:floorplan`, then refresh the shared copy:
-
-```bash
 node floorplan/serve.mjs --export docs/architecture/floorplan-map.html --include flows,notes
 ```

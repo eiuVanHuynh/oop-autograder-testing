@@ -6,13 +6,19 @@
 > **Bộ mã chuẩn: `TC-01` → `TC-31` (31 test case).** Các tài liệu cũ ghi "TC-01 → TC-44" là sai, đã được sửa.
 > `Source Reference` trỏ tới mục trong tài liệu đặc tả kỹ thuật của **SUT**, không phải `SRS.md` của repo này.
 
-## Trạng thái tự động hóa (cập nhật 17/10/2026)
+## Trạng thái tự động hóa (cập nhật 28/11/2026)
 
-| Nhóm | Test case | Spec Playwright | Steps/Data trong DB | Trạng thái |
-| --- | --- | --- | --- | --- |
-| Xác thực & Quản lý người dùng | TC-01 → TC-12, TC-31 | `automation/tests/auth/auth.spec.js` | `db/migrations/002_auth_steps_data.sql` | Đã có spec |
-| Nộp bài & Chấm điểm | TC-13 → TC-22 | `automation/tests/submission/submission.spec.js` | ⚠️ thiếu `003_submission_steps_data.sql` | Spec còn hard-code dữ liệu |
-| Quản lý của Giảng viên | TC-23 → TC-30 | ⚠️ chưa có (thư mục `automation/tests/lecturer/` chưa tạo) | `db/migrations/004_lecturer_steps_data.sql` | Có dữ liệu, thiếu spec |
+**Chỉ có một spec: `automation/tests/srs/plan.spec.js`.** Nó không chứa kịch bản nào — nó đọc kế hoạch chạy
+từ backend rồi diễn giải `test_steps` / `test_data` trong DB. Vì vậy cột quyết định một TC chạy được hay
+không là **steps trong DB**, không phải "đã viết spec chưa".
+
+| Nhóm | Test case | Steps/Data trong DB | Trạng thái |
+| --- | --- | --- | --- |
+| Xác thực & Quản lý người dùng | TC-01, 02, 06, 08–12, TC-31 | `010_seed_auth_postgres.sql` (bản Postgres của `002`) | ✅ Chạy tự động qua `plan.spec.js` |
+| Xác thực – thủ công | TC-03, 04, 05, 07 | Có steps, nhưng phụ thuộc Google OAuth / hộp thư | 🖐 Thủ công, biên bản trong [`../manual-tests/`](../manual-tests/) |
+| Nộp bài & Chấm điểm | TC-13 → TC-22 | ❌ Không có (`003_submission_steps_data.sql` chưa bao giờ tồn tại) | ❌ Chưa chạy được |
+| Quản lý của Giảng viên | TC-28, 29, 30 | `004_lecturer_steps_data.sql`, mã đúng | ⚠️ Có dữ liệu, chưa có bằng chứng chạy |
+| Quản lý của Giảng viên | TC-23 → TC-27 | `004_lecturer_steps_data.sql` nhưng steps là **luồng sinh viên**, gắn nhầm mã | ❌ Chưa chạy được – xem "Hai việc chặn" trong [`Explain.md`](./Explain.md) |
 
 Selector, route và thông báo lỗi thật của SUT: [`sut-reference.md`](./sut-reference.md).
 

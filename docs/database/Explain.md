@@ -2,12 +2,20 @@
 
 **Nội dung:** mọi thứ liên quan tới dữ liệu kiểm thử – giải thích khái niệm và phân công công việc cụ thể.
 
-> 📌 **Nguồn chuẩn về cấu trúc DB là `db/schema/test_automation_db_schema.sql`** (tên bảng, tên cột, kiểu, ENUM).
-> Seed và migration phải theo schema, không ngược lại. Hiện `db/seed/seed.sql`, `db/migrations/001`, `002`, `005`
-> và `db/verify.sql` đang dùng tên bảng chữ hoa (`Test_Suites`); riêng `seed.sql` và `001` còn dùng cột `description`
-> thay vì `suite_description` → **sai, cần sửa**. `004` và `006` đã đúng schema.
-> Nguồn chuẩn về kiến trúc và công nghệ là [`../architecture/SRS.md`](../architecture/SRS.md) – SRS ghi **Supabase (PostgreSQL)**
-> trong khi schema hiện là MySQL; đây là khoảng cách nhóm phải xử lý, xem [`../GIT_WORKFLOW.md`](../GIT_WORKFLOW.md) mục 9.
+> 📌 **Nguồn chuẩn về cấu trúc DB là `db/schema/test_automation_db_schema.sql`** (tên bảng, tên cột, kiểu, CHECK).
+> Seed và migration phải theo schema, không ngược lại.
+>
+> ✅ **Khoảng cách MySQL ↔ PostgreSQL đã đóng.** Schema hiện là **PostgreSQL/Supabase**, tên bảng viết thường
+> (`test_suites`, `test_steps`…), `ENUM` đổi thành `VARCHAR + CHECK`, `DATETIME` → `TIMESTAMPTZ` – khớp
+> [`../architecture/SRS.md`](../architecture/SRS.md). `migrate.js` chạy đúng trên Postgres.
+>
+> ⚠️ Còn sót, **không chạy qua `migrate.js`** nên không ai thấy lỗi:
+> - `db/migrations/001`, `002`, `004`, `005`, `006` là **bản MySQL cũ**, đã bị `010_seed_auth_postgres.sql` thay.
+>   Chúng chỉ còn giá trị tham chiếu trong tài liệu; **đừng chạy**.
+> - `db/migrations/010_add_pages_and_items.sql` **trùng số 010** với file seed đang dùng và không nằm trong
+>   `migrate.js` → mỗi máy một kiểu tuỳ ai chạy tay cái nào.
+> - `db/verify.sql` và `db/seed/seed.sql` vẫn viết `Test_Cases` / `Test_Steps` chữ hoa. Postgres tự hạ chữ thường
+>   với identifier không đặt trong dấu `"`, nên vẫn chạy – nhưng gây nhầm, nên sửa về chữ thường.
 
 Thư mục này **giải thích**; còn SQL thật nằm ở `db/` ngoài repo root (`db/schema/`, `db/migrations/`, `db/seed/`, `db/verify.sql`), quy ước đặt tên field nằm ở `db/README.md`.
 

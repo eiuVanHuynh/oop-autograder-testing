@@ -19,16 +19,16 @@ Backend API mặc định là `http://localhost:5000/api`; đổi bằng biến 
 
 | Thư mục | Nội dung |
 | --- | --- |
-| `src/views/` | Một file cho mỗi màn hình (Login, Dashboard, TestCreation, History, …) |
+| `src/views/` | 13 màn hình, một file mỗi màn: `Login`, `Register`, `ForgotPassword`, `Dashboard`, `TestCases`, `TestCaseForm`, `Templates`, `TemplateForm`, `TestExecution`, `TestReport`, `History`, `UserManagement`, `Forbidden` |
 | `src/components/layout/` | `Sidebar`, `TopBar` và `MainLayout` / `AuthLayout` |
 | `src/components/ui/` | Component dùng lại: `Button`, `Panel`, `FormField`, `FilterBar`, … |
-| `src/models/` | Logic thuần, không JSX: `api.js`, `permissions.js`, `testSteps.js`, `runLog.js`, `reportHtml.js` |
+| `src/models/` | Logic thuần, không JSX: `api.js`, `permissions.js`, `testSteps.js`, `runLog.js`, `reportHtml.js`, `searchTags.js`, `caseOrder.js`, `options.js`, `tableView.js`, `theme.js` |
 | `src/services/` | Gọi API và map dữ liệu backend → shape của frontend |
 | `src/controllers/` | `AuthContext` – phiên đăng nhập và `useAuth()` |
-| `checks/` | Self-check cho 3 file `models/` giữ hợp đồng với backend |
+| `checks/` | Self-check cho 5 file `models/` giữ hợp đồng với backend (`npm run check`) |
 
 ## Lưu ý
 
-- Ba file `src/models/testSteps.js`, `runLog.js`, `reportHtml.js` giữ **hợp đồng với backend**: sai thì build vẫn xanh mà giao diện hỏng âm thầm. Sửa một trong ba, hoặc sửa câu log bên backend → chạy lại `npm run check`.
+- **Năm** file `src/models/testSteps.js`, `runLog.js`, `reportHtml.js`, `searchTags.js`, `caseOrder.js` giữ **hợp đồng với backend**: sai thì build vẫn xanh mà giao diện hỏng âm thầm. Sửa một trong năm, hoặc sửa câu log bên backend → chạy lại `npm run check`.
 - Hằng số trạng thái: frontend dùng chữ HOA (`PASSED`), DB dùng chữ thường (`passed`). Chuyển đổi **chỉ ở một chỗ**: `backend/src/utils/mappers.js`.
 - Ẩn nút là chưa đủ: mọi hạn chế quyền trên giao diện phải có 403 tương ứng ở backend.

@@ -18,11 +18,16 @@
 
 **`TC-01` → `TC-31` (31 test case).** Phân nhóm:
 
-| Nhóm | Mã | Thư mục spec |
+> ⚠️ **Không có spec riêng cho từng nhóm.** `automation/tests/` chỉ có **một** spec diễn giải chung:
+> `srs/plan.spec.js` – nó đọc kế hoạch chạy từ backend (`npm run plan`) rồi thực thi `test_steps` / `test_data`
+> lấy từ DB. Các tên `auth.spec.js`, `submission.spec.js`, thư mục `student/`, `lecturer/` mà tài liệu cũ nhắc
+> tới **chưa bao giờ tồn tại**. Muốn một TC chạy được thì nạp steps cho nó vào DB, không phải viết file spec mới.
+
+| Nhóm | Mã | Chạy được chưa |
 | --- | --- | --- |
-| Xác thực & Quản lý Người dùng | TC-01 → TC-12, TC-31 | `automation/tests/auth/` |
-| Nộp bài & Chấm điểm (Sinh viên) | TC-13 → TC-22 | `automation/tests/submission/`, `student/` |
-| Quản lý của Giảng viên | TC-23 → TC-30 | `automation/tests/lecturer/` *(chưa có spec)* |
+| Xác thực & Quản lý Người dùng | TC-01 → TC-12, TC-31 | ✅ có steps (`002`) → `plan.spec.js` chạy được (TC-03/04/05/07 thủ công) |
+| Nộp bài & Chấm điểm (Sinh viên) | TC-13 → TC-22 | ❌ chưa có steps trong DB (thiếu `003`) |
+| Quản lý của Giảng viên | TC-23 → TC-30 | ⚠️ TC-28/29/30 có steps đúng (`004`); TC-23–27 có steps nhưng **sai nghiệp vụ** (xem bên dưới) |
 
 > ⚠️ Các bản tài liệu cũ ghi "TC-01 → TC-44" là **sai**. Đồng thời `db/seed/seed.sql` còn dùng bộ mã song song `TC-AUTH-xxx` / `TC-UI-xxx` – nhóm cần chốt một bộ (xem [`../GIT_WORKFLOW.md`](../GIT_WORKFLOW.md) mục 9).
 
@@ -31,8 +36,9 @@
 1. **`db/migrations/004_lecturer_steps_data.sql` gán TC-23 → TC-27 cho các kịch bản của *sinh viên*** (xem kết quả MMD, testcase, history),
    trong khi ma trận định nghĩa TC-23 → TC-27 là của *giảng viên* (tạo lab, cấu trúc lớp, MMD, testcase, dry-run).
    Chi tiết ở [`../database/phan-cong-db-va-du-lieu.md`](../database/phan-cong-db-va-du-lieu.md) mục D8.
-2. **SUT không có `data-testid` nào** → quy ước `testid=` trong `db/README.md` không dùng được.
-   Xem [`sut-reference.md`](./sut-reference.md) mục 4.
+2. **SUT không có `data-testid` nào.** Và runner cũng không có tiền tố `testid=` (chỉ `placeholder`, `text`,
+   `role`, `css` – xem [`../../db/README.md`](../../db/README.md) mục 3). Trên thực tế chỉ `text=` và
+   `placeholder=` dùng được. Xem [`sut-reference.md`](./sut-reference.md) mục 4.
 
 ## Quy tắc bảo trì
 

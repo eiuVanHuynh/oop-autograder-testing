@@ -10,10 +10,18 @@
 | [`02-yeu-cau-giao-dien-v2.md`](./02-yeu-cau-giao-dien-v2.md) | Bản chi tiết hơn: có route cụ thể (`/login`, `/dashboard`, `/tests/new`, `/runs/:id`, `/templates`, `/history`, `/admin/users`), **ma trận phân quyền**, lưu ý triển khai, danh sách màn hình UI/UX | Bản cũ, phần chữ đã gộp nguyên vào v3 |
 | [`03-yeu-cau-giao-dien-v3.md`](./03-yeu-cau-giao-dien-v3.md) | = v2 về chữ, **cộng 11 ảnh thiết kế** trong [`design/`](./design) và link Design.md. Chốt thương hiệu **OOP Grader**, tông indigo `#4f46e5` | ✅ **Bản được ưu tiên khi có mâu thuẫn** |
 | [`design/`](./design) | 11 ảnh PNG tách từ base64 nhúng trong file gốc `Capstone.md` | Nguồn hình duy nhất, đừng nhúng lại base64 vào md |
+| `Capstone.md` | File gốc có ảnh nhúng base64, ảnh đã tách ra `design/` | Chỉ để đối chiếu. **Đọc v3, không đọc file này** |
+
+> 🧹 v1 và v2 đã được gộp nguyên văn vào v3 – giữ lại chỉ để truy nguyên. Khi nào nhóm không cần truy nguyên nữa thì xoá cả `01-…`, `02-…` và `Capstone.md`, để lại một bản v3.
 
 ## Màn hình cần làm
 
 `Login` · `Register` · `Forgot password` · `Dashboard` · `Create new test` · `RunDetail` · `Test History` · `Template Management` · `User Management` · `403 Unauthorized`
+
+> ✅ **Đã làm xong cả 10, cộng 3 màn phát sinh** không có trong yêu cầu v3: `TestCases`, `TestCaseForm`
+> (quản lý test case trong catalog) và `TemplateForm`. Tên file thật: xem bảng cấu trúc trong
+> [`../../frontend/README.md`](../../frontend/README.md). Màn "Create new test" là `TestExecution.jsx`,
+> "RunDetail" là `TestReport.jsx` – tên file không trùng tên trong tài liệu thiết kế.
 
 **Nếu thiếu thời gian:** ưu tiên Login/Register → Tạo & Chạy Test → Kết quả & Báo cáo → Lịch sử. Làm sau: Quản lý Template và tab Quản lý thành viên.
 
@@ -44,7 +52,7 @@ Tài khoản mới mặc định là **Viewer**.
 
 - **Ẩn nút là chưa đủ.** Mọi hạn chế quyền trên giao diện phải có 403 tương ứng ở backend.
 - Ma trận phân quyền ở v2, Phụ lục A của [`../backend/api-endpoints.md`](../backend/api-endpoints.md) và `permissions.js` phải khớp nhau **và khớp với SRS mục 4**. Cả ba hiện đều thiếu/sai vai trò `Dev`.
-- **Không tự chế dữ liệu giả** rồi mới ghép API. Dùng đúng hợp đồng trong `api-endpoints.md` (trạng thái, tên trường, status code) – đây là lỗi đã mắc phải một lần, ghi lại trong [`../parallel/AGENT_BRIEF.md`](../parallel/AGENT_BRIEF.md) mục 3.7.
+- **Không tự chế dữ liệu giả** rồi mới ghép API. Dùng đúng hợp đồng trong `api-endpoints.md` (trạng thái, tên trường, status code) – đây là lỗi đã mắc phải một lần. *(Ghi chú gốc nằm trong `docs/parallel/AGENT_BRIEF.md` mục 3.7, thư mục riêng **không commit** – link đã bỏ vì người ngoài máy đó mở không được.)*
 - Hằng số trạng thái: frontend dùng chữ HOA (`PASSED`), DB dùng chữ thường (`passed`). Chuyển đổi **chỉ ở một chỗ** (`backend/src/utils/mappers.js`).
 - Khi có bản yêu cầu giao diện mới thì tạo `04-…md`, **không sửa đè** v1/v2/v3, và cập nhật cột *Trạng thái* ở bảng trên.
 - Ảnh thiết kế để trong `design/` dạng PNG rời. File md có ảnh base64 nhúng (1.3 MB, diff không đọc được) thì tách ảnh ra trước khi commit.

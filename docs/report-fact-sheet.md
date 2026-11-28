@@ -14,25 +14,26 @@
 | Fixture nộp bài | **13** thư mục | `ls automation/fixtures/submissions` |
 | Fixture CSV/TXT | **5** (batch1, duplicate, empty, invalid_rows, wrong_format.txt) | `ls automation/fixtures/*.csv automation/fixtures/*.txt` |
 | Tổng fixture | **18** (13 + 5) | |
-| Bảng DB | **16** | `users, test_suites, test_specs, test_cases, test_steps, test_data, test_runs, test_results, test_evidences, reports, pages, items, page_items, test_templates, run_logs, bugs` |
-| File migration | **15** file (001, 002, 004–015; **hai file `010_`**; **không có 003**) | `ls db/migrations` |
-| Endpoint đang chạy | **61** (`/api/...`) | `cd backend && npm ci && npm run routes` |
+| Bảng DB | **17** | `users, test_suites, test_specs, test_cases, test_steps, test_data, test_runs, test_results, test_evidences, reports, pages, items, page_items, test_templates, run_logs, bugs, rerun_requests` |
+| File migration | **16** file (001, 002, 004–016; **hai file `010_`**; **không có 003**) | `ls db/migrations` |
+| Endpoint đang chạy | **66** (`/api/...`) | `cd backend && npm ci && npm run routes` |
 | Endpoint chưa có | `/api/stats`, `/api/reports` đã mount nhưng controller rỗng | cuối output `npm run routes` |
-| Test backend | **86** lời gọi `it/test` trong **6** file (số tĩnh; số pass/fail thật lấy ở B4) | `cd backend && npm test` |
-| Frontend `npm run check` | 5 script: steps, runlog, report, searchtags, caseorder | `frontend/package.json` |
+| Test backend | **101** lời gọi `it/test` trong **8** file (số tĩnh; số pass/fail thật lấy ở B4) | `cd backend && npm test` |
+| Frontend `npm run check` | 5 script: steps, runlog, report, searchtags, caseorder. **Đang ĐỎ**: `report.check.mjs` fail ở assert "ảnh có URL thì nhúng thẳng" (dòng 67) – lỗi có sẵn, không phải do tài liệu | `cd frontend && npm run check` |
 | View frontend | **13** file | `ls frontend/src/views` |
 | Route frontend | **17** route có `path` (+ 2 route layout; 19 phần tử `<Route>`) | `frontend/src/routes/AppRoutes.jsx` |
 | Sơ đồ có sẵn | **7** file HTML trong `docs/diagrams/` (chỉ nhánh front-end) + `docs/architecture/diagram.mmd`, `data-flow-capstone.drawio`, `context-and-sequence-diagram.html` | |
 | Commit SUT dùng để đối chiếu | `b17d855` | `docs/testing/sut-reference.md` |
 
-Endpoint theo nhóm (tổng 61): catalog 23 · users 9 · runs 8 · templates 6 · ingest 6 · auth 3 · bugs 2 (`GET /bugs`, `PATCH /bugs/:id`) · results 1 (`POST /results/:id/bugs`) · evidences 1 (`GET /evidences/:token`) · health 1 · meta 1.
-README đang ghi 54 → sửa thành 61 (hoặc ghi "xem `npm run routes`").
+Endpoint theo nhóm (tổng 66): catalog 23 · users 9 · runs 9 · templates 6 · ingest 6 · rerun-requests 4 · auth 3 · bugs 2 (`GET /bugs`, `PATCH /bugs/:id`) · results 1 (`POST /results/:id/bugs`) · evidences 1 (`GET /evidences/:token`) · health 1 · meta 1.
+README đã sửa thành 66. Con số này đổi mỗi lần thêm route — khi báo cáo thì **đếm lại bằng `npm run routes`**, đừng chép tay.
 
 ### Phiên bản công cụ (lấy từ file khoá, không lấy từ trí nhớ)
 
 | Thành phần | Phiên bản | Nguồn |
 |---|---|---|
-| Playwright (`@playwright/test` và `playwright`) | **1.63.0** (`package.json` ghi `^1.63.0`) | `automation/package-lock.json` |
+| Playwright (`@playwright/test`, bộ test) | **1.63.0** (`package.json` ghi `^1.63.0`) | `automation/package-lock.json` |
+| Playwright (`playwright`, dependency của backend cho `RUNNER=playwright`) | **^1.64.1** – **lệch với `automation/`** | `backend/package.json` |
 | Node trên GitHub Actions | **20** | `.github/workflows/run-tests.yml` |
 | Frontend nền tảng | React **^19.2.8**, Vite **^8.3.0**, Tailwind **^3.4.19**, axios ^1.20.0 | `frontend/package.json` |
 | Backend nền tảng | Express **^4.21.2**, `pg` ^8.13.1, `jsonwebtoken` ^9.0.2 | `backend/package.json` |
@@ -40,13 +41,14 @@ README đang ghi 54 → sửa thành 61 (hoặc ghi "xem `npm run routes`").
 
 Ghi chú trạng thái: phần "Quyết định" ở mục 3 và 5 phản ánh lựa chọn của nhóm ngày 28/11/2026.
 
-Lần đếm lại gần nhất: nhánh `dev` sau khi gộp cả back-end lẫn front-end (28/11/2026).
-Ba con số đổi so với bản đầu — migration 13→15, endpoint 55→61, test backend 81→86 — và
-phần lớn KHÔNG phải do tính năng bằng chứng: tính năng đó chỉ thêm 1 migration (`015`),
-1 endpoint (`GET /evidences/:token`) và 2 lời gọi test. Phần còn lại (migration `014`,
-users +2, runs +1, ingest +1, auth +1, test +3) đã có sẵn trên nhánh back-end nhưng chưa
-nằm trong cây mà bản đếm đầu tiên dùng. Số bảng DB vẫn là 16: `015` chỉ thêm cột
-(`content`, `mime_type`, `token`) vào `test_evidences`, không tạo bảng mới.
+Lần đếm lại gần nhất: nhánh `original/dev/back-end` tại commit `8bf1aeb` (28/11/2026), chạy thật `npm run routes`.
+Đổi so với bản trước đó — migration 15→16, bảng DB 16→17, endpoint 61→66, test backend 86→101 (6→8 file) —
+**toàn bộ do tính năng "Request chạy lại" (issue #97)**: migration `016_rerun_requests.sql` tạo bảng
+`rerun_requests`, thêm 5 endpoint (`POST /runs/:id/rerun-requests` + 4 endpoint `/rerun-requests`) và
+2 file test (`rerun-requests.test.js`, `rerun-requests-http.test.js`).
+
+> ⚠️ Bản fact sheet trước tự mâu thuẫn: mục 1 ghi 61 endpoint, mục 4 ghi 55, mục 5 ghi "README 54, thực tế 55".
+> Số đúng tại commit trên là **66**. Khi sửa file này, sửa **cả ba chỗ** (mục 1, mục 4, mục 5).
 
 Lưu ý: React 19 là của **nền tảng test**. "React 18 / Spring Boot 3.2.2" trong report 2.1.1 là mô tả **SUT**, repo này không kiểm chứng được (issue E2).
 
@@ -80,17 +82,18 @@ Trạng thái Pass/Fail **chưa có số liệu thật** cho tới khi xong B2/B
 
 ## 4. Số liệu để report dùng (đối chiếu nhanh)
 
-Report phải dùng đúng: **31 TC**, **16 FR**, **18 fixtures** (13 + 5), **16 bảng DB**, **55 endpoint**, **13 view / 17 route**, Playwright **1.63.0**, Node **20**, nhóm TC theo mục 2.
+Report phải dùng đúng: **31 TC**, **16 FR**, **18 fixtures** (13 + 5), **17 bảng DB**, **66 endpoint**, **13 view / 17 route**, Playwright **1.63.0**, Node **20**, nhóm TC theo mục 2.
 
 ## 5. Phát hiện ngoài phạm vi A1 (chuyển cho issue khác)
 
 - **C2:** steps TC-23–27 sai mã (mục 3, dòng 5).
-- **C5:** tại thời điểm kiểm tra, UI và backend chỉ cho Admin/Tester chạy và rerun; Dev chỉ được `POST /results/:id/bugs`, trong khi SRS và ghi chú `permissions.js` cho Dev request rerun. **Quyết định: sửa code cho Dev được rerun** (backend `runs.routes.js` dòng 41, frontend `permissions.js` thêm `canRerunTest`). Khi xong, viết 3.1.1 theo hành vi mới.
-- **C4:** `/api/stats` và `/api/reports` đã mount nhưng controller rỗng; README ghi 54 endpoint, thực tế 55.
+- **C5 — ĐÃ XONG (issue #97, commit `69470be`…`8bf1aeb`).** Chốt khác với dự kiến ban đầu: Dev **không** tự rerun. Dev gửi yêu cầu (`POST /runs/:id/rerun-requests`), Admin/Tester duyệt (`/rerun-requests/:id/approve|reject`), Admin đặt lại trạng thái (`PATCH /rerun-requests/:id`); **duyệt không tự chạy test**, người duyệt vẫn bấm Run Test. Report mục 3.1.1 phải viết theo hành vi này — xem `docs/backend/api-endpoints.md` mục 6 và Phụ lục A.
+- **C4:** `/api/stats` và `/api/reports` **không được mount** (`api-endpoints.md` mục 3 và 7 đã ghi rõ ⚪, Dashboard tự tính từ `GET /runs`). README ghi 54 endpoint → đã sửa thành 66.
 - **A2:** không tìm thấy dòng rác `TC-` trong `001`; có đúng 31 mã TC-01..TC-31.
 - **Report:** `main.pdf` hiện chỉ có phần khung; việc sửa phải áp vào file nguồn (LaTeX/Overleaf).
 
 ## 6. Nhật ký kiểm tra
 
 - Nguồn: repo gộp (`frontend/` từ nhánh front-end, `backend/` từ nhánh back-end, đã `diff -r` xác nhận khớp nhánh gốc) và `main.pdf` (23 trang).
-- `npm run routes` chạy thật sau `npm ci` trong `backend/`. Chưa chạy `npm test`, `npm run check`, Playwright (thuộc B2/B4).
+- `npm run routes` chạy thật sau `npm ci` trong `backend/` (28/11/2026 → 66 endpoint).
+- `cd frontend && npm run check` chạy thật 28/11/2026: **fail** ở `report.check.mjs` (xem mục 1). Chưa chạy `backend npm test` và Playwright (thuộc B2/B4).
