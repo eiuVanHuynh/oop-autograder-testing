@@ -42,6 +42,8 @@ const migrationFiles = [
   "db/migrations/014_indexes.sql",
   // 015 thêm content/mime_type/token cho test_evidences (ảnh nằm trong DB, phục vụ qua /api/evidences/:token).
   "db/migrations/015_evidence_content.sql",
+  // 016 tạo bảng rerun_requests (role Dev xin chạy lại, Admin/Tester duyệt — SRS mục 4).
+  "db/migrations/016_rerun_requests.sql",
 ];
 
 // File SEED: ghi dữ liệu mẫu, và 010 còn DELETE sạch test_steps + test_data của TC-01…TC-12,

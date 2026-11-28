@@ -13,6 +13,8 @@ const CatalogService = require("../services/catalog.service");
 const UsersService = require("../services/users.service");
 const BugsService = require("../services/bugs.service");
 const BugRepository = require("../repositories/BugRepository");
+const RerunRequestsService = require("../services/rerunRequests.service");
+const RerunRequestRepository = require("../repositories/RerunRequestRepository");
 const { createTargetResolver } = require("../services/target");
 const { createRunner } = require("../services/runner");
 
@@ -61,6 +63,11 @@ const bugsService = new BugsService({
   resultRepository,
 });
 
+const rerunRequestsService = new RerunRequestsService({
+  rerunRequestRepository: new RerunRequestRepository(),
+  runRepository,
+});
+
 const ingestService = new IngestService({
   runRepository,
   logRepository,
@@ -76,6 +83,7 @@ module.exports = {
   catalogService,
   usersService,
   bugsService,
+  rerunRequestsService,
   testRunner,
   userRepository, // requireAuth needs it to check whether the account is locked
 };

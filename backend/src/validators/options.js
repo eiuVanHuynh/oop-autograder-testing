@@ -37,4 +37,5 @@ module.exports = {
   USER_STATUSES: ["active", "inactive"],
   BUG_SEVERITIES: ["low", "medium", "high", "critical"],
   BUG_STATUSES: ["new", "in_progress", "fixed", "closed"],
+  RERUN_REQUEST_STATUSES: ["pending", "approved", "rejected"],
 };

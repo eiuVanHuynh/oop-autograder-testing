@@ -21,6 +21,8 @@ router.use('/ingest', require('./ingest.routes'));
 router.use('/catalog', require('./catalog.routes')); //Manages test suites, test cases and catalog data
 // bugs.routes also declares POST /results/:id/bugs, so it is mounted at the root too.
 router.use('/', require('./bugs.routes'));
+// rerunRequests.routes also declares POST /runs/:id/rerun-requests, so it is mounted at the root too.
+router.use('/', require('./rerunRequests.routes'));
 // system.routes declares the public URL GET /health (api-endpoints.md section 11), so it is mounted at the root,
 // not under /system — see the note at the top of this file.
 router.use('/', require('./system.routes'));
