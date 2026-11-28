@@ -1,32 +1,29 @@
 // Trang Quản lý Template (/templates) – theo docs/frontend/design/08-template-management.png
 // và docs/backend/api-endpoints.md mục 4.
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Pencil,
   Trash2,
   Eye,
-  X,
   FileText,
   Copy,
-  ChevronDown,
-  ChevronUp,
   Power,
   PowerOff,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../controllers/AuthContext";
 import { canManageTemplates } from "../models/permissions";
-import { ENVIRONMENTS, SCOPES } from "../models/options";
+import { SCOPES } from "../models/options";
 import {
   listTemplates,
-  createTemplate,
   updateTemplate,
   deleteTemplate,
   duplicateTemplate,
 } from "../services/templateService";
-import { listCases, listSuites } from "../services/catalogService";
 import { getErrorMessage } from "../services/authService";
 import CreateButton from "../components/ui/CreateButton";
+import PageHeader from "../components/ui/PageHeader";
 import FilterBar from "../components/ui/FilterBar";
 import FilterMenu from "../components/ui/FilterMenu";
 import RowMenu from "../components/ui/RowMenu";
@@ -34,8 +31,7 @@ import IconButton from "../components/ui/IconButton";
 import DataTable, { TableViewToggle } from "../components/ui/DataTable";
 import StatusBadge from "../components/ui/StatusBadge";
 import { parseQuery, buildQuery } from "../models/searchTags";
-import { splitCodes, joinCodes, moveAt } from "../models/caseOrder";
-import { getTableView, setTableView } from "../models/tableView";
+import { useTableView } from "../models/tableView";
 
 // Tag của riêng trang Templates, dùng chung cho ô search và panel Filter.
 const GROUPS = [
@@ -56,245 +52,21 @@ const GROUPS = [
   },
 ];
 
-const EMPTY = {
-  name: "",
-  description: "",
-  scope: "API",
-  testCodes: "",
-  suiteId: null,
-  defaultEnv: "development",
-  timeoutSec: "30",
-};
-const inputCls =
-  "w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-50 disabled:text-gray-600";
-const labelCls = "block text-xs font-semibold text-gray-600 mb-1";
-
-// Template (từ API) -> giá trị form. mili-giây -> giây, mảng test -> chuỗi.
-const toForm = (t, readOnly = false) => ({
-  id: t.id,
-  name: t.name,
-  description: t.description,
-  scope: t.scope,
-  testCodes: t.targetTestIds ? joinCodes(t.targetTestIds) : "",
-  suiteId: t.suiteId,
-  defaultEnv: t.defaultEnv || "development",
-  timeoutSec: String((t.defaultTimeoutMs || 30000) / 1000),
-  status: t.status,
-  readOnly,
-});
-
 const tplCode = (id) => `TPL-${String(id).padStart(4, "0")}`;
 
-// ==========================================
-// COMPONENT CUSTOM DROPDOWN CHỌN SCOPE
-// ==========================================
-function ScopeSelect({
-  value,
-  onChange,
-  options = SCOPES,
-  placeholder = "All Scopes",
-  disabled = false,
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  const filteredOptions = options || [];
-
-  // Đóng dropdown khi click ngoài vùng
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative w-full" ref={dropdownRef}>
-      {/* Nút bấm giả lập Select Box */}
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => {
-          setIsOpen(!isOpen);
-        }}
-        className={`${inputCls} flex items-center justify-between text-left bg-white cursor-pointer select-none`}
-      >
-        <span
-          className={
-            value ? "text-gray-900 font-medium truncate" : "text-gray-400"
-          }
-        >
-          {value || placeholder}
-        </span>
-        <ChevronDown size={16} className="text-gray-400 shrink-0 ml-1" />
-      </button>
-
-      {/* Menu xổ xuống chứa danh sách */}
-      {isOpen && !disabled && (
-        <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-2 space-y-2">
-          {/* Danh sách các Option */}
-          <div className="max-h-48 overflow-y-auto space-y-0.5">
-            {placeholder === "All Scopes" && (
-              <div
-                onClick={() => {
-                  onChange("");
-                  setIsOpen(false);
-                }}
-                className="px-3 py-2 text-xs text-gray-500 hover:bg-gray-100 rounded-lg cursor-pointer"
-              >
-                -- All Scopes --
-              </div>
-            )}
-
-            {filteredOptions.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-gray-400 text-center">
-                No scopes found
-              </div>
-            ) : (
-              filteredOptions.map((s) => (
-                <div
-                  key={s}
-                  onClick={() => {
-                    onChange(s);
-                    setIsOpen(false);
-                  }}
-                  className={`px-3 py-2 text-xs rounded-lg cursor-pointer transition ${
-                    value === s
-                      ? "bg-brand-50 text-brand-600 font-semibold"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  {s}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Chọn test case VÀ xếp thứ tự chạy, trong MỘT danh sách (issue #67).
-// Trước đây mỗi case hiện hai lần — một lần ở khung thứ tự, một lần ở khung tick — nên modal dài
-// gấp đôi và người dùng phải đối chiếu hai danh sách. Giờ case đã chọn nổi lên đầu kèm số thứ tự và
-// nút lên/xuống, case chưa chọn nằm dưới vạch; bỏ tick là gỡ khỏi thứ tự, nên không cần nút xoá riêng.
-function OrderedCasePicker({ codes, cases, disabled = false, onChange }) {
-  const byCode = new Map(cases.map((c) => [c.code, c]));
-  const toggle = (code) =>
-    onChange(codes.includes(code) ? codes.filter((x) => x !== code) : [...codes, code]);
-
-  // Một case đã chọn rồi bị chuyển sang 'deprecated' không còn trong `cases`: vẫn phải hiện ra,
-  // nếu không người dùng không thấy nó để bỏ đi.
-  const picked = codes.map((code) => byCode.get(code) ?? { id: code, code, title: "" });
-  const rest = cases.filter((c) => !codes.includes(c.code));
-
-  // order: số thứ tự chạy (null với case chưa chọn). extra: hai nút lên/xuống.
-  const row = (c, order, extra) => (
-    <li
-      key={c.id}
-      className="flex cursor-pointer items-center gap-3 rounded-lg px-1 py-1 text-base"
-    >
-      <input
-        type="checkbox"
-        id={`case-${c.id}`}
-        checked={codes.includes(c.code)}
-        disabled={disabled}
-        onChange={() => toggle(c.code)}
-      />
-      <label htmlFor={`case-${c.id}`} className="flex min-w-0 flex-1 items-center gap-2">
-        {/* Chừa chỗ cho số cả ở dòng chưa chọn, để hai nhóm thẳng cột với nhau. */}
-        <span className="w-5 shrink-0 text-right text-xs text-gray-400">
-          {order ? `${order}.` : ""}
-        </span>
-        <span className="font-mono text-xs">{c.code}</span>
-        <span className="min-w-0 flex-1 truncate text-gray-700">{c.title}</span>
-      </label>
-      {extra}
-    </li>
-  );
-
-  return (
-    <ol className="m-0 mt-2 h-80 max-h-[50vh] list-none space-y-1 overflow-y-auto rounded-xl border border-gray-200 p-3">
-      {cases.length === 0 && codes.length === 0 && (
-        <li className="text-xs text-gray-400">No ready test cases yet.</li>
-      )}
-
-      {picked.length > 0 && (
-        <li className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-          Execution order — runs top to bottom
-        </li>
-      )}
-
-      {picked.map((c, i) =>
-        row(
-          c,
-          i + 1,
-          <>
-            <IconButton
-              icon={ChevronUp}
-              title="Move up"
-              size={14}
-              disabled={disabled || i === 0}
-              onClick={() => onChange(moveAt(codes, i, i - 1))}
-            />
-            <IconButton
-              icon={ChevronDown}
-              title="Move down"
-              size={14}
-              disabled={disabled || i === picked.length - 1}
-              onClick={() => onChange(moveAt(codes, i, i + 1))}
-            />
-          </>,
-        ),
-      )}
-
-      {picked.length > 0 && rest.length > 0 && (
-        <li className="flex items-center gap-2 px-1 pb-1 pt-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-            Not selected
-          </span>
-          <span className="h-px flex-1 bg-gray-200" />
-        </li>
-      )}
-
-      {rest.map((c) => row(c, null, null))}
-    </ol>
-  );
-}
-
 export default function Templates() {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const [readyCases, setReadyCases] = useState([]);
-  const [suites, setSuites] = useState([]);
-  useEffect(() => {
-    Promise.all([listCases({ status: "ready" }), listSuites()])
-      .then(([c, s]) => {
-        setReadyCases(c);
-        setSuites(s);
-      })
-      .catch((e) =>
-        toast.error(getErrorMessage(e, "Cannot load test catalog.")),
-      );
-  }, []);
   const canEdit = canManageTemplates(user?.role);
 
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   // Bảng hay thẻ: trang giữ state vì nút nằm trên FilterBar, không nằm trong DataTable.
-  const [view, setView] = useState(() => getTableView("templates"));
-  const changeView = (v) => {
-    setView(v);
-    setTableView("templates", v);
-  };
+  // Màn hẹp thì tự chuyển dạng thẻ; `locked` = lúc đó, nút đổi dạng không còn nghĩa.
+  const { view, setView: changeView, locked: narrow } = useTableView("templates");
   // Ô search là nguồn sự thật duy nhất: tag nằm trong chuỗi `q`, filter suy ra từ nó.
   const [q, setQ] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
-  const [form, setForm] = useState(null); // null = đóng
-  const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState(null);
 
   // Tag gợi ý trong ô search = chính các option của panel Filter bên cạnh.
@@ -340,50 +112,6 @@ export default function Templates() {
 
   const refresh = () => setReloadKey((k) => k + 1);
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    if (!canEdit) return toast.error("You do not have permission.");
-    const name = form.name.trim();
-    const testIds = splitCodes(form.testCodes); // thứ tự người dùng đã xếp = thứ tự chạy
-    const timeoutSec = Number(form.timeoutSec);
-    if (name.length < 2) return toast.error("Template name is too short.");
-    if (!form.suiteId && testIds.length === 0)
-      return toast.error("Add at least one test code.");
-    if (!(timeoutSec > 0)) return toast.error("Timeout must be positive.");
-
-    const data = {
-      name,
-      description: form.description,
-      scope: form.scope,
-      suiteId: form.suiteId,
-      targetTestIds: testIds,
-      defaultEnv: form.defaultEnv,
-      defaultTimeoutMs: Math.round(timeoutSec * 1000), // form dùng giây, backend dùng mili-giây
-      status: form.status,
-    };
-
-    setSaving(true);
-    try {
-      if (form.id) {
-        await updateTemplate(form.id, data); // PUT /templates/:id
-        toast.success("Template updated.");
-      } else {
-        await createTemplate(data); // POST /templates (409 nếu trùng tên)
-        toast.success("Template created.");
-      }
-      setForm(null);
-      refresh();
-    } catch (err) {
-      toast.error(
-        err.response?.status === 409
-          ? "A template with this name already exists."
-          : getErrorMessage(err, "Cannot save the template."),
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleDelete = async () => {
     if (!canEdit) return toast.error("You do not have permission.");
     try {
@@ -422,24 +150,17 @@ export default function Templates() {
     }
   };
 
-  const readOnly = !!form?.readOnly;
-
   return (
-    <div className="max-w-screen-2xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Test Case Template Management
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {canEdit
-              ? "Create, organize, and reuse test configurations."
-              : "You have read-only access to templates."}
-          </p>
-        </div>
-        {canEdit && <CreateButton onClick={() => setForm({ ...EMPTY })} />}
-      </div>
+    <div className="page">
+      <PageHeader
+        title="Test Case Template Management"
+        description={
+          canEdit
+            ? "Create, organize, and reuse test configurations."
+            : "You have read-only access to templates."
+        }
+        actions={canEdit && <CreateButton onClick={() => navigate("/templates/new")} />}
+      />
 
       <FilterBar
         value={q}
@@ -448,7 +169,9 @@ export default function Templates() {
         onRefresh={refresh}
         loading={loading}
         tagGroups={GROUPS}
-        trailing={<TableViewToggle value={view} onChange={changeView} />}
+        trailing={
+          !narrow && <TableViewToggle value={view} onChange={changeView} />
+        }
       >
         <FilterMenu
           groups={GROUPS}
@@ -470,7 +193,7 @@ export default function Templates() {
         onViewChange={changeView}
         pageSize={10}
         rowClassName={(t) => (t.status === "inactive" ? "opacity-60" : "")}
-        onRowClick={(t) => setForm(toForm(t, !canEdit))}
+        onRowClick={(t) => navigate(`/templates/${t.id}`)}
         rowKey={(t) => t.id}
         columns={[
           {
@@ -487,7 +210,7 @@ export default function Templates() {
                 <p className="text-xs text-gray-500 truncate max-w-md mt-0.5">
                   {t.description || "No description"}
                 </p>
-                <p className="text-xs text-gray-400 font-mono mt-1">
+                <p className="text-xs text-gray-500 font-mono mt-1">
                   ID: {tplCode(t.id)}
                   {t.status === "inactive" && (
                     <span className="ml-2 px-2 py-0.5 bg-gray-200 text-gray-600 rounded font-sans">
@@ -538,7 +261,7 @@ export default function Templates() {
                   <IconButton
                     icon={Pencil}
                     title="Edit"
-                    onClick={() => setForm(toForm(t))}
+                    onClick={() => navigate(`/templates/${t.id}/edit`)}
                   />
                   <RowMenu
                     items={[
@@ -562,7 +285,7 @@ export default function Templates() {
                   <IconButton
                     icon={Eye}
                     title="View"
-                    onClick={() => setForm(toForm(t, true))}
+                    onClick={() => navigate(`/templates/${t.id}`)}
                   />
                 </div>
               ),
@@ -571,153 +294,6 @@ export default function Templates() {
       />
 
       {/* Modal: tạo / sửa / xem */}
-      {form && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <form
-            onSubmit={handleSave}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 space-y-4"
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold">
-                {readOnly
-                  ? "Template details"
-                  : form.id
-                    ? "Edit Template"
-                    : "Create Template"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setForm(null)}
-                className="text-gray-400 hover:text-gray-700"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <fieldset disabled={readOnly || saving} className="space-y-4">
-              <div>
-                <label className={labelCls}>
-                  Template name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  className={inputCls}
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className={labelCls}>Description</label>
-                <textarea
-                  rows={3}
-                  className={inputCls}
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
-                  }
-                />
-              </div>
-
-              <div>
-                <label className={labelCls}>
-                  Tests to run <span className="text-red-500">*</span>
-                </label>
-                <select
-                  className={inputCls}
-                  value={form.suiteId ?? ""}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      suiteId: e.target.value ? Number(e.target.value) : null,
-                    })
-                  }
-                >
-                  <option value="">— Pick individual tests —</option>
-                  {suites.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.readyCount} ready)
-                    </option>
-                  ))}
-                </select>
-
-                {!form.suiteId && (
-                  <OrderedCasePicker
-                    codes={splitCodes(form.testCodes)}
-                    cases={readyCases}
-                    disabled={readOnly || saving}
-                    onChange={(next) =>
-                      setForm({ ...form, testCodes: joinCodes(next) })
-                    }
-                  />
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div>
-                  <label className={labelCls}>Scope</label>
-                  {/* Tích hợp Searchable Scope Select ở Modal */}
-                  <ScopeSelect
-                    value={form.scope}
-                    disabled={readOnly || saving}
-                    onChange={(val) =>
-                      setForm({ ...form, scope: val || "API" })
-                    }
-                    placeholder="Select scope"
-                  />
-                </div>
-                <div>
-                  <label className={labelCls}>Environment</label>
-                  <select
-                    className={inputCls}
-                    value={form.defaultEnv}
-                    onChange={(e) =>
-                      setForm({ ...form, defaultEnv: e.target.value })
-                    }
-                  >
-                    {ENVIRONMENTS.map((env) => (
-                      <option key={env.value} value={env.value}>
-                        {env.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className={labelCls}>Timeout (s)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    className={inputCls}
-                    value={form.timeoutSec}
-                    onChange={(e) =>
-                      setForm({ ...form, timeoutSec: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-            </fieldset>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setForm(null)}
-                className="px-4 py-2 border border-gray-200 rounded-xl text-sm"
-              >
-                {readOnly ? "Close" : "Cancel"}
-              </button>
-              {!readOnly && (
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
-                >
-                  {saving ? "Saving..." : "Save"}
-                </button>
-              )}
-            </div>
-          </form>
-        </div>
-      )}
-
       {/* Modal: xác nhận xóa */}
       {toDelete && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">

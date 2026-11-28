@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "878697cd-3886-4cb2-baa1-3979837bb874",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "/home/agnguyen/me/oop-autograder-testing/.archify/diagrams-20261127-095256/activity.workflow.json",
+  "output": "/home/agnguyen/me/oop-autograder-testing/docs/diagrams/activity.html",
+  "specification": {
+    "sha256": "83936e53e2ab5fd855ac6179ab21776e5736169f6de136c1f049d7fb77b035d1",
+    "bytes": 7143
+  },
+  "artifact": {
+    "sha256": "3c53e80d191b212991d6ea0847135505eeea2db58687bb96ebe7639f12624c16",
+    "bytes": 949106
+  }
+}

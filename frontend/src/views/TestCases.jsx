@@ -16,13 +16,14 @@ import {
   deprecateCase,
 } from "../services/catalogService";
 import { parseQuery, buildQuery } from "../models/searchTags";
-import { getTableView, setTableView } from "../models/tableView";
+import { useTableView } from "../models/tableView";
 import { listTemplates, updateTemplate } from "../services/templateService";
 import { getErrorMessage } from "../services/authService";
 import FilterBar from "../components/ui/FilterBar";
 import FilterMenu from "../components/ui/FilterMenu";
 import RowMenu from "../components/ui/RowMenu";
 import CreateButton from "../components/ui/CreateButton";
+import PageHeader from "../components/ui/PageHeader";
 import IconButton from "../components/ui/IconButton";
 import DataTable, { TableViewToggle } from "../components/ui/DataTable";
 import StatusBadge from "../components/ui/StatusBadge";
@@ -40,11 +41,8 @@ export default function TestCases() {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   // Bảng hay thẻ: trang giữ state vì nút nằm trên FilterBar, không nằm trong DataTable.
-  const [view, setView] = useState(() => getTableView("testcases"));
-  const changeView = (v) => {
-    setView(v);
-    setTableView("testcases", v);
-  };
+  // Màn hẹp thì tự chuyển dạng thẻ; `locked` = lúc đó, nút đổi dạng không còn nghĩa.
+  const { view, setView: changeView, locked: narrow } = useTableView("testcases");
   // Ô search là nguồn sự thật duy nhất: tag nằm trong chuỗi `q`, filter suy ra từ nó.
   const [q, setQ] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
@@ -187,20 +185,16 @@ export default function TestCases() {
     );
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Test Case Management
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {canEdit
-              ? "Declare, reuse, and retire the test cases a template can run."
-              : "You have read-only access to test cases."}
-          </p>
-        </div>
-        {canEdit && <CreateButton onClick={() => navigate("/testcases/new")} />}
-      </div>
+    <div className="page">
+      <PageHeader
+        title="Test Case Management"
+        description={
+          canEdit
+            ? "Declare, reuse, and retire the test cases a template can run."
+            : "You have read-only access to test cases."
+        }
+        actions={canEdit && <CreateButton onClick={() => navigate("/testcases/new")} />}
+      />
 
       <FilterBar
         value={q}
@@ -209,7 +203,9 @@ export default function TestCases() {
         onRefresh={refresh}
         loading={loading}
         tagGroups={groups}
-        trailing={<TableViewToggle value={view} onChange={changeView} />}
+        trailing={
+          !narrow && <TableViewToggle value={view} onChange={changeView} />
+        }
       >
         <FilterMenu
           groups={groups}

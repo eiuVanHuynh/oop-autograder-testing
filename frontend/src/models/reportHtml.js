@@ -7,11 +7,14 @@ const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;
 // Log chứa thông báo lỗi tuỳ ý (có cả < và &) nên PHẢI escape trước khi ghép vào HTML.
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ESC[c]);
 
-// Ảnh evidence: file_path của Playwright là đường dẫn trên máy chạy test, backend chưa
-// serve file nào (app.js không có express.static) -> chỉ nhúng được khi path là URL http.
-// shortcut: không có URL thì in khung ảnh trống kèm đường dẫn; bỏ khi backend serve evidence.
+// Ảnh evidence: trang gọi API (có Authorization) tải file về rồi đưa xuống đây dưới dạng data: URL,
+// nên báo cáo xuất ra vẫn tự chứa — mở offline, gửi email, không cần đăng nhập lại. KHÔNG nhúng
+// được URL /api/evidences/<token> vào src: route đó đòi đăng nhập, <img> thì không gửi header.
+// Trace vẫn chỉ là đường dẫn trong artifact của GitHub Actions, không tải được từ đây.
+export const isEvidenceUrl = (filePath) => /^data:image\//i.test(filePath || "");
+
 const evidenceImg = (e) =>
-  /^https?:\/\//i.test(e?.file_path || "")
+  isEvidenceUrl(e?.file_path)
     ? `<img class="ev" src="${esc(e.file_path)}" alt="${esc(e.evidence_type || "evidence")}">`
     : `<div class="ev ev-none">${e ? `${esc(e.evidence_type || "evidence")}: ${esc(e.file_path)}` : "No evidence"}</div>`;
 

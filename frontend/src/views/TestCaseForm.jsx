@@ -38,7 +38,7 @@ import { canManageCases } from "../models/permissions";
 import { listTemplates } from "../services/templateService";
 
 const inputCls =
-  "w-full h-10 px-3 bg-white border border-gray-300 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-50 disabled:text-gray-400";
+  "w-full h-10 px-3 bg-white border border-gray-300 rounded-lg text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-50 disabled:text-gray-500";
 const areaCls = inputCls.replace("h-10 ", "py-2 ");
 const CODE_MAX = 30; // test_cases.tc_code VARCHAR(30)
 
@@ -141,7 +141,7 @@ function Field({ label, required, hint, error, children, className = "" }) {
       {error ? (
         <p className="mt-1 text-xs text-red-600">{error}</p>
       ) : (
-        hint && <p className="mt-1 text-xs text-gray-400">{hint}</p>
+        hint && <p className="mt-1 text-xs text-gray-500">{hint}</p>
       )}
     </div>
   );
@@ -396,7 +396,7 @@ function TestCaseFormInner({ viewing }) {
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="page page--narrow">
       <PageHeader
         breadcrumb={["Test Cases", viewing ? form.code || "Details" : editing ? form.code || "Edit" : from ? "Duplicate" : "New"]}
         title={viewing ? "Test Case Details" : editing ? "Edit Test Case" : from ? "Duplicate Test Case" : "Create Test Case"}
@@ -567,7 +567,7 @@ function TestCaseFormInner({ viewing }) {
                       </div>)}
                     </div>
 
-                    {!s.action && <p className="mt-2 pl-8 text-xs text-gray-400">Choose what this step does.</p>}
+                    {!s.action && <p className="mt-2 pl-8 text-xs text-gray-500">Choose what this step does.</p>}
 
                     {s.action === "NAVIGATE" && (
                       <div className="mt-2 pl-8">
@@ -705,12 +705,12 @@ function TestCaseFormInner({ viewing }) {
               <div className="border-t border-gray-100 pt-3">
                 <h3 className="m-0 mb-2 text-sm font-semibold text-gray-900">Used in templates</h3>
                 {templates.filter((t) => t.targetTestIds?.includes(form.code)).length === 0 ? (
-                  <p className="m-0 text-sm text-gray-400">Not used by any template yet.</p>
+                  <p className="m-0 text-sm text-gray-500">Not used by any template yet.</p>
                 ) : (
                   <ul className="m-0 list-none space-y-1 p-0 text-sm">
                     {templates.filter((t) => t.targetTestIds?.includes(form.code)).map((t) => (
                       <li key={t.id}>
-                        <Link to="/templates" className="text-brand-600 hover:underline">{t.name}</Link>
+                        <Link to={`/templates/${t.id}`} className="text-brand-600 hover:underline">{t.name}</Link>
                       </li>
                     ))}
                   </ul>
@@ -737,7 +737,7 @@ function TestCaseFormInner({ viewing }) {
               Cancel
             </button>
           </div>
-          <p className="m-0 text-xs text-gray-400">
+          <p className="m-0 text-xs text-gray-500">
             {editing && status === "ready"
               ? "This case is ready to run. Saving it while the checklist has gaps puts it back to draft."
               : "A draft can be saved any time. Only “ready” cases can be included in a run."}

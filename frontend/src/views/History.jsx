@@ -4,13 +4,14 @@ import { getRuns } from "../services/runService";
 import { getErrorMessage } from "../services/authService";
 import { ENVIRONMENTS } from "../models/options";
 import { parseQuery, buildQuery } from "../models/searchTags";
-import { getTableView, setTableView } from "../models/tableView";
+import { useTableView } from "../models/tableView";
 import FilterBar from "../components/ui/FilterBar";
 import FilterMenu from "../components/ui/FilterMenu";
 import DataTable, { TableViewToggle } from "../components/ui/DataTable";
 import StatusBadge from "../components/ui/StatusBadge";
 import IconButton from "../components/ui/IconButton";
 import { useNavigate } from "react-router-dom";
+import PageHeader from "../components/ui/PageHeader";
 import {
   History as HistoryIcon,
   CheckCircle2,
@@ -56,11 +57,8 @@ export default function History() {
   const [selectedRun, setSelectedRun] = useState(null);
   const [loading, setLoading] = useState(true);
   // Bảng hay thẻ: trang giữ state vì nút nằm trên FilterBar, không nằm trong DataTable.
-  const [view, setView] = useState(() => getTableView("history"));
-  const changeView = (v) => {
-    setView(v);
-    setTableView("history", v);
-  };
+  // Màn hẹp thì tự chuyển dạng thẻ; `locked` = lúc đó, nút đổi dạng không còn nghĩa.
+  const { view, setView: changeView, locked: narrow } = useTableView("history");
   const [q, setQ] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -91,18 +89,11 @@ export default function History() {
   }, [reloadKey]);
 
   return (
-    <div className="max-w-screen-2xl mx-auto space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Execution History & Reports
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Review past test runs, statuses, and performance analytics.
-          </p>
-        </div>
-      </div>
+    <div className="page">
+      <PageHeader
+        title="Execution History & Reports"
+        description="Review past test runs, statuses, and performance analytics."
+      />
 
       <FilterBar
         value={q}
@@ -111,7 +102,9 @@ export default function History() {
         onRefresh={() => setReloadKey((k) => k + 1)}
         loading={loading}
         tagGroups={GROUPS}
-        trailing={<TableViewToggle value={view} onChange={changeView} />}
+        trailing={
+          !narrow && <TableViewToggle value={view} onChange={changeView} />
+        }
       >
         <FilterMenu
           groups={GROUPS}
@@ -172,7 +165,7 @@ export default function History() {
                     <p className="font-semibold text-gray-900 group-hover:text-brand-600 transition">
                       {run.name}
                     </p>
-                    <p className="text-xs text-gray-400 font-mono">#{run.id}</p>
+                    <p className="text-xs text-gray-500 font-mono">#{run.id}</p>
                   </div>
                 ),
               },
@@ -234,7 +227,7 @@ export default function History() {
                       run.status === "PASSED" ? CheckCircle2 : AlertTriangle
                     }
                   />
-                  <span className="text-xs text-gray-400 font-mono">
+                  <span className="text-xs text-gray-500 font-mono">
                     #{run.id}
                   </span>
                   <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
@@ -336,7 +329,7 @@ export default function History() {
               </button>
             </div>
           ) : (
-            <div className="text-center py-12 text-gray-400">
+            <div className="text-center py-12 text-gray-500">
               <FileText size={40} className="mx-auto mb-2 opacity-40" />
               <p className="text-sm">
                 Select a test run from the left list to preview its report.

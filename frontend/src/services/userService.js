@@ -34,5 +34,16 @@ export const createUser = async ({ name, email, password, role, status }) =>
 export const updateUser = async (id, { name, email }) =>
   toRow((await API.patch(`/users/${id}`, { fullName: name, email })).data.data);
 
+// PATCH /users/me/password – tự đổi mật khẩu, 204 không body.
+// 401 sai mật khẩu hiện tại · 400 mật khẩu mới trùng mật khẩu cũ · 409 tài khoản Google chưa có mật khẩu.
+export const changeOwnPassword = (currentPassword, newPassword) =>
+  API.patch('/users/me/password', { currentPassword, newPassword });
+
+// PATCH /users/:id/password – Admin đặt lại mật khẩu hộ người đã quên (không có email service nên
+// đây là đường quên-mật-khẩu của hệ thống). 400 nếu là chính mình (dùng changeOwnPassword),
+// 409 nếu là một admin khác.
+export const resetUserPassword = (id, newPassword) =>
+  API.patch(`/users/${id}/password`, { newPassword });
+
 // DELETE /users/:id – 204, không có body. 400 nếu tự xoá mình, 409 nếu là admin.
 export const deleteUser = (id) => API.delete(`/users/${id}`);

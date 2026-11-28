@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "6a12a625-f01b-4c9f-bcf8-91f9d43941fb",
+  "status": "current",
+  "command": "deliver",
+  "type": "tree",
+  "input": "/home/agnguyen/me/oop-autograder-testing/.archify/diagrams-20261127-095256/tree.tree.json",
+  "output": "/home/agnguyen/me/oop-autograder-testing/docs/diagrams/tree.html",
+  "specification": {
+    "sha256": "c8bdda09d306394c0526a1df1a3f8da0cf7555c71ddce9fd9195b1732d897fb6",
+    "bytes": 5619
+  },
+  "artifact": {
+    "sha256": "e1bf6b44f712a3c7d401c6596487cd9d601974828d1f2ee91dfcad99ed04accf",
+    "bytes": 974438
+  }
+}

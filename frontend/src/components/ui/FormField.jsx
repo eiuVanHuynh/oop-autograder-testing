@@ -23,7 +23,7 @@ export default function FormField({
         <input
           id={id}
           {...inputProps}
-          className={`h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:ring-offset-2 ${trailing ? "pr-10" : "pr-3"}`}
+          className={`h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:ring-offset-2 ${trailing ? "pr-10" : "pr-3"}`}
         />
         {trailing}
       </div>

@@ -9,7 +9,7 @@ import Panel from '../components/ui/Panel';
 // - Ba thẻ phụ bên dưới: User context / Authorization scope / Privilege escalation (ảnh 10-403).
 export default function Forbidden() {
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="page page--narrow">
       <PageHeader breadcrumb={['RBAC Security Gateway', 'HTTP 403']} title="Access Denied" />
       <Panel>{/* TODO: icon + lý do từ chối + 2 nút điều hướng */}</Panel>
       {/* TODO: 3 thẻ thông tin */}
