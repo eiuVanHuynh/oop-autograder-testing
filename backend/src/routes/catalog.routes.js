@@ -27,7 +27,6 @@ const {
 // - Every line in this order: requireAuth → requireRole → validate → controller.
 // - A route only declares the URL, it holds no logic.
 
-// TODO: declare the routes of the catalog group
 //search steps
 router.put(
   "/cases/:id/steps",

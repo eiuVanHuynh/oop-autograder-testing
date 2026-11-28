@@ -22,7 +22,6 @@ const caseWriteError = (err, tcCode) => {
 class CatalogService {
   constructor(deps = {}) {
     this.catalogRepository = deps.catalogRepository;
-    // TODO: take the repositories it needs from config/container.js
   }
   // Editing steps/data can make a case that IS 'ready' unrunnable (all steps removed, a field a FILL
   // step needs dropped). Blocking the edit means a ready case can never be edited; leaving it alone makes

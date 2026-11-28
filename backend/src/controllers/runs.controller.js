@@ -62,15 +62,6 @@ const serveEvidence = asyncHandler(async (req, res) => {
   return res.status(200).send(content);
 });
 
-// 5. GET /runs/:id/logs/stream - Live logs over SSE (Status code: 200 OK)
-const streamRunLogs = asyncHandler(async (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-
-  await runsService.streamRunLogs(req.params.id, res);
-});
-
 // 6. POST /runs/:id/cancel - Cancel a running test run (Status code: 200 OK)
 const cancelRun = asyncHandler(async (req, res) => {
   const result = await runsService.cancelRun(req.params.id, req.user.user_id);
@@ -84,12 +75,6 @@ const rerunRun = asyncHandler(async (req, res) => {
   return res.status(202).json({ data: result });
 });
 
-// 9. DELETE /runs/:id - Delete the run from history (Status code: 204 No Content)
-const deleteRun = asyncHandler(async (req, res) => {
-  await runsService.deleteRun(req.params.id);
-  return res.status(204).send();
-});
-
 module.exports = {
   createRun,
   getRuns,
@@ -98,8 +83,6 @@ module.exports = {
   getRunResults,
   getResultEvidences,
   serveEvidence,
-  streamRunLogs,
   cancelRun,
   rerunRun,
-  deleteRun,
 };

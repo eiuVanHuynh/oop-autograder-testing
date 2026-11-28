@@ -15,7 +15,7 @@
 | Fixture CSV/TXT | **5** (batch1, duplicate, empty, invalid_rows, wrong_format.txt) | `ls automation/fixtures/*.csv automation/fixtures/*.txt` |
 | Tổng fixture | **18** (13 + 5) | |
 | Bảng DB | **17** | `users, test_suites, test_specs, test_cases, test_steps, test_data, test_runs, test_results, test_evidences, reports, pages, items, page_items, test_templates, run_logs, bugs, rerun_requests` |
-| File migration | **16** file (001, 002, 004–016; **hai file `010_`**; **không có 003**) | `ls db/migrations` |
+| File migration | **15** file (001, 002, 004–016; **không có 003**) | `ls db/migrations` |
 | Endpoint đang chạy | **66** (`/api/...`) | `cd backend && npm ci && npm run routes` |
 | Endpoint chưa có | `/api/stats`, `/api/reports` đã mount nhưng controller rỗng | cuối output `npm run routes` |
 | Test backend | **101** lời gọi `it/test` trong **8** file (số tĩnh; số pass/fail thật lấy ở B4) | `cd backend && npm test` |

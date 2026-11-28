@@ -57,10 +57,8 @@ router.get(
   runsController.getResultEvidences,
 );
 
-// shortcut: the route below is still off because runs.service.js has no streamRunLogs — wiring it up gives a 500
-// on the first call. Remove the // once the service has that function (polling /logs keeps working meanwhile).
-// GET /api/runs/:id/logs/stream - Live logs over SSE (any user)
-// router.get("/:id/logs/stream", requireAuth, runsController.streamRunLogs);
-
+// Not here yet, and the controller scaffolding for them was deleted because it could only ever 500
+// (runs.service.js has neither function): GET /:id/logs/stream (SSE, api-endpoints.md 6) and
+// DELETE /:id (api-endpoints.md 6). Polling /logs is what the dashboard uses.
 
 module.exports = router;

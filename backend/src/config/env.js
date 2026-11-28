@@ -7,7 +7,6 @@ require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
 require("dotenv").config({ path: path.resolve(__dirname, "../../../.env") });
 
 // Read env vars once. A missing required var kills the process at startup,
-// which beats running and then failing with a 500 halfway through.
 // which beats booting fine and throwing 500s later.
 //
 // To do:

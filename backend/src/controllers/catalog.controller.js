@@ -8,7 +8,6 @@ const { catalogService } = require("../config/container");
 // - GET /suites, /suites/:id/specs, /cases with filters, /cases/:id. The write side is 🟡, later.
 // - Return the status codes listed in api-endpoints.md section 9.
 
-// TODO: handlers, wrapped in asyncHandler
 // search testcase
 const createCase = asyncHandler(async (req, res) => {
   const testCase = await catalogService.createCase(req.body);

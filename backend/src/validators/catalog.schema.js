@@ -55,11 +55,6 @@ const updateSuiteSchema = createSuiteSchema
     message: "At least one field is required to update",
   });
 // Zod schemas for the catalog group; the validate() middleware uses them.
-//
-// To do:
-// - caseQuerySchema: suite, type, priority, status.
-
-// TODO
 
 const caseIdParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
