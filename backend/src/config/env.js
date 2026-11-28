@@ -38,6 +38,10 @@ module.exports = {
   DATABASE_URL: process.env.DATABASE_URL,
   JWT_SECRET: process.env.JWT_SECRET,
   INGEST_API_KEY: process.env.INGEST_API_KEY,
+
+  // URL gốc công khai của chính API này, dùng để dựng link ảnh bằng chứng (/api/evidences/:token).
+  // Bỏ trống thì lấy theo host của request — đúng cho local, nhưng sau proxy nên khai báo hẳn.
+  PUBLIC_API_URL: process.env.PUBLIC_API_URL,
   NODE_ENV: process.env.NODE_ENV,
   
   // Test runner: 'github' | 'fake'. Empty → github if GITHUB_TOKEN is set, otherwise fake (outside production only).

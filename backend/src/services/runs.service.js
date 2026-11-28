@@ -66,6 +66,14 @@ class RunsService {
     return rows;
   }
 
+  // GET /api/evidences/:token — file bằng chứng. Quyền do route canh (đăng nhập, từ dev trở lên):
+  // ảnh chụp màn hình có thể chứa dữ liệu thật, nên không để sau mỗi cái token khó đoán.
+  async getEvidenceFile(token) {
+    const row = await this.resultRepository.findFileByToken(token);
+    if (!row) throw new AppError(404, "NOT_FOUND", "Evidence not found");
+    return row;
+  }
+
   async createRun(userId, data) {
     let template = null;
     let testCodes = [];

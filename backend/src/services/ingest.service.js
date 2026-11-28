@@ -1,5 +1,6 @@
 const AppError = require('../utils/AppError');
 const parseJson = require('../utils/parseJson');
+const { toEvidenceRows } = require('./evidence');
 
 // Back door for machines: Playwright pushes results and logs back.
 // Business rules live here. No pg require, no touching req/res.
@@ -70,13 +71,19 @@ class IngestService {
     return this.runRepository.findById(runId);
   }
 
-  // Ảnh chụp màn hình / file trace của một kết quả. Chỉ nhận đường dẫn, không nhận file
-  // (xem ResultRepository), nên không có giới hạn dung lượng và không bao giờ trả 413.
-  async addEvidences(resultId, items) {
+  // Ảnh chụp màn hình / file trace của một kết quả.
+  //
+  // Mỗi phần tử có `data` (base64 của chính file) thì file được giữ trong DB và file_path trở thành
+  // /api/evidences/<token>. URL đó đòi đăng nhập (dev trở lên), nên frontend phải tải bằng API rồi
+  // nhúng data: URL — không nhét thẳng vào <img src> được.
+  // Không có `data` (trace nặng vài MB) thì chỉ ghi đường dẫn như trước.
+  //
+  // `baseUrl` do controller đưa vào: service không được chạm vào req.
+  async addEvidences(resultId, items, baseUrl = '') {
     if (!(await this.resultRepository.findById(resultId))) {
       throw new AppError(404, 'NOT_FOUND', 'Result not found');
     }
-    const written = await this.resultRepository.addEvidences(resultId, items);
+    const written = await this.resultRepository.addEvidences(resultId, toEvidenceRows(items, baseUrl));
     return { written };
   }
 

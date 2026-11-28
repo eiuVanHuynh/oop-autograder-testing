@@ -42,6 +42,8 @@ function createRunner({ logRepository, runRepository, resultRepository, catalogR
       catalogRepository,
       baseUrls: env.BASE_URLS,
       executablePath: env.PLAYWRIGHT_CHROMIUM_PATH,
+      // Chạy local thì PUBLIC_API_URL thường trống; localhost:PORT là đúng chỗ backend đang nghe.
+      publicApiUrl: env.PUBLIC_API_URL || `http://localhost:${env.PORT}`,
     });
   }
 

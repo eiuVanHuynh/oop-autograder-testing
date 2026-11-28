@@ -25,5 +25,7 @@ router.use('/', require('./bugs.routes'));
 // not under /system — see the note at the top of this file.
 router.use('/', require('./system.routes'));
 router.use('/meta', require('./meta.routes'));
+// evidences.routes serves ONE public URL, GET /api/evidences/:token (the <img> of the report page).
+router.use('/evidences', require('./evidences.routes'));
 
 module.exports = router;

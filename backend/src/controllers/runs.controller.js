@@ -50,6 +50,18 @@ const getResultEvidences = asyncHandler(async (req, res) => {
   return res.status(200).json({ data });
 });
 
+// 4d. GET /evidences/:token - The evidence file itself (200, 401, 403, 404). Not JSON: raw bytes.
+// private, not public: the file is behind a login, so no shared proxy or CDN may keep a copy.
+// immutable: a token points at one file forever, so the browser can keep its own copy.
+const serveEvidence = asyncHandler(async (req, res) => {
+  const { content, mime_type: mime } = await runsService.getEvidenceFile(req.params.token);
+  res.setHeader("Content-Type", mime || "application/octet-stream");
+  res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+  // nosniff: the bytes come from CI, and a browser guessing "HTML" out of them would run it on our origin.
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  return res.status(200).send(content);
+});
+
 // 5. GET /runs/:id/logs/stream - Live logs over SSE (Status code: 200 OK)
 const streamRunLogs = asyncHandler(async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
@@ -85,6 +97,7 @@ module.exports = {
   getRunLogs,
   getRunResults,
   getResultEvidences,
+  serveEvidence,
   streamRunLogs,
   cancelRun,
   rerunRun,

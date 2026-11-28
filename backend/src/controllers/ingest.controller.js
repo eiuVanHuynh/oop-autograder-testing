@@ -1,5 +1,10 @@
 const asyncHandler = require("../utils/asyncHandler");
 const { ingestService } = require("../config/container");
+const { PUBLIC_API_URL } = require("../config/env");
+
+// URL gốc để dựng link bằng chứng. Ưu tiên biến môi trường vì đó là URL người dùng thật sự mở;
+// sau proxy của Vercel thì req.get('host') có thể là host nội bộ (app.js đã bật 'trust proxy').
+const publicBase = (req) => PUBLIC_API_URL || `${req.protocol}://${req.get("host")}`;
 
 // Back door for machines: Playwright pushes results and logs back.
 // Thin controller: read req → call service → res.json({ data }). No business rules.
@@ -28,9 +33,9 @@ const finish = asyncHandler(async (req, res) => {
   return res.status(200).json({ data });
 });
 
-// POST /ingest/results/:id/evidences - Push screenshot/trace locations of one result
+// POST /ingest/results/:id/evidences - Push screenshots/traces of one result (bytes or just a location)
 const addEvidences = asyncHandler(async (req, res) => {
-  const data = await ingestService.addEvidences(req.params.id, req.body.evidences);
+  const data = await ingestService.addEvidences(req.params.id, req.body.evidences, publicBase(req));
   return res.status(201).json({ data });
 });
 

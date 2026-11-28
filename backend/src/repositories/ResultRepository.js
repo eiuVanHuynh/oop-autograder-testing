@@ -5,10 +5,12 @@ const { CODE_EXPR } = require('./CatalogRepository');
 //
 // The table's primary key is execution_id (db/schema), not result_id.
 //
-// Evidence (screenshot/trace) stores a LOCATION, never the bytes: Vercel's filesystem is read-only and
-// the project uses no object storage, so CI uploads to its GitHub Actions artifact and sends the URL here.
-// shortcut: a GitHub artifact URL expires (90 days by default), so an old run's links eventually 404 —
-// swap file_path for a real storage key if evidence has to outlive the artifact.
+// Evidence (screenshot/trace) holds the FILE ITSELF in test_evidences.content, with file_path as the
+// URL it is read back from (/api/evidences/<token>, behind a login). Bytes live in Postgres because
+// Vercel's filesystem is read-only and the project has no object storage; the runner's own path is gone
+// the moment the workflow ends, which is why storing only a path left every report with blank images.
+// shortcut: Postgres is not a CDN — move content to object storage and keep only a key here once
+// evidence volume (a screenshot per failed case per run) starts to matter.
 class ResultRepository extends BaseRepository {
   constructor() {
     super('test_results', 'execution_id');
@@ -46,7 +48,10 @@ class ResultRepository extends BaseRepository {
                 json_agg(
                   json_build_object('evidence_id', e.evidence_id,
                                     'evidence_type', e.evidence_type,
-                                    'file_path', e.file_path)
+                                    'file_path', e.file_path,
+                                    -- token: khóa để GỌI GET /evidences/:token kèm Authorization.
+                                    -- file_path không tải thẳng được nữa (route đã có requireAuth).
+                                    'token', e.token)
                   ORDER BY e.evidence_id
                 ) FILTER (WHERE e.evidence_id IS NOT NULL),
                 '[]'
@@ -69,7 +74,7 @@ class ResultRepository extends BaseRepository {
   // call (a 50-case run meant 50 round trips to the DB while the workflow waited), and a single
   // INSERT either writes every row or none, instead of leaving half a run's results behind on failure.
   async recordMany(runId, items) {
-    if (!items || !items.length) return { saved: 0, unknown: [] };
+    if (!items || !items.length) return { saved: 0, unknown: [], results: [] };
 
     const codes = items.map((i) => i.code);
     // One test_id per code: CODE_EXPR has no unique index, and LIMIT 1 is what recordForCode did.
@@ -85,14 +90,19 @@ class ResultRepository extends BaseRepository {
 
     const known = items.filter((i) => idByCode.has(i.code));
     const unknown = codes.filter((code) => !idByCode.has(code));
-    if (!known.length) return { saved: 0, unknown };
+    // results luôn có mặt, kể cả rỗng: nơi gọi (reporter của CI) đọc thẳng saved.data.results.
+    if (!known.length) return { saved: 0, unknown, results: [] };
 
-    await this.query(
+    // RETURNING execution_id: CI cần nó để gắn ảnh vào đúng kết quả, mà đường duy nhất khác để biết
+    // là GET /runs/:id/results — route đó đòi JWT người dùng, runner không có.
+    // Lấy kèm test_id vì RETURNING không bảo đảm thứ tự để ghép lại với mảng `known`.
+    const inserted = await this.query(
       `INSERT INTO ${this.tableName}
          (run_id, test_id, result_status, actual_result, execution_time_ms, error_message)
        SELECT $1, t.test_id, t.status, t.actual, t.ms, t.error
          FROM unnest($2::int[], $3::text[], $4::text[], $5::int[], $6::text[])
-              AS t(test_id, status, actual, ms, error)`,
+              AS t(test_id, status, actual, ms, error)
+       RETURNING ${this.primaryKey}, test_id`,
       [
         runId,
         known.map((i) => idByCode.get(i.code)),
@@ -102,19 +112,50 @@ class ResultRepository extends BaseRepository {
         known.map((i) => i.error ?? null),
       ],
     );
-    return { saved: known.length, unknown };
+    const codeById = new Map([...idByCode].map(([code, testId]) => [testId, code]));
+    return {
+      saved: known.length,
+      unknown,
+      results: inserted.rows.map((r) => ({
+        code: codeById.get(r.test_id),
+        executionId: r[this.primaryKey],
+      })),
+    };
   }
 
   // Bằng chứng của một kết quả, ghi một lệnh bất kể bao nhiêu dòng (CI gửi cả lượt một lần).
+  // `items`: [{ type, path, content?: Buffer, mime?, token? }] — service đã dựng sẵn (xem ingest.service).
+  // content rỗng thì dòng đó chỉ là đường dẫn (trace nặng vài MB không nhúng vào DB).
   async addEvidences(resultId, items) {
     if (!items || !items.length) return 0;
     const res = await this.query(
-      `INSERT INTO test_evidences (result_id, evidence_type, file_path)
-       SELECT $1, t.type, t.path
-         FROM unnest($2::text[], $3::text[]) AS t(type, path)`,
-      [resultId, items.map((i) => i.type), items.map((i) => i.path)],
+      `INSERT INTO test_evidences (result_id, evidence_type, file_path, content, mime_type, token)
+       SELECT $1, t.type, t.path, t.content, t.mime, t.token
+         FROM unnest($2::text[], $3::text[], $4::bytea[], $5::text[], $6::uuid[])
+              AS t(type, path, content, mime, token)`,
+      [
+        resultId,
+        items.map((i) => i.type),
+        items.map((i) => i.path),
+        items.map((i) => i.content ?? null),
+        items.map((i) => i.mime ?? null),
+        items.map((i) => i.token ?? null),
+      ],
     );
     return res.rowCount;
+  }
+
+  // Một file bằng chứng theo token (GET /api/evidences/:token). Không có content → null,
+  // vì một dòng chỉ-đường-dẫn không có gì để trả về.
+  async findFileByToken(token) {
+    const res = await this.query(
+      `SELECT content, mime_type, evidence_type
+         FROM test_evidences
+        WHERE token = $1 AND content IS NOT NULL
+        LIMIT 1`,
+      [token],
+    );
+    return res.rows[0] || null;
   }
 
   // Bằng chứng của một kết quả TRONG một lần chạy. LEFT JOIN để một truy vấn phân biệt được
@@ -122,7 +163,7 @@ class ResultRepository extends BaseRepository {
   // (1 dòng evidence_id rỗng → danh sách rỗng).
   async findEvidences(runId, resultId) {
     const res = await this.query(
-      `SELECT e.evidence_id, e.evidence_type, e.file_path, e.created_at
+      `SELECT e.evidence_id, e.evidence_type, e.file_path, e.token, e.created_at
          FROM ${this.tableName} r
          LEFT JOIN test_evidences e ON e.result_id = r.${this.primaryKey}
         WHERE r.run_id = $1 AND r.${this.primaryKey} = $2

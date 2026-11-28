@@ -40,6 +40,8 @@ const migrationFiles = [
   "db/migrations/013_bugs.sql",
   // 014 index cho các khóa ngoại mà endpoint lọc theo (Postgres không tự tạo).
   "db/migrations/014_indexes.sql",
+  // 015 thêm content/mime_type/token cho test_evidences (ảnh nằm trong DB, phục vụ qua /api/evidences/:token).
+  "db/migrations/015_evidence_content.sql",
 ];
 
 // File SEED: ghi dữ liệu mẫu, và 010 còn DELETE sạch test_steps + test_data của TC-01…TC-12,
