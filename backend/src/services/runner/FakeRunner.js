@@ -39,7 +39,7 @@ class FakeRunner extends TestRunner {
         if (i < lines.length) {
           await this.logRepository.append(runId, lines[i][0], lines[i][1]);
           i += 1;
-          setTimeout(step, this.stepMs).unref();
+          setTimeout(() => void step(), this.stepMs).unref();
         } else {
           await this.runRepository.markFinished(runId, 'passed');
         }
@@ -47,7 +47,7 @@ class FakeRunner extends TestRunner {
         console.error('[FakeRunner]', err.message);
       }
     };
-    setTimeout(step, this.stepMs).unref();
+    setTimeout(() => void step(), this.stepMs).unref();
   }
 }
 

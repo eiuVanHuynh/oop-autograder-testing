@@ -10,6 +10,8 @@ const {
   updateUserSchema,
   changeRoleSchema,
   changeStatusSchema,
+  changeOwnPasswordSchema,
+  resetPasswordSchema,
 } = require('../validators/users.schema');
 
 // Member management – Admin only.
@@ -25,6 +27,16 @@ router.get('/', requireAuth, onlyAdmin, validate(userQuerySchema, 'query'), user
 // POST /api/users – create an account on someone's behalf (Admin, duplicate email → 409)
 router.post('/', requireAuth, onlyAdmin, validate(createUserSchema), usersController.createUser);
 
+// PATCH /api/users/me/password – change your own password (any signed-in user).
+// Must stay ABOVE the /:id lines: otherwise 'me' falls into :id and dies in validate (id must be
+// numeric) → 400 instead of your own account. Same reason PATCH /users/me (profile) will need to go here.
+router.patch(
+  '/me/password',
+  requireAuth,
+  validate(changeOwnPasswordSchema),
+  usersController.changeOwnPassword,
+);
+
 // Adding /users/me (api-endpoints.md section 2, 🟡) must go BEFORE the three /:id lines below,
 // otherwise 'me' falls into :id and dies in validate (id must be numeric) → 400 instead of your own profile.
 // GET /api/users/:id – one member's details (Admin)
@@ -38,6 +50,18 @@ router.delete('/:id', requireAuth, onlyAdmin, validateId, usersController.delete
 
 // PATCH /api/users/:id/role – change role (Admin, cannot demote yourself → 400)
 router.patch('/:id/role', requireAuth, onlyAdmin, validateId, validate(changeRoleSchema), usersController.changeRole);
+
+// PATCH /api/users/:id/password – admin resets the password of a user who forgot theirs.
+// This is the system's working "forgot password" path: there is no email service, so no reset link can
+// be sent (see the warning box in services/auth.service.js). Resetting another admin → 409.
+router.patch(
+  '/:id/password',
+  requireAuth,
+  onlyAdmin,
+  validateId,
+  validate(resetPasswordSchema),
+  usersController.resetUserPassword,
+);
 
 // PATCH /api/users/:id/status – lock / unlock (Admin, cannot lock yourself → 400)
 router.patch('/:id/status', requireAuth, onlyAdmin, validateId, validate(changeStatusSchema), usersController.changeStatus);

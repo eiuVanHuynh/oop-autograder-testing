@@ -80,6 +80,41 @@ class UsersService {
     return toApi(user);
   }
 
+  // Đổi mật khẩu của chính mình. Không cần email service: người gọi đã có token hợp lệ VÀ phải
+  // biết mật khẩu hiện tại, nên đây là bằng chứng sở hữu tài khoản đủ mạnh.
+  async changeOwnPassword(userId, { currentPassword, newPassword }) {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new AppError(404, "NOT_FOUND", "User not found");
+    // Tài khoản Google chưa từng đặt mật khẩu: password_hash NULL, bcrypt.compare sẽ nổ thành 500.
+    if (!user.password_hash) {
+      throw new AppError(409, "NO_PASSWORD", "This account has no password to change");
+    }
+    if (!(await bcrypt.compare(currentPassword, user.password_hash))) {
+      throw new AppError(401, "INVALID_CREDENTIALS", "The current password is wrong");
+    }
+    if (await bcrypt.compare(newPassword, user.password_hash)) {
+      throw new AppError(400, "VALIDATION_ERROR", "The new password must differ from the current one");
+    }
+    await this.userRepository.updatePassword(userId, await bcrypt.hash(newPassword, 10));
+  }
+
+  // Admin đặt lại mật khẩu cho người dùng đã quên. Đây là luồng "quên mật khẩu" thật sự dùng được
+  // của hệ thống: không có email service nên không thể gửi link đặt lại (xem ô cảnh báo trong
+  // auth.service.js). Admin đổi xong thì nói lại mật khẩu tạm cho người đó, họ tự đổi bằng
+  // PATCH /users/me/password.
+  //
+  // Không cho đặt lại mật khẩu của một admin khác: đó là chiếm tài khoản, và cùng một luật với
+  // ADMIN_PROTECTED ở updateRole/updateStatus/deleteNonAdmin. Admin tự đổi của mình qua /users/me/password.
+  async resetUserPassword(id, newPassword, actorId) {
+    this._assertNotSelf(id, actorId, "reset your own password here — use PATCH /users/me/password");
+
+    const user = await this.userRepository.findPublicById(id);
+    if (!user) throw new AppError(404, "NOT_FOUND", "User not found");
+    if (user.user_role === "admin") throw new AppError(409, "ADMIN_PROTECTED", ADMIN_PROTECTED);
+
+    await this.userRepository.updatePassword(id, await bcrypt.hash(newPassword, 10));
+  }
+
   // Hard delete: the name of whoever ran a test is lost with it (FK ON DELETE SET NULL). Locking the account
   // is the recommended path — see api-endpoints.md section 2.
   async deleteUser(id, actorId) {

@@ -1,0 +1,38 @@
+# PostgreSQL cho máy dev — không phải cài postgres lên máy nữa.
+#
+#   docker compose up -d --wait     # bật, đợi tới khi database nhận kết nối
+#   cd backend && npm run migrate   # nạp bảng + tài khoản mẫu (chỉ lần đầu)
+#   docker compose down             # tắt, DỮ LIỆU VẪN CÒN
+#   docker compose down -v          # tắt và xoá sạch, lần sau nạp lại từ đầu
+#
+# Dữ liệu nằm trong volume oop_pgdata, không nằm trong container: xoá container, nâng cấp image,
+# khởi động lại máy đều không mất. Đó là chỗ khác nhau giữa cái này và một container postgres chạy tay.
+#
+# Phiên bản 16 chứ không phải mới nhất: đích cuối là Supabase, bám theo nhánh mà họ chạy thì
+# không gặp cảnh "chạy local được, lên Supabase lỗi cú pháp".
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: oop-db
+    restart: unless-stopped
+    environment:
+      # Trùng với DATABASE_URL mẫu trong db/SETUP-LOCAL.md. Mật khẩu để lộ ở đây là cố ý:
+      # database này chỉ nghe ở máy bạn và chỉ chứa dữ liệu mẫu. KHÔNG dùng lại cho Supabase.
+      POSTGRES_USER: ${POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpass}
+      POSTGRES_DB: ${POSTGRES_DB:-test_automation_db}
+    ports:
+      # Máy đã có postgres chiếm 5432 thì đặt DB_PORT=5433 trong .env ở thư mục gốc.
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - oop_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # --wait của docker compose dựa vào đây: không có nó thì npm run migrate chạy trước khi
+      # database kịp nhận kết nối và chết với "connection refused".
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-root} -d ${POSTGRES_DB:-test_automation_db}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  oop_pgdata:

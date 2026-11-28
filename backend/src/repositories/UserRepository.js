@@ -42,11 +42,6 @@ class UserRepository extends BaseRepository {
       where += ` AND user_status = $${params.length}`;
     }
 
-    const countRes = await query(
-      `SELECT COUNT(*)::int AS total FROM users${where}`,
-      params,
-    );
-
     const dataParams = [...params];
     let sql = `SELECT user_id, full_name, email, auth_provider, user_role, user_status, created_at
                  FROM users${where} ORDER BY user_id`;
@@ -59,7 +54,11 @@ class UserRepository extends BaseRepository {
       sql += ` OFFSET $${dataParams.length}`;
     }
 
-    const res = await query(sql, dataParams);
+    // Đếm tổng và lấy trang không phụ thuộc nhau: chạy song song để chỉ mất một lượt đi-về DB.
+    const [res, countRes] = await Promise.all([
+      query(sql, dataParams),
+      query(`SELECT COUNT(*)::int AS total FROM users${where}`, params),
+    ]);
     return {
       data: res.rows,
       meta: { page: limit ? page : 1, limit, total: countRes.rows[0].total },

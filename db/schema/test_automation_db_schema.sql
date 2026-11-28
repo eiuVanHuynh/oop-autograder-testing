@@ -157,6 +157,11 @@ CREATE TABLE IF NOT EXISTS test_evidences (
     result_id     INTEGER NOT NULL,
     evidence_type VARCHAR(15) NOT NULL CHECK (evidence_type IN ('screenshot', 'trace')),
     file_path     VARCHAR(500) NOT NULL,
+    -- content/mime_type/token: xem db/migrations/015. File được giữ ngay trong DB vì Vercel không
+    -- có ổ ghi được và dự án không dùng object storage; token là URL công khai không đoán được.
+    content       BYTEA,
+    mime_type     VARCHAR(100),
+    token         UUID,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT fk_evidences_result FOREIGN KEY (result_id) REFERENCES test_results(execution_id) ON DELETE CASCADE
 );

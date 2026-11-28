@@ -21,7 +21,9 @@ const SKIP = process.env.TEST_DATABASE_URL
   : 'needs a real PostgreSQL: set TEST_DATABASE_URL (see the note at the top of this file)';
 
 // Same signature as node:test, with the whole file switched off when there is no database.
-const test = (name, fn) => nodeTest(name, { skip: SKIP }, fn);
+const test = (name, fn) => {
+  nodeTest(name, { skip: SKIP }, fn);
+};
 test.before = nodeTest.before;
 test.after = nodeTest.after;
 const request = require('supertest');
@@ -100,11 +102,114 @@ test('results: written, and unknown codes are reported back in unknown', async (
   }).expect(201);
   assert.equal(res.body.data.saved, 2);
   assert.deepEqual(res.body.data.unknown, ['TC-UNKNOWN']);
+  // execution_id trả về theo từng mã: đây là thứ DUY NHẤT cho CI biết gắn ảnh vào kết quả nào
+  // (route đọc kết quả đòi JWT người dùng mà CI không có).
+  const ids = new Map(res.body.data.results.map((r) => [r.code, r.executionId]));
+  assert.deepEqual([...ids.keys()].sort(), ['TC-01', 'TC-02']);
+  for (const [code, id] of ids) {
+    const row = (await query(
+      'SELECT c.tc_code FROM test_results r JOIN test_cases c USING (test_id) WHERE r.execution_id=$1',
+      [id],
+    )).rows[0];
+    assert.equal(row.tc_code, code, 'execution_id phải thuộc đúng case của mã đó');
+  }
 });
 
 test('an unknown results status → 400', async () => {
   await request(app).post(`/api/ingest/runs/${runId}/results`).set(KEY)
     .send({ results: [{ code: 'TC-01', status: 'bay-gio-moi-biet' }] }).expect(400);
+});
+
+// Bằng chứng (ảnh/trace): CI gửi ĐƯỜNG DẪN lên, trang báo cáo đọc lại theo từng kết quả.
+test('evidences: ghi theo result_id, đọc lại theo run + result', async () => {
+  const resultId = (await query(
+    'SELECT execution_id FROM test_results WHERE run_id=$1 ORDER BY execution_id LIMIT 1', [runId],
+  )).rows[0].execution_id;
+
+  const res = await request(app).post(`/api/ingest/results/${resultId}/evidences`).set(KEY).send({
+    evidences: [
+      { type: 'screenshot', path: 'https://github.com/x/y/actions/runs/1/artifacts/2#shot.png' },
+      { type: 'trace', path: 'trace.zip' },
+    ],
+  }).expect(201);
+  assert.equal(res.body.data.written, 2);
+
+  // result_id không tồn tại → 404 (FK sẽ chặn, nhưng phải là 404 chứ không phải 500)
+  await request(app).post('/api/ingest/results/999999/evidences').set(KEY)
+    .send({ evidences: [{ type: 'trace', path: 'x' }] }).expect(404);
+  // evidence_type ngoài CHECK của DB → 400, không để thành 500
+  await request(app).post(`/api/ingest/results/${resultId}/evidences`).set(KEY)
+    .send({ evidences: [{ type: 'video', path: 'x' }] }).expect(400);
+
+  const jwt = require('jsonwebtoken');
+  const user = (await query("SELECT user_id FROM users WHERE user_status='active' LIMIT 1")).rows[0];
+  const auth = ['Authorization', `Bearer ${jwt.sign({ user_id: user.user_id }, 'test-secret')}`];
+
+  const read = await request(app)
+    .get(`/api/runs/${runId}/results/${resultId}/evidences`).set(...auth).expect(200);
+  assert.deepEqual(read.body.data.map((e) => e.evidence_type).sort(), ['screenshot', 'trace']);
+
+  // Một resultId không thuộc run này phải là 404, KHÔNG phải danh sách rỗng: nhầm id thì phải biết.
+  await request(app).get(`/api/runs/${runId}/results/999999/evidences`).set(...auth).expect(404);
+});
+
+// Gửi CẢ FILE: cái làm cho trang báo cáo hiện được ảnh thay vì khung trống.
+test('evidences: gửi kèm file → tải lại đúng bytes, và chỉ khi đã đăng nhập (dev trở lên)', async () => {
+  const resultId = (await query(
+    'SELECT execution_id FROM test_results WHERE run_id=$1 ORDER BY execution_id LIMIT 1', [runId],
+  )).rows[0].execution_id;
+
+  // PNG 1x1 thật, để kiểm tra bytes đi về nguyên vẹn qua base64 → bytea → response.
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  const post = await request(app).post(`/api/ingest/results/${resultId}/evidences`).set(KEY).send({
+    evidences: [{ type: 'screenshot', path: '/tmp/runner/shot.png', data: png.toString('base64') }],
+  }).expect(201);
+  assert.equal(post.body.data.written, 1);
+
+  const row = (await query(
+    `SELECT file_path, mime_type, token, octet_length(content) AS bytes
+       FROM test_evidences WHERE result_id=$1 AND token IS NOT NULL ORDER BY evidence_id DESC LIMIT 1`,
+    [resultId],
+  )).rows[0];
+  assert.equal(Number(row.bytes), png.length);
+  assert.equal(row.mime_type, 'image/png');
+  // Đường dẫn trên runner CI bị thay bằng URL tải được: đây là thứ <img> của báo cáo dùng.
+  assert.match(row.file_path, /^https?:\/\/[^/]+\/api\/evidences\/[0-9a-f-]{36}$/);
+  assert.ok(row.file_path.endsWith(row.token));
+
+  // Ảnh chụp màn hình có thể chứa dữ liệu thật → phải đăng nhập, và viewer thì không được xem.
+  const jwt = require('jsonwebtoken');
+  await request(app).get(`/api/evidences/${row.token}`).expect(401);
+  const viewer = (await query("SELECT user_id FROM users WHERE user_role='viewer' LIMIT 1")).rows[0];
+  await request(app).get(`/api/evidences/${row.token}`)
+    .set('Authorization', `Bearer ${jwt.sign({ user_id: viewer.user_id }, 'test-secret')}`)
+    .expect(403);
+
+  const dev = (await query("SELECT user_id FROM users WHERE user_role='dev' LIMIT 1")).rows[0];
+  const devAuth = ['Authorization', `Bearer ${jwt.sign({ user_id: dev.user_id }, 'test-secret')}`];
+  const file = await request(app).get(`/api/evidences/${row.token}`).set(...devAuth).expect(200);
+  assert.equal(file.headers['content-type'], 'image/png');
+  // private: file nằm sau đăng nhập, proxy/CDN dùng chung không được giữ bản sao.
+  assert.match(file.headers['cache-control'], /^private/);
+  assert.equal(file.headers['x-content-type-options'], 'nosniff');
+  assert.ok(Buffer.from(file.body).equals(png), 'bytes tải về phải trùng bytes đã gửi');
+
+  // Token lạ → 404, token không phải uuid → 400 (không để thành 500 vì lỗi cú pháp uuid của Postgres).
+  await request(app).get('/api/evidences/11111111-1111-4111-8111-111111111111').set(...devAuth).expect(404);
+  await request(app).get('/api/evidences/khong-phai-uuid').set(...devAuth).expect(400);
+
+  // Dòng chỉ có đường dẫn (trace) không sinh token nên không có gì để tải — đúng như thiết kế.
+  const traceRows = (await query(
+    "SELECT token FROM test_evidences WHERE result_id=$1 AND evidence_type='trace'", [resultId],
+  )).rows;
+  assert.ok(traceRows.length && traceRows.every((r) => r.token === null));
+
+  // base64 rác → 400 ở validator, không chạm tới DB.
+  await request(app).post(`/api/ingest/results/${resultId}/evidences`).set(KEY)
+    .send({ evidences: [{ type: 'screenshot', path: 'x', data: 'kh\u00f4ng ph\u1ea3i base64!!' }] }).expect(400);
 });
 
 test('finish: the run status is computed from test_results, and the logs are kept for the report', async () => {

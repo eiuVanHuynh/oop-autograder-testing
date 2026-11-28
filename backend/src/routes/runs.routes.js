@@ -3,6 +3,7 @@ const runsController = require("../controllers/runs.controller");
 const {
   createRunSchema,
   runIdParamsSchema,
+  resultParamsSchema,
 } = require("../validators/runs.schema");
 const requireAuth = require("../middlewares/requireAuth");
 const requireRole = require("../middlewares/requireRole");
@@ -46,11 +47,20 @@ router.get("/:id/logs", requireAuth, validateId, runsController.getRunLogs);
 // GET /api/runs/:id/results - Per-test-case results, with evidences (any signed-in user)
 router.get("/:id/results", requireAuth, validateId, runsController.getRunResults);
 
+// GET /api/runs/:id/results/:resultId/evidences - Screenshot / trace of ONE result (any signed-in user).
+// GET /:id/results already embeds an evidences array per case, so this route exists for the case the list
+// cannot answer: a resultId that does not belong to this run must be a 404, not an empty array.
+router.get(
+  "/:id/results/:resultId/evidences",
+  requireAuth,
+  validate(resultParamsSchema, "params"),
+  runsController.getResultEvidences,
+);
+
 // shortcut: the route below is still off because runs.service.js has no streamRunLogs — wiring it up gives a 500
 // on the first call. Remove the // once the service has that function (polling /logs keeps working meanwhile).
 // GET /api/runs/:id/logs/stream - Live logs over SSE (any user)
 // router.get("/:id/logs/stream", requireAuth, runsController.streamRunLogs);
-//
-// No separate evidences route needed: GET /:id/results already returns each case's evidences array.
+
 
 module.exports = router;

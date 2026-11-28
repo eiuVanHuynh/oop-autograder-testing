@@ -6,6 +6,9 @@
 // - target_json is required: { suiteId } or { testIds }. Missing → 400.
 // - Duplicate template_name → 409. Editing/deleting a template does NOT affect run history.
 // - Should also return the 'ready' test case count so the UI can block an empty template early.
+const AppError = require("../utils/AppError");
+const parseJson = require("../utils/parseJson");
+
 class TemplatesService {
   constructor(deps = {}) {
     this.templateRepository = deps.templateRepository;
@@ -15,15 +18,15 @@ class TemplatesService {
   async getAllTemplates(filters = {}) {
     const templates = await this.templateRepository.findAllWithFilters(filters);
 
-    // Parse target_json and attach the 'ready' test case count when needed
-    for (const t of templates) {
-      if (typeof t.target_json === "string") {
-        t.target_json = JSON.parse(t.target_json);
-      }
-      t.ready_count = await this.caseRepository.countReadyForTarget(
-        t.target_json,
-      );
-    }
+    // Đếm số case 'ready' cho từng template: song song, vì tuần tự là 1+N lượt đi-về DB.
+    await Promise.all(
+      templates.map(async (t) => {
+        t.target_json = parseJson(t.target_json);
+        t.ready_count = await this.caseRepository.countReadyForTarget(
+          t.target_json ?? {},
+        );
+      }),
+    );
 
     return templates;
   }
@@ -31,16 +34,12 @@ class TemplatesService {
   async getTemplateById(id) {
     const template = await this.templateRepository.findById(id);
     if (!template) {
-      const error = new Error("Template not found");
-      error.statusCode = 404;
-      throw error;
+      throw new AppError(404, "NOT_FOUND", "Template not found");
     }
 
-    if (typeof template.target_json === "string") {
-      template.target_json = JSON.parse(template.target_json);
-    }
+    template.target_json = parseJson(template.target_json);
     template.ready_count = await this.caseRepository.countReadyForTarget(
-      template.target_json,
+      template.target_json ?? {},
     );
     return template;
   }
@@ -54,19 +53,17 @@ class TemplatesService {
       (!target_json.suiteId &&
         (!target_json.testIds || target_json.testIds.length === 0))
     ) {
-      const error = new Error(
+      throw new AppError(
+        400,
+        "VALIDATION_ERROR",
         "target_json must contain either suiteId or non-empty testIds",
       );
-      error.statusCode = 400;
-      throw error;
     }
 
     // Check for a duplicate template name -> 409 Conflict
     const existing = await this.templateRepository.findByName(template_name);
     if (existing) {
-      const error = new Error("Template name already exists");
-      error.statusCode = 409;
-      throw error;
+      throw new AppError(409, "CONFLICT", "Template name already exists");
     }
 
     const templateId = await this.templateRepository.createTemplate({
@@ -86,9 +83,7 @@ class TemplatesService {
         data.template_name,
       );
       if (existing && existing.template_id !== Number(id)) {
-        const error = new Error("Template name already exists");
-        error.statusCode = 409;
-        throw error;
+        throw new AppError(409, "CONFLICT", "Template name already exists");
       }
     }
 
@@ -97,11 +92,11 @@ class TemplatesService {
       !data.target_json.suiteId &&
       (!data.target_json.testIds || data.target_json.testIds.length === 0)
     ) {
-      const error = new Error(
+      throw new AppError(
+        400,
+        "VALIDATION_ERROR",
         "target_json must contain either suiteId or non-empty testIds",
       );
-      error.statusCode = 400;
-      throw error;
     }
 
     await this.templateRepository.updateTemplate(id, data);
@@ -111,9 +106,7 @@ class TemplatesService {
   async deleteTemplate(id) {
     const template = await this.templateRepository.findById(id);
     if (!template) {
-      const error = new Error("Template not found");
-      error.statusCode = 404;
-      throw error;
+      throw new AppError(404, "NOT_FOUND", "Template not found");
     }
 
     // Deleting a template does NOT affect run history, since test_runs already snapshotted grep/config
