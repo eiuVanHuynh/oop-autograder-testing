@@ -80,12 +80,6 @@ class RunRepository extends BaseRepository {
       where += ` AND t.created_at <= $${params.length}`;
     }
 
-    const countRes = await this.query(
-      `SELECT COUNT(*)::int AS total FROM ${this.withStatus}${where}`,
-      params,
-    );
-    const total = countRes.rows[0].total;
-
     let sql = `SELECT * FROM ${this.withStatus}${where} ORDER BY t.created_at DESC`;
     const limit = filters.limit ? Math.max(1, Number(filters.limit)) : null;
     const page = Math.max(1, Number(filters.page) || 1);
@@ -97,8 +91,15 @@ class RunRepository extends BaseRepository {
       sql += ` OFFSET $${dataParams.length}`;
     }
 
-    const res = await this.query(sql, dataParams);
-    return { data: res.rows, meta: { page: limit ? page : 1, limit, total } };
+    // Đếm tổng và lấy trang không phụ thuộc nhau: chạy song song để chỉ mất một lượt đi-về DB.
+    const [res, countRes] = await Promise.all([
+      this.query(sql, dataParams),
+      this.query(`SELECT COUNT(*)::int AS total FROM ${this.withStatus}${where}`, params),
+    ]);
+    return {
+      data: res.rows,
+      meta: { page: limit ? page : 1, limit, total: countRes.rows[0].total },
+    };
   }
 
   // Create a new test run (still running: finished_at is NULL).

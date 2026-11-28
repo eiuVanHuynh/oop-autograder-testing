@@ -311,9 +311,7 @@ class CatalogService {
     const testCase = await this.catalogRepository.findCaseDetails(id);
 
     if (!testCase) {
-      const error = new Error("Test case not found");
-      error.statusCode = 404;
-      throw error;
+      throw new AppError(404, "NOT_FOUND", "Test case not found");
     }
 
     const { test_data, testData, ...caseData } = toApi(testCase);
@@ -384,9 +382,7 @@ class CatalogService {
     });
 
     if (!testCase) {
-      const error = new Error("Test case not found");
-      error.statusCode = 404;
-      throw error;
+      throw new AppError(404, "NOT_FOUND", "Test case not found");
     }
 
     return toApi(testCase);
@@ -396,9 +392,7 @@ class CatalogService {
     const testCase = await this.catalogRepository.findCaseDetails(id);
 
     if (!testCase) {
-      const error = new Error("Test case not found");
-      error.statusCode = 404;
-      throw error;
+      throw new AppError(404, "NOT_FOUND", "Test case not found");
     }
 
     return (testCase.steps ?? []).map((step) => toApi(step));
@@ -408,9 +402,7 @@ class CatalogService {
     const testCase = await this.catalogRepository.findCaseDetails(id);
 
     if (!testCase) {
-      const error = new Error("Test case not found");
-      error.statusCode = 404;
-      throw error;
+      throw new AppError(404, "NOT_FOUND", "Test case not found");
     }
 
     return (testCase.test_data ?? []).map((item) => toApi(item));

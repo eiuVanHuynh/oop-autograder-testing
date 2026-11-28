@@ -11,6 +11,17 @@ const runIdParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
+// /runs/:id/results/:resultId/evidences — cả hai id phải là số.
+const resultParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  resultId: z.coerce.number().int().positive(),
+});
+
+// /evidences/:token — UUID, chặn ở đây để một token rác thành 400 thay vì lỗi cú pháp uuid của Postgres (500).
+const evidenceTokenParamsSchema = z.object({
+  token: z.string().uuid(),
+});
+
 const createRunSchema = z
   .object({
     templateId: z.number().int().positive().optional(),
@@ -38,4 +49,6 @@ const createRunSchema = z
 module.exports = {
   createRunSchema,
   runIdParamsSchema,
+  resultParamsSchema,
+  evidenceTokenParamsSchema,
 };

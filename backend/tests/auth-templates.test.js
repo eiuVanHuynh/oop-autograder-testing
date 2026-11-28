@@ -394,7 +394,7 @@ test('register: an email that already exists → 409, nothing written', async ()
   const { svc, created } = registerService('van.a@eiu.edu.vn');
   await assert.rejects(
     () => svc.register({ fullName: 'Khac Ten', email: 'van.a@eiu.edu.vn', password: PASSWORD }),
-    { statusCode: 409, code: 'EMAIL_TAKEN' },
+    { status: 409, code: 'EMAIL_TAKEN' },
   );
   assert.equal(created.length, 0);
 });

@@ -20,10 +20,7 @@ class AuthService {
   async register({ fullName, email, password }) {
     const existingUser = await this.userRepository.findByEmail(email);
     if (existingUser) {
-      const error = new Error("Email already exists");
-      error.statusCode = 409;
-      error.code = "EMAIL_TAKEN";
-      throw error;
+      throw new AppError(409, "EMAIL_TAKEN", "Email already exists");
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -98,10 +95,7 @@ class AuthService {
   async getCurrentUser(userId) {
     const user = await this.userRepository.findById(userId);
     if (!user) {
-      const error = new Error("User not found");
-      error.statusCode = 404;
-      error.code = "NOT_FOUND";
-      throw error;
+      throw new AppError(404, "NOT_FOUND", "User not found");
     }
     const { password_hash, password: _, ...userWithoutPassword } = user;
     return userWithoutPassword;
@@ -132,7 +126,7 @@ class AuthService {
       // The reset token is NOT stored in the DB: a 15-minute JWT signed with part of the current password_hash[cite: 2]
       const hashSnippet = user.password_hash.substring(0, 10);
       const resetToken = jwt.sign(
-        { user_id: user.user_id, snippet: hashSnippet },
+        { user_id: user.user_id, snippet: hashSnippet, typ: "reset" },
         JWT_SECRET,
         { expiresIn: "15m" },
       );
@@ -151,36 +145,32 @@ class AuthService {
 
   // 5. Set a new password[cite: 1]
   async resetPassword({ token, newPassword }) {
+    const gone = new AppError(410, "GONE", "Token is invalid or expired");
+
+    let decoded;
     try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      const user = await this.userRepository.findById(decoded.user_id);
-
-      if (!user) {
-        const error = new Error("Link is invalid or expired");
-        error.statusCode = 410;
-        error.code = "GONE";
-        throw error;
-      }
-
-      // Verify the password_hash snippet so the token invalidates itself once the password changes[cite: 2]
-      const hashSnippet = user.password_hash.substring(0, 10);
-      if (decoded.snippet !== hashSnippet) {
-        const error = new Error("Link has already been used or is expired");
-        error.statusCode = 410;
-        error.code = "GONE";
-        throw error;
-      }
-
-      const newPasswordHash = await bcrypt.hash(newPassword, 10);
-      await this.userRepository.updatePassword(user.user_id, newPasswordHash);
-
-      return { message: "Password has been successfully reset." };
-    } catch (err) {
-      const error = new Error("Token is invalid or expired");
-      error.statusCode = 410;
-      error.code = "GONE";
-      throw error;
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch {
+      // Chỉ chỗ này được coi là "token sai": lỗi DB hay bcrypt phải đi lên thành 500 thật,
+      // chứ không hóa trang thành 410 làm người dùng xin link mới mãi không được.
+      throw gone;
     }
+
+    // Token đăng nhập (1 ngày) cũng ký bằng JWT_SECRET nên verify được — phải chặn ở đây,
+    // nếu không nó dùng thay token đặt lại mật khẩu.
+    if (decoded.typ !== "reset") throw gone;
+
+    const user = await this.userRepository.findById(decoded.user_id);
+    // Tài khoản Google chưa đặt mật khẩu: password_hash NULL, substring sẽ nổ.
+    if (!user || !user.password_hash) throw gone;
+
+    // Verify the password_hash snippet so the token invalidates itself once the password changes[cite: 2]
+    if (decoded.snippet !== user.password_hash.substring(0, 10)) throw gone;
+
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    await this.userRepository.updatePassword(user.user_id, newPasswordHash);
+
+    return { message: "Password has been successfully reset." };
   }
 }
 

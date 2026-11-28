@@ -1,5 +1,11 @@
 const TestRunner = require('./TestRunner');
 const { runCase } = require('./steps');
+const { toEvidenceRows } = require('../evidence');
+
+// JPEG chứ không PNG: ảnh chỉ để người đọc nhìn, mà nó nằm trong Postgres nên mỗi KB đều tính.
+// Đo trên ảnh thật 1280x720 của trang đăng nhập: PNG 74KB, JPEG q70 43KB (-42%), q50 34KB.
+// q70 vì chữ trên nền phẳng vẫn sắc; thấp hơn nữa thì chữ đỏ trên toast lỗi bắt đầu nhoè.
+const SCREENSHOT = { type: 'jpeg', quality: 70 };
 
 // Runs tests with Playwright inside the backend process — LOCAL USE ONLY.
 //
@@ -12,9 +18,12 @@ const { runCase } = require('./steps');
 class PlaywrightRunner extends TestRunner {
   constructor({
     logRepository, runRepository, resultRepository, catalogRepository,
-    baseUrls, executablePath,
+    baseUrls, executablePath, publicApiUrl,
   }) {
     super({ baseUrls });
+    // URL gốc của chính backend này, để link ảnh bằng chứng tải được từ trình duyệt.
+    // Runner chạy ngoài request nên không suy ra được từ req như controller làm.
+    this.publicApiUrl = publicApiUrl;
     this.logRepository = logRepository;
     this.runRepository = runRepository;
     this.resultRepository = resultRepository;
@@ -32,7 +41,7 @@ class PlaywrightRunner extends TestRunner {
   // testCodes are resolved by runs.service from the template/suite — never parsed back out of the grep expression.
   async trigger({ runId, testCodes, timeout, env }) {
     const ciRunId = `pw-${runId}`;
-    this._run(runId, ciRunId, { codes: testCodes || [], timeout, env }); // not awaited: runs in the background
+    void this._run(runId, ciRunId, { codes: testCodes || [], timeout, env }); // not awaited: runs in the background
     return ciRunId;
   }
 
@@ -94,7 +103,12 @@ class PlaywrightRunner extends TestRunner {
       const kase = (await this.catalogRepository.findCaseByCode(code)) || { steps: [], data: {} };
       await log('info', `[PLAYWRIGHT] ${code}: ${kase.steps.length} steps`);
       const result = await runCase(page, kase, log);
-      await this._record(runId, code, result, log);
+      const resultId = await this._record(runId, code, result, log);
+      // Ảnh phải chụp TRƯỚC khi page đóng ở finally — sau đó không còn gì để chụp.
+      // Chỉ case không đạt: ảnh của case pass không ai mở, mà vẫn chiếm chỗ trong DB.
+      if (resultId && result.status !== 'passed') {
+        await this._captureScreenshot(page, resultId, code, log);
+      }
       await log(result.status === 'passed' ? 'info' : 'error',
         `[PLAYWRIGHT] ${code} ${result.status} (${result.ms}ms)${result.error ? ': ' + result.error : ''}`);
     } catch (err) {
@@ -106,12 +120,34 @@ class PlaywrightRunner extends TestRunner {
   }
 
   // Writing test_results is the part that must not be lost: an error here goes to the log, it does not kill the run.
+  // Returns execution_id (null if nothing was written) because the evidence row hangs off it.
   async _record(runId, code, result, log) {
     try {
       const id = await this.resultRepository.recordForCode(runId, code, result);
       if (!id) await log('warn', `[PLAYWRIGHT] ${code} is not in test_cases — its result was not written.`);
+      return id;
     } catch (err) {
       await log('error', `[PLAYWRIGHT] Could not write the result of ${code}: ${err.message}`);
+      return null;
+    }
+  }
+
+  // Ảnh chụp màn hình lúc case lỗi. Đây là bằng chứng DUY NHẤT của đường chạy local: reporter
+  // của Playwright (automation/reporters) chỉ chạy trong GitHub Actions, không chạy ở đây.
+  // Khung nhìn thôi, không fullPage: khớp với `screenshot: 'on'` của automation/playwright.config.js
+  // và không bơm ảnh vài MB vào Postgres.
+  //
+  // Lỗi ở đây chỉ ghi log: mất một ảnh không được làm mất kết quả test vừa ghi.
+  async _captureScreenshot(page, resultId, code, log) {
+    try {
+      const content = await page.screenshot(SCREENSHOT);
+      const rows = toEvidenceRows(
+        [{ type: 'screenshot', path: `${code}.jpg`, content, mime: 'image/jpeg' }],
+        this.publicApiUrl,
+      );
+      await this.resultRepository.addEvidences(resultId, rows);
+    } catch (err) {
+      await log('warn', `[PLAYWRIGHT] Could not capture the screenshot of ${code}: ${err.message}`);
     }
   }
 }

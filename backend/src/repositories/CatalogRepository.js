@@ -523,14 +523,30 @@ class CatalogRepository extends BaseRepository {
     return result.rows[0] || null;
   }
   // Count the 'ready' tests a template's target_json would run (used for readyCount).
+  // COUNT(*) trong SQL, không mang cả danh sách mã về chỉ để lấy .length; và target không chỉ
+  // vào đâu thì khỏi bắn truy vấn (trang danh sách template gọi hàm này cho từng dòng).
   async countReadyForTarget(target = {}) {
-    const codes =
-      target.suiteId != null
-        ? await this.findReadyCaseCodes(target.suiteId)
-        : await this.findReadyCodesByTcCodes(
-          (target.testIds || []).map(String),
-        );
-    return codes.length;
+    if (target.suiteId != null) {
+      const res = await this.query(
+        `SELECT count(*)::int AS n
+           FROM test_cases c
+           JOIN test_specs s ON s.spec_id = c.spec_id
+          WHERE s.suite_id = $1 AND c.test_status = 'ready'`,
+        [target.suiteId],
+      );
+      return res.rows[0].n;
+    }
+
+    const codes = (target.testIds || []).map(String);
+    if (!codes.length) return 0;
+
+    const res = await this.query(
+      `SELECT count(*)::int AS n
+         FROM test_cases c
+        WHERE c.test_status = 'ready' AND ${CODE_EXPR} = ANY($1::text[])`,
+      [codes],
+    );
+    return res.rows[0].n;
   }
 
   // Replace a test case's child rows in ONE transaction (steps or test_data).
@@ -691,7 +707,7 @@ class CatalogRepository extends BaseRepository {
     } catch (error) {
       try {
         await client.query("ROLLBACK");
-      } catch { }
+      } catch { /* ROLLBACK lỗi thì bỏ qua: lỗi gốc throw bên dưới mới là thứ cần báo */ }
       throw error;
     } finally {
       client.release();
@@ -792,7 +808,7 @@ class CatalogRepository extends BaseRepository {
     } catch (error) {
       try {
         await client.query("ROLLBACK");
-      } catch { }
+      } catch { /* ROLLBACK lỗi thì bỏ qua: lỗi gốc throw bên dưới mới là thứ cần báo */ }
       throw error;
     } finally {
       client.release();

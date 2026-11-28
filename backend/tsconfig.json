@@ -1,0 +1,15 @@
+{
+  "//": "Chỉ để typescript-eslint có thông tin kiểu. checkJs=false: chưa dọn nợ kiểu, bật sau.",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2023",
+    "types": ["node"],
+    "skipLibCheck": true
+  },
+  "include": ["src", "tests", "api", "scripts", "*.js", "*.mjs"]
+}

@@ -1,4 +1,6 @@
 const AppError = require('../utils/AppError');
+const parseJson = require('../utils/parseJson');
+const { toEvidenceRows } = require('./evidence');
 
 // Back door for machines: Playwright pushes results and logs back.
 // Business rules live here. No pg require, no touching req/res.
@@ -27,7 +29,7 @@ class IngestService {
   // No passwords returned: data_value stays in 'env:VAR_NAME' form, CI reads it from GitHub Secrets.
   async getPlan(runId) {
     const run = await this._getRun(runId);
-    const config = typeof run.config_json === 'string' ? JSON.parse(run.config_json) : run.config_json;
+    const config = parseJson(run.config_json);
     const codes = (config && config.testCodes) || [];
     if (!codes.length) {
       throw new AppError(409, 'NO_READY_TESTS', 'This run has no test code in config_json');
@@ -67,6 +69,22 @@ class IngestService {
     // step-by-step log can be read, and purging on finish left every finished run with an empty log panel.
     // shortcut: run_logs now grows without bound — add a scheduled purge of rows older than N days when it hurts.
     return this.runRepository.findById(runId);
+  }
+
+  // Ảnh chụp màn hình / file trace của một kết quả.
+  //
+  // Mỗi phần tử có `data` (base64 của chính file) thì file được giữ trong DB và file_path trở thành
+  // /api/evidences/<token>. URL đó đòi đăng nhập (dev trở lên), nên frontend phải tải bằng API rồi
+  // nhúng data: URL — không nhét thẳng vào <img src> được.
+  // Không có `data` (trace nặng vài MB) thì chỉ ghi đường dẫn như trước.
+  //
+  // `baseUrl` do controller đưa vào: service không được chạm vào req.
+  async addEvidences(resultId, items, baseUrl = '') {
+    if (!(await this.resultRepository.findById(resultId))) {
+      throw new AppError(404, 'NOT_FOUND', 'Result not found');
+    }
+    const written = await this.resultRepository.addEvidences(resultId, toEvidenceRows(items, baseUrl));
+    return { written };
   }
 
   // CI reports the GitHub Actions run id back so POST /runs/:id/cancel can cancel it.

@@ -7,7 +7,9 @@
     "dev": "node src/server.js",
     "test": "node --test tests/",
     "routes": "node scripts/routes.js",
-    "migrate": "node ../migrate.js"
+    "migrate": "node ../migrate.js",
+    "lint": "eslint --max-warnings=0 .",
+    "lint:debt": "eslint --prune-suppressions ."
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -20,6 +22,12 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "supertest": "^7.0.0"
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.6",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0",
+    "supertest": "^7.0.0",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.74.0"
   }
 }

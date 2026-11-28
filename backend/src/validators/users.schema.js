@@ -36,6 +36,19 @@ const updateUserSchema = z
   .strict()
   .refine((v) => Object.keys(v).length > 0, { message: "At least one field is required to edit" });
 
+// Tự đổi mật khẩu: phải biết mật khẩu hiện tại, nên không cần token gửi qua email.
+const changeOwnPasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password cannot be empty"),
+    newPassword: z.string().min(6, "New password must be at least 6 characters long"),
+  })
+  .strict();
+
+// Admin đặt lại mật khẩu cho người đã quên: thay cho luồng email (xem users.service).
+const resetPasswordSchema = z
+  .object({ newPassword: z.string().min(6, "New password must be at least 6 characters long") })
+  .strict();
+
 const changeRoleSchema = z.object({ role: lowerEnum(USER_ROLES) }).strict();
 const changeStatusSchema = z.object({ status: lowerEnum(USER_STATUSES) }).strict();
 
@@ -46,4 +59,6 @@ module.exports = {
   updateUserSchema,
   changeRoleSchema,
   changeStatusSchema,
+  changeOwnPasswordSchema,
+  resetPasswordSchema,
 };

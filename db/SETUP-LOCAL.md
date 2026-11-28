@@ -7,7 +7,52 @@ Làm một lần duy nhất cho mục 1–2, sau đó chỉ cần mục 3.
 
 ---
 
-## 1. Cài và khởi động PostgreSQL
+## 0. Cách nhanh: Docker (khuyên dùng)
+
+Có Docker thì bỏ qua mục 1 và 2 — không cần cài PostgreSQL lên máy.
+
+```bash
+docker compose up -d --wait          # ở thư mục gốc của repo
+```
+
+`--wait` đợi tới khi database thật sự nhận kết nối; thiếu nó thì lệnh migrate ở
+mục 3 chạy trước và chết với "connection refused".
+
+Rồi tạo `backend/.env` (file này **không** commit lên git):
+
+```
+DATABASE_URL=postgresql://root:devpass@localhost:5432/test_automation_db
+JWT_SECRET=<chuỗi-ngẫu-nhiên-bất-kỳ-dài>
+```
+
+Nạp bảng + tài khoản mẫu, một lần:
+
+```bash
+cd backend && npm install && npm run migrate
+```
+
+Hằng ngày:
+
+| Việc | Lệnh |
+|---|---|
+| Bật | `docker compose up -d` |
+| Tắt (giữ nguyên dữ liệu) | `docker compose down` |
+| Xoá sạch, nạp lại từ đầu | `docker compose down -v` rồi `up -d --wait` + `npm run migrate` |
+| Xem log database | `docker compose logs -f db` |
+| Vào psql trong container | `docker compose exec db psql -U root -d test_automation_db` |
+
+Dữ liệu nằm trong volume `oop_pgdata`, không nằm trong container: xoá container hay
+nâng cấp image đều không mất. Chỉ `down -v` mới xoá.
+
+**Máy đã có PostgreSQL chiếm cổng 5432** thì tạo file `.env` ở thư mục gốc với
+`DB_PORT=5433`, rồi sửa cổng trong `DATABASE_URL` cho khớp.
+
+**Lỗi `permission denied ... docker.sock`**: user chưa vào nhóm docker —
+`sudo usermod -aG docker $USER` rồi đăng xuất đăng nhập lại, hoặc chạy kèm `sudo`.
+
+---
+
+## 1. Cài và khởi động PostgreSQL (nếu không dùng Docker)
 
 | Hệ điều hành | Lệnh |
 |---|---|

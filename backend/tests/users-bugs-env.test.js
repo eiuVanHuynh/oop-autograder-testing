@@ -42,6 +42,59 @@ test('users: unknown user → 404; UPDATE refused (is an admin) → 409', async 
   assert.equal((await ok.changeRole(3, 'tester', 1)).userRole, 'tester');
 });
 
+// Đổi mật khẩu là luồng "quên mật khẩu" của hệ thống (không có email service), nên các nhánh
+// từ chối ở đây là thứ bảo vệ tài khoản — sai mà không ai thấy ngay.
+test('users: tự đổi mật khẩu — sai mật khẩu cũ, trùng mật khẩu cũ, tài khoản Google', async () => {
+  const bcrypt = require('bcryptjs');
+  const hash = await bcrypt.hash('cu-ro-ri', 10);
+  const svc = (user, onWrite = () => assert.fail('must not write')) =>
+    new UsersService({ userRepository: { findById: async () => user, updatePassword: onWrite } });
+
+  await assert.rejects(
+    () => svc(null).changeOwnPassword(1, { currentPassword: 'x', newPassword: 'moi12345' }),
+    { status: 404 },
+  );
+  // Tài khoản Google: password_hash NULL — bcrypt.compare(null) sẽ nổ thành 500 nếu không chặn.
+  await assert.rejects(
+    () => svc({ user_id: 1, password_hash: null }).changeOwnPassword(1, { currentPassword: 'x', newPassword: 'moi12345' }),
+    { status: 409, code: 'NO_PASSWORD' },
+  );
+  await assert.rejects(
+    () => svc({ user_id: 1, password_hash: hash }).changeOwnPassword(1, { currentPassword: 'sai', newPassword: 'moi12345' }),
+    { status: 401, code: 'INVALID_CREDENTIALS' },
+  );
+  await assert.rejects(
+    () => svc({ user_id: 1, password_hash: hash }).changeOwnPassword(1, { currentPassword: 'cu-ro-ri', newPassword: 'cu-ro-ri' }),
+    { status: 400 },
+  );
+
+  let written;
+  await svc({ user_id: 1, password_hash: hash }, async (id, h) => ((written = { id, h }), true))
+    .changeOwnPassword(1, { currentPassword: 'cu-ro-ri', newPassword: 'moi12345' });
+  assert.equal(written.id, 1);
+  assert.notEqual(written.h, 'moi12345'); // đã hash trước khi tới repository
+  assert.ok(await bcrypt.compare('moi12345', written.h));
+});
+
+test('users: admin đặt lại mật khẩu — không cho chính mình, không cho admin khác', async () => {
+  const svc = (user, onWrite = () => assert.fail('must not write')) =>
+    new UsersService({ userRepository: { findPublicById: async () => user, updatePassword: onWrite } });
+
+  // Tự mình thì dùng /users/me/password, vì đường này không đòi mật khẩu hiện tại.
+  await assert.rejects(() => svc({}).resetUserPassword(5, 'moi12345', 5), { status: 400 });
+  await assert.rejects(() => svc(null).resetUserPassword(9, 'moi12345', 1), { status: 404 });
+  await assert.rejects(
+    () => svc({ user_id: 2, user_role: 'admin' }).resetUserPassword(2, 'moi12345', 1),
+    { status: 409, code: 'ADMIN_PROTECTED' },
+  );
+
+  let written;
+  await svc({ user_id: 3, user_role: 'tester' }, async (id, h) => ((written = { id, h }), true))
+    .resetUserPassword(3, 'moi12345', 1);
+  assert.equal(written.id, 3);
+  assert.notEqual(written.h, 'moi12345');
+});
+
 test('users: create / edit / delete', async () => {
   const admin = { user_id: 2, user_role: 'admin' };
   const svc = (repo) => new UsersService({ userRepository: repo });
@@ -119,6 +172,41 @@ test('GithubActionsRunner only checks the environment name, it does not demand a
   const runner = new GithubActionsRunner({ token: 't', repo: 'o/r' }); // no baseUrls passed
   assert.equal(runner.checkEnv('production'), null); // the secret lives in GitHub, the workflow checks it
   assert.match(runner.checkEnv('prod'), /is not in the list/);
+});
+
+// Đường chạy LOCAL (RUNNER=playwright): reporter của automation/ chỉ chạy trong GitHub Actions,
+// nên ảnh bằng chứng của một case lỗi chỉ có nếu chính PlaywrightRunner chụp.
+test('PlaywrightRunner: ảnh case lỗi thành URL công khai, và lỗi chụp ảnh không làm mất kết quả', async () => {
+  const PlaywrightRunner = require('../src/services/runner/PlaywrightRunner');
+  const added = [];
+  const runner = new PlaywrightRunner({
+    resultRepository: { addEvidences: async (id, rows) => added.push([id, rows]) },
+    baseUrls: { development: 'http://x' },
+    publicApiUrl: 'http://localhost:5000',
+  });
+
+  const shots = [];
+  const page = { screenshot: async (opts) => { shots.push(opts); return Buffer.from('JPEGBYTES'); } };
+  await runner._captureScreenshot(page, 42, 'TC-02', async () => {});
+  // JPEG chứ không PNG: ảnh nằm trong Postgres, PNG 74KB vs JPEG q70 43KB trên ảnh thật.
+  assert.deepEqual(shots[0], { type: 'jpeg', quality: 70 });
+  assert.equal(added.length, 1);
+  const [resultId, rows] = added[0];
+  assert.equal(resultId, 42);
+  // file_path phải là URL tải được, không phải đường dẫn trên máy: đó là thứ <img> của báo cáo dùng.
+  assert.match(rows[0].path, /^http:\/\/localhost:5000\/api\/evidences\/[0-9a-f-]{36}$/);
+  assert.equal(rows[0].mime, 'image/jpeg');
+  assert.ok(rows[0].content.equals(Buffer.from('JPEGBYTES')));
+
+  // Page đã đóng / chụp lỗi: chỉ một dòng warn, KHÔNG ném — kết quả test vừa ghi không được mất theo.
+  const logged = [];
+  await runner._captureScreenshot(
+    { screenshot: async () => { throw new Error('page closed'); } },
+    42, 'TC-02', async (level, msg) => logged.push([level, msg]),
+  );
+  assert.equal(added.length, 1, 'không ghi thêm dòng bằng chứng nào');
+  assert.equal(logged[0][0], 'warn');
+  assert.match(logged[0][1], /TC-02/);
 });
 
 test('bugs: only a failed result can produce a bug report', async () => {

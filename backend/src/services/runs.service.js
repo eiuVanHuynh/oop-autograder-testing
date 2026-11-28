@@ -1,6 +1,7 @@
 const AppError = require("../utils/AppError");
 const { buildGrep } = require("./target");
 const { ENVIRONMENTS } = require("../validators/options");
+const parseJson = require("../utils/parseJson");
 
 // Run tests, follow logs, history, cancel, rerun.
 // Business rules live here. No pg require, no touching req/res.
@@ -8,15 +9,6 @@ const { ENVIRONMENTS } = require("../validators/options");
 
 const RUN_STATUSES = ["running", "passed", "failed", "interrupted"];
 
-const parseJson = (value) => {
-  if (value == null) return null;
-  if (typeof value === "object") return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-};
 
 class RunsService {
   constructor({
@@ -63,6 +55,23 @@ class RunsService {
   async getRunResults(id) {
     await this.getRunById(id);
     return this.resultRepository.findByRun(id);
+  }
+
+  // Bằng chứng của một kết quả trong một lần chạy. Kết quả không thuộc run này → 404,
+  // chứ không trả danh sách rỗng: nhầm resultId phải biết ngay, không phải tưởng là "chưa có ảnh".
+  async getResultEvidences(runId, resultId) {
+    await this.getRunById(runId);
+    const rows = await this.resultRepository.findEvidences(runId, resultId);
+    if (rows === null) throw new AppError(404, "NOT_FOUND", "This run has no such result");
+    return rows;
+  }
+
+  // GET /api/evidences/:token — file bằng chứng. Quyền do route canh (đăng nhập, từ dev trở lên):
+  // ảnh chụp màn hình có thể chứa dữ liệu thật, nên không để sau mỗi cái token khó đoán.
+  async getEvidenceFile(token) {
+    const row = await this.resultRepository.findFileByToken(token);
+    if (!row) throw new AppError(404, "NOT_FOUND", "Evidence not found");
+    return row;
   }
 
   async createRun(userId, data) {
@@ -131,8 +140,15 @@ class RunsService {
         .append(runId, 'info', `[BACKEND] Queued ${testCodes.length} test case(s); the runner takes 1-3 min to start.`)
         .catch(() => {});
     } catch (ciError) {
-      await this.runRepository.markFinished(runId, "failed");
-      throw new AppError(500, "RUNNER_FAILED", `Failed to trigger test runner: ${ciError.message}`);
+      console.error(`[runs] trigger failed for run ${runId}:`, ciError);
+      // Đánh dấu thất bại là việc dọn dẹp: nó lỗi thì vẫn phải báo lỗi gốc, không phải lỗi dọn dẹp.
+      await this.runRepository
+        .markFinished(runId, "failed")
+        .catch((err) => console.error(`[runs] markFinished failed for run ${runId}:`, err));
+      // Thông báo của runner là chi tiết nội bộ (URL, phản hồi GitHub API) — log lại, đừng trả về client.
+      throw new AppError(500, "RUNNER_FAILED", "Could not start the test runner", undefined, {
+        cause: ciError,
+      });
     }
 
     return this.getRunById(runId);
